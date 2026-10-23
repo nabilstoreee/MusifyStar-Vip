@@ -61,8 +61,8 @@
             try {
                 caches.keys().then(function(keys) {
                     keys.forEach(function(k) {
-                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v101') ||
-                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v101')) {
+                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v102') ||
+                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v102')) {
                             caches.delete(k);
                         }
                     });

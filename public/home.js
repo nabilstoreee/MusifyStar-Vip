@@ -81,9 +81,108 @@ var Home = {
         { id: 'PL_nostalgia_warnet', title: 'Nostalgia Warnet 2000-an', artist: 'Peterpan, Sheila on 7, Radja • 14 Lagu', creator: 'MusifyStar Komunitas', songsCount: 14, cover: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=800&auto=format&fit=crop&q=80', badge: 'Klasik' }
     ],
 
+    defaultSections: {
+        pilihan_cepat: [
+            { id: 'fF_-kIK5ZVw', videoId: 'fF_-kIK5ZVw', title: 'Bulan Bintang, Garis Menyilang', artist: 'Sal Priadi', duration: '5:00', cover: 'https://yt3.googleusercontent.com/mgxzoSUMUtltEZo1qSpern-PYorsXDSsOzrVfbMV7Zr7mzHhifnlk4BPHpQybhy5lVC9uvEZ2PZWvZU3HA=w800-h800-l90-rj' },
+            { id: '8LrhiJUxrAg', videoId: '8LrhiJUxrAg', title: 'Peluk Aku Sekarang! (feat. Perunggu)', artist: 'Bernadya', duration: '3:00', cover: 'https://yt3.googleusercontent.com/4_-ytwCqSUkPrYfjkSaY7Cs497XnahcMR7_vCcxoahaUjeoESN6XvxZlrg9FJ2sPYyL75oYZdDg2DPbw=w800-h800-l90-rj' },
+            { id: 'lj-zKp2hLKU', videoId: 'lj-zKp2hLKU', title: 'Ada titik-titik di ujung doa', artist: 'Sal Priadi', duration: '5:00', cover: 'https://yt3.googleusercontent.com/CnRlHvII5qQcoLQ8XW3_0b7qOLpBaDFtrCR-rQaCyKyQxuycqhLUc1PatxRtYFiEpDzZyzWqE1wdO0l9Cw=w800-h800-l90-rj' },
+            { id: '08YMAYAVotI', videoId: '08YMAYAVotI', title: 'Semua lagu cinta', artist: 'Sal Priadi', duration: '3:00', cover: 'https://yt3.googleusercontent.com/CnRlHvII5qQcoLQ8XW3_0b7qOLpBaDFtrCR-rQaCyKyQxuycqhLUc1PatxRtYFiEpDzZyzWqE1wdO0l9Cw=w800-h800-l90-rj' },
+            { id: 'IYKUTTLKbdA', videoId: 'IYKUTTLKbdA', title: 'Di mana alamatmu sekarang', artist: 'Sal Priadi', duration: '5:00', cover: 'https://yt3.googleusercontent.com/CnRlHvII5qQcoLQ8XW3_0b7qOLpBaDFtrCR-rQaCyKyQxuycqhLUc1PatxRtYFiEpDzZyzWqE1wdO0l9Cw=w800-h800-l90-rj' },
+            { id: 'SeZc6Mq1T1g', videoId: 'SeZc6Mq1T1g', title: 'Rabun Jauh', artist: 'Bernadya', duration: '2:00', cover: 'https://yt3.googleusercontent.com/KKoXlJneZYhEmJGFM7_9hq3BQfYEKWMJkA-U_MPWRHG3vJ-ujvKKhgz8esbE_C-tEw3Cw32j1y9uUlY=w800-h800-l90-rj' },
+            { id: 'PkPi-RdXrYo', videoId: 'PkPi-RdXrYo', title: 'Misteri Minggu Pagi', artist: 'Sal Priadi', duration: '5:00', cover: 'https://yt3.googleusercontent.com/NLp7Ny7S04ZN7clASznbwr1_KrwcQzjuDkTqsj6HG-S-OvMbm7YkOxaNHwnPkwgRVjEW7M6HD-PfyIcCdA=w800-h800-l90-rj' },
+            { id: '7NuvY_FoEu8', videoId: '7NuvY_FoEu8', title: 'Menyenangkan Mengenalmu', artist: 'Bernadya', duration: '3:00', cover: 'https://yt3.googleusercontent.com/4_-ytwCqSUkPrYfjkSaY7Cs497XnahcMR7_vCcxoahaUjeoESN6XvxZlrg9FJ2sPYyL75oYZdDg2DPbw=w800-h800-l90-rj' },
+            { id: '8P2p97pYCv8', videoId: '8P2p97pYCv8', title: "I'd like to watch you sleeping", artist: 'Sal Priadi', duration: '5:00', cover: 'https://yt3.googleusercontent.com/CnRlHvII5qQcoLQ8XW3_0b7qOLpBaDFtrCR-rQaCyKyQxuycqhLUc1PatxRtYFiEpDzZyzWqE1wdO0l9Cw=w800-h800-l90-rj' },
+            { id: 'GmZynOKq6Rc', videoId: 'GmZynOKq6Rc', title: 'Bulan Yang Baik', artist: 'Sal Priadi', duration: '4:00', cover: 'https://yt3.googleusercontent.com/ZitXH_wg0JlgZkJdCcRreTyY77K1eyLwvXPYrjYfxamQQzYLfLTPmrTRqSwwdv3dHalvhi88YC7Qzew3Ag=w800-h800-l90-rj' }
+        ],
+        terpopuler_hari_ini: [
+            { id: 'rouojv6Xu8Q', videoId: 'rouojv6Xu8Q', title: 'Bahagia Lagi', artist: 'Piche Kota', duration: '3:00', cover: 'https://yt3.googleusercontent.com/7ecjOVgSXJjNEQWLt-bZSyuUIIU5T9r5GYwvlQfKOH5sZ3AxGwzu-ZrY4R_7SENgv3Efobl9e2XDtkaJYQ=w800-h800-l90-rj' },
+            { id: 'ioJoMpwPdYM', videoId: 'ioJoMpwPdYM', title: 'Pendampingmu #TahtaHatiku', artist: 'Shabrina Leanor', duration: '4:00', cover: 'https://yt3.googleusercontent.com/rGIM1knwzX-0TnIUjUQfJrzjmnEil1qwmNKOJM7dbsha5M3Xd89aKkLKLSDxvteMrlgJRLYIwuXoxc7ANQ=w800-h800-l90-rj' },
+            { id: '5QMsYmJYUlQ', videoId: '5QMsYmJYUlQ', title: 'Kita Usahakan Lagi', artist: 'Batas Senja', duration: '3:00', cover: 'https://yt3.googleusercontent.com/CNJzI56YM9Lm4CfscfWmLiBcF_vWhNpXKZpfAjLEiELf2eDIY-YvM0vPXMNUxmwJNtWeRqUJyxi-4DpO=w800-h800-l90-rj' },
+            { id: 'AnNo_4PwV3k', videoId: 'AnNo_4PwV3k', title: 'Menua Bersamamu', artist: 'Shandy Pagalla Channel', duration: '5:00', cover: 'https://yt3.googleusercontent.com/lKebOySAHZD2Ao5HFk9DCTKnKiPPNO_yH1UJeloywPEl_KNMvgrbPFilWFNCs94x0pAuagsnzLgTiuBI=w800-h800-l90-rj' },
+            { id: 'dsOGH_ZBdCM', videoId: 'dsOGH_ZBdCM', title: 'Masa ini, Nanti, dan Masa Indah Lainnya', artist: 'Nuca', duration: '4:00', cover: 'https://yt3.googleusercontent.com/Gq0LtcHfMAp1VsMM0cHxeKEoy9rILYNAjxx6_Pn_4cVz2v2QLAP5mYJm0aeiJIVQBF85Wi1p1Vu5Dq1X=w800-h800-l90-rj' },
+            { id: 'yiM2Xi-0esg', videoId: 'yiM2Xi-0esg', title: 'Senja Sudut Kota', artist: 'Samuel Cipta', duration: '3:00', cover: 'https://yt3.googleusercontent.com/c666du-YzKLL1P-Vdt8WF9hRHhMGZVnJ0WUICm0HKNkg3qjHNF8SqaFkFm3bZXWOTzmUf3zwrybNQcZh=w800-h800-l90-rj' },
+            { id: '9ZR4G6CqqQA', videoId: '9ZR4G6CqqQA', title: 'TABOLA BALE', artist: 'Diva Aurel', duration: '4:00', cover: 'https://yt3.googleusercontent.com/HxJjyBXxR_eG32d-QKwLjMj7aDovmaEjPhuJdJSdT4Kna0WdvvgpZeUKsYafrIYABXkOfayg1GxBBHWg=w800-h800-l90-rj' },
+            { id: 'k2XdBPv0D3Y', videoId: 'k2XdBPv0D3Y', title: 'Surat Cinta Untuk Starla', artist: 'Virgoun', duration: '5:00', cover: 'https://yt3.googleusercontent.com/4vDNSRQJkhhZjHK1xeBZuwYea4U4fa8ZLFMOKTqXpJoh0a3lbcG4GDWBqpXUpdOq2w2UbgAIdz9aKcm7=w800-h800-l90-rj' },
+            { id: 'D0fzGl640wE', videoId: 'D0fzGl640wE', title: 'Jangan Paksa Rindu', artist: 'Ifan Seventeen', duration: '4:00', cover: 'https://yt3.googleusercontent.com/EhJCP_-PRh3_78t1fSouQ7D3mrBszq3mmXSc1JRxawuMr8C3Gq0bKC--XP1dXp4KW8UdLX09LXba8F4=w800-h800-l90-rj' },
+            { id: 'UmBNAt4xMSE', videoId: 'UmBNAt4xMSE', title: 'Sesi Potret (feat. Ari Lesmana)', artist: 'Ari Lesmana', duration: '4:00', cover: 'https://yt3.googleusercontent.com/WnS8_TSqLTP0D5Ltvu5mypx6ypsFj0dM0fSNvD8vz8K_f18nAU10bNsExXoI6t6mI-zR7ezxPYv3e7w=w800-h800-l90-rj' }
+        ],
+        viral_tiktok: [
+            { id: 'yppiPb2Qhxo', videoId: 'yppiPb2Qhxo', title: 'Cundamani', artist: 'Wahyu DTX', duration: '6:00', cover: 'https://yt3.googleusercontent.com/0C4lkow2wbQFc9gl_TF4qPPYN6P2JGVnpLUR_h9jVD30VjtxZGxMn6hdmTx-3C5k8kuU9O90WWINcdbRuQ=w800-h800-l90-rj' },
+            { id: '3cH1wWXceDQ', videoId: '3cH1wWXceDQ', title: 'DJ BLACK HOLE BREAKBEAT BAILAR REMIX JEDAK JEDUK VIRAL TIKTOK TERBARU 2026', artist: 'Vhioo Remix', duration: '16:00', cover: 'https://i.ytimg.com/vi/3cH1wWXceDQ/hqdefault.jpg' },
+            { id: 'nXjBZ4Dlzw8', videoId: 'nXjBZ4Dlzw8', title: 'Jangan Tunggu Lama Lama', artist: 'Maman Fvndy', duration: '4:00', cover: 'https://yt3.googleusercontent.com/1Z9Ml5ZpMxfosVf6tejMnaOLo6viqThBMH08gPoO7HsAqqOgVii0O3h08JBp0Ws72uape02rnQu1cbnf=w800-h800-l90-rj' },
+            { id: 'rBgkoe2kHEY', videoId: 'rBgkoe2kHEY', title: 'Garam Dan Madu', artist: 'Maman Fvndy', duration: '3:00', cover: 'https://yt3.googleusercontent.com/roO3MSTN3x94Ppz45MeWGwlwMzH6E7REx5gcTjo7OGJZrrpixsxfooFWOOBfVNk4hKIbC_Mu9SNXbhMp=w800-h800-l90-rj' },
+            { id: 'izH5MpV9GfY', videoId: 'izH5MpV9GfY', title: 'DJ PALING ENAK', artist: 'Kristiwa Napu', duration: '9:00', cover: 'https://yt3.googleusercontent.com/jtZkXq35VHKybAwXUIOdrNYFqRqssoRmIn-de4DCyv0GLhzVJ9h-SPPbdXVHpbsV33J7aC82GyfEsvmh=w800-h800-l90-rj' },
+            { id: 'CU_fa-APuj8', videoId: 'CU_fa-APuj8', title: 'MALAM BERCERITA', artist: 'MYCF', duration: '4:00', cover: 'https://yt3.googleusercontent.com/hd4870FDy-y8PLjW7kTD8oYMPysaCAejggGxwQRl33c1N_lmJ_v1dAU398Z0wLZ3EJiLiXlKMWM5Tik=w800-h800-l90-rj' },
+            { id: 'WIdt-c3NiSc', videoId: 'WIdt-c3NiSc', title: 'Aku Dah Lupa', artist: 'Maman Fvndy', duration: '3:00', cover: 'https://yt3.googleusercontent.com/xLAKE23Q97wtX2NBTugGwoZwn4ns17dOO9lpxHBTt098p6k4y_-41uJ8H663QuIAmmLZQvtvgO2iwzvR6g=w800-h800-l90-rj' },
+            { id: '2JMD8LoMSgM', videoId: '2JMD8LoMSgM', title: 'Body Pata Pata', artist: 'Maman Fvndy', duration: '3:00', cover: 'https://yt3.googleusercontent.com/HFm4Qd2jCCH2mXLCBdLj1-HjMkVVUZ6IBehVSgg6NwT4eh1xpqCk1ukvtxuoehn0MT3egO1s0WBW-JY=w800-h800-l90-rj' },
+            { id: '4k3fYo7KbKA', videoId: '4k3fYo7KbKA', title: 'Asmara Kerinduan (Remix)', artist: 'Bhapon Musik', duration: '9:00', cover: 'https://yt3.googleusercontent.com/5mtz-PhNAcClmf1ijXHVNk2iCOPVyPBrOLsQ4grStNr6GsaN62YFInb1H1LPkGZ8H7VszGCn-XyRFsU=w800-h800-l90-rj' },
+            { id: 'ccgsZp2n_f0', videoId: 'ccgsZp2n_f0', title: 'Dj Gadis Manis Kalimantan (Slow Bass Version)', artist: 'BJ RMX', duration: '6:00', cover: 'https://yt3.googleusercontent.com/PTZ3VaAlh2aGs62IRMjA2ZOZCkh4pctSEdqTsFvkp4kb_xDHK9TdSZTuuHn1IS6TUGi8HOMWn4umG1tP=w800-h800-l90-rj' }
+        ],
+        trending_sekarang: [
+            { id: '5F28ye50-Kc', videoId: '5F28ye50-Kc', title: 'Teh Hijau', artist: 'Tulus', duration: '3:00', cover: 'https://yt3.googleusercontent.com/xrGDyYO3umAVFdsdyIM2G451xiAxCD6haJkCQel6TQlqE-XsEUCGsj_Q5Er4YjFpjWqv-_Ze-VaPPL0j=w800-h800-l90-rj' },
+            { id: 'D0fzGl640wE', videoId: 'D0fzGl640wE', title: 'Jangan Paksa Rindu', artist: 'Ifan Seventeen', duration: '4:00', cover: 'https://yt3.googleusercontent.com/EhJCP_-PRh3_78t1fSouQ7D3mrBszq3mmXSc1JRxawuMr8C3Gq0bKC--XP1dXp4KW8UdLX09LXba8F4=w800-h800-l90-rj' },
+            { id: '5QMsYmJYUlQ', videoId: '5QMsYmJYUlQ', title: 'Kita Usahakan Lagi', artist: 'Batas Senja', duration: '3:00', cover: 'https://yt3.googleusercontent.com/CNJzI56YM9Lm4CfscfWmLiBcF_vWhNpXKZpfAjLEiELf2eDIY-YvM0vPXMNUxmwJNtWeRqUJyxi-4DpO=w800-h800-l90-rj' },
+            { id: 'n5Mo9hC9d_Y', videoId: 'n5Mo9hC9d_Y', title: 'Astaga Bercanda', artist: 'Mingse', duration: '2:00', cover: 'https://yt3.googleusercontent.com/AozuFQHuzVlpr4-NtgkxRA5Q9ONXf3P91VsWrqRJbRJiVxIXfiG2tyMBv0lQ1rV-MVSoB9fwbUSMGdzX=w800-h800-l90-rj' },
+            { id: 'UmBNAt4xMSE', videoId: 'UmBNAt4xMSE', title: 'Sesi Potret (feat. Ari Lesmana)', artist: 'Ari Lesmana', duration: '4:00', cover: 'https://yt3.googleusercontent.com/WnS8_TSqLTP0D5Ltvu5mypx6ypsFj0dM0fSNvD8vz8K_f18nAU10bNsExXoI6t6mI-zR7ezxPYv3e7w=w800-h800-l90-rj' },
+            { id: '75QpOXSynaI', videoId: '75QpOXSynaI', title: 'Gadis Manis Kalimantan', artist: 'Maman Fvndy', duration: '4:00', cover: 'https://yt3.googleusercontent.com/QEMShyyC3Jy26zqcRVp6Tizndn9P616lV_TnbQ2qC4yPaoiXn2ba7p31RyfSkhqtz1ofzgBUr4iDe4E=w800-h800-l90-rj' },
+            { id: 'n8rLISm84_k', videoId: 'n8rLISm84_k', title: 'Kenangan Terindah', artist: 'SAMSONS', duration: '4:00', cover: 'https://yt3.googleusercontent.com/XW4hSDaZw1EuQ2IPDFBtM8DrEvwSpZnYpIbsBB_TJeeCJ7ZbesyY3EMQUi_i5FjC2lpoEJxNvqZAXLbj=w800-h800-l90-rj' },
+            { id: '9ZR4G6CqqQA', videoId: '9ZR4G6CqqQA', title: 'TABOLA BALE', artist: 'Diva Aurel', duration: '4:00', cover: 'https://yt3.googleusercontent.com/HxJjyBXxR_eG32d-QKwLjMj7aDovmaEjPhuJdJSdT4Kna0WdvvgpZeUKsYafrIYABXkOfayg1GxBBHWg=w800-h800-l90-rj' },
+            { id: 'FfyvKLn4SGw', videoId: 'FfyvKLn4SGw', title: "Somebody's Pleasure", artist: 'Aziz Hedra', duration: '3:00', cover: 'https://yt3.googleusercontent.com/ssV5bbXeZH9vVc18IISVEuLUv1p4EDknS6rVff6gE3CIR9PC5RQIo3bbwf1nx5ObmcOPNKBy0XXiX3sD8A=w800-h800-l90-rj' },
+            { id: 'rouojv6Xu8Q', videoId: 'rouojv6Xu8Q', title: 'Bahagia Lagi', artist: 'Piche Kota', duration: '3:00', cover: 'https://yt3.googleusercontent.com/7ecjOVgSXJjNEQWLt-bZSyuUIIU5T9r5GYwvlQfKOH5sZ3AxGwzu-ZrY4R_7SENgv3Efobl9e2XDtkaJYQ=w800-h800-l90-rj' }
+        ],
+        rilis_terbaru: [
+            { id: 'D0fzGl640wE', videoId: 'D0fzGl640wE', title: 'Jangan Paksa Rindu', artist: 'Ifan Seventeen', duration: '4:00', cover: 'https://yt3.googleusercontent.com/EhJCP_-PRh3_78t1fSouQ7D3mrBszq3mmXSc1JRxawuMr8C3Gq0bKC--XP1dXp4KW8UdLX09LXba8F4=w800-h800-l90-rj' },
+            { id: '5F28ye50-Kc', videoId: '5F28ye50-Kc', title: 'Teh Hijau', artist: 'Tulus', duration: '3:00', cover: 'https://yt3.googleusercontent.com/xrGDyYO3umAVFdsdyIM2G451xiAxCD6haJkCQel6TQlqE-XsEUCGsj_Q5Er4YjFpjWqv-_Ze-VaPPL0j=w800-h800-l90-rj' },
+            { id: 'rouojv6Xu8Q', videoId: 'rouojv6Xu8Q', title: 'Bahagia Lagi', artist: 'Piche Kota', duration: '3:00', cover: 'https://yt3.googleusercontent.com/7ecjOVgSXJjNEQWLt-bZSyuUIIU5T9r5GYwvlQfKOH5sZ3AxGwzu-ZrY4R_7SENgv3Efobl9e2XDtkaJYQ=w800-h800-l90-rj' },
+            { id: 'RX6cckKMEGw', videoId: 'RX6cckKMEGw', title: 'Tak Setara', artist: 'Virgoun', duration: '4:00', cover: 'https://yt3.googleusercontent.com/qrtQje9rNfrGmaG-8kM_ZPCmvSibXWTG8yn1R5XC8mDrEKM79S94AGGhOSg5bJXbdz_2pqe7Hszh11BwKQ=w800-h800-l90-rj' },
+            { id: '5QMsYmJYUlQ', videoId: '5QMsYmJYUlQ', title: 'Kita Usahakan Lagi', artist: 'Batas Senja', duration: '3:00', cover: 'https://yt3.googleusercontent.com/CNJzI56YM9Lm4CfscfWmLiBcF_vWhNpXKZpfAjLEiELf2eDIY-YvM0vPXMNUxmwJNtWeRqUJyxi-4DpO=w800-h800-l90-rj' },
+            { id: 'NcbxQom0Jpk', videoId: 'NcbxQom0Jpk', title: '1000X', artist: 'Ghea Indrawari', duration: '4:00', cover: 'https://yt3.googleusercontent.com/XRjz6gom3U3nnqugJAD9YZM6KWup4F3F79U0e_mK1hgZ-MfUrONb17HFjSEczVd758HDsfPJd6AOdnM=w800-h800-l90-rj' },
+            { id: 'aeBWozVfP7M', videoId: 'aeBWozVfP7M', title: 'HILANG BARU TARASO', artist: 'Rayola', duration: '6:00', cover: 'https://yt3.googleusercontent.com/AwJbLlH_g1Fk9ao-j1kcKCYgxsV9nJe8dMyxbTi9LHY3KsYWbWLFwVPCvoepkHjPNB0jHKAm7bi6Nvg9=w800-h800-l90-rj' },
+            { id: '0Ut8-PD85Fs', videoId: '0Ut8-PD85Fs', title: 'Cerita Indah (feat. Fresly Nikijuluw)', artist: 'Vicky Salamor', duration: '5:00', cover: 'https://yt3.googleusercontent.com/17L4d5AVUwPPjfFo5ydEkmYrZNgF5ymM5YAU2muF4XZYSLBKo459SrUmS3l_ksJ7rRTHWvDvS9_hWJQH=w800-h800-l90-rj' },
+            { id: '1XZiECettw8', videoId: '1XZiECettw8', title: 'Tenang', artist: 'Andi Rianto', duration: '4:00', cover: 'https://yt3.googleusercontent.com/zpK5opDfJHAf3zurFa4Hv9lrnR1KSZTim_g7eFsN8ogY5dEQwMzzH1g-O14fa5sMRhp8-4qCMZZeBuI=w800-h800-l90-rj' },
+            { id: 'BLQPNaBklGA', videoId: 'BLQPNaBklGA', title: 'Negoro Angin', artist: 'Denny Caknan', duration: '5:00', cover: 'https://yt3.googleusercontent.com/qVb_uk5JJ-FyTIoESoeL080jtUIIvjdN-aQbRtUTREMMsenXd-txpbgtYaoYi5t3G7h_GBwT79zD5ppkEA=w800-h800-l90-rj' }
+        ],
+        top_50_indo: [
+            { id: '5F28ye50-Kc', videoId: '5F28ye50-Kc', title: 'Teh Hijau', artist: 'Tulus', duration: '3:00', cover: 'https://yt3.googleusercontent.com/xrGDyYO3umAVFdsdyIM2G451xiAxCD6haJkCQel6TQlqE-XsEUCGsj_Q5Er4YjFpjWqv-_Ze-VaPPL0j=w800-h800-l90-rj' },
+            { id: 'UmBNAt4xMSE', videoId: 'UmBNAt4xMSE', title: 'Sesi Potret (feat. Ari Lesmana)', artist: 'Ari Lesmana', duration: '4:00', cover: 'https://yt3.googleusercontent.com/WnS8_TSqLTP0D5Ltvu5mypx6ypsFj0dM0fSNvD8vz8K_f18nAU10bNsExXoI6t6mI-zR7ezxPYv3e7w=w800-h800-l90-rj' },
+            { id: 'Zq1Jg0H5fzc', videoId: 'Zq1Jg0H5fzc', title: 'everything u are', artist: 'Hindia', duration: '3:00', cover: 'https://yt3.googleusercontent.com/pP42VdTGrlRG0oCRZdgwhZ57R6CpfWDtewbZ9Mlg6gNoKWAjY4R59sGt_Le_zdWHh6hpNeRobL8aBVxwVQ=w800-h800-l90-rj' },
+            { id: 'lj-zKp2hLKU', videoId: 'lj-zKp2hLKU', title: 'Ada titik-titik di ujung doa', artist: 'Sal Priadi', duration: '5:00', cover: 'https://yt3.googleusercontent.com/CnRlHvII5qQcoLQ8XW3_0b7qOLpBaDFtrCR-rQaCyKyQxuycqhLUc1PatxRtYFiEpDzZyzWqE1wdO0l9Cw=w800-h800-l90-rj' },
+            { id: 'rouojv6Xu8Q', videoId: 'rouojv6Xu8Q', title: 'Bahagia Lagi', artist: 'Piche Kota', duration: '3:00', cover: 'https://yt3.googleusercontent.com/7ecjOVgSXJjNEQWLt-bZSyuUIIU5T9r5GYwvlQfKOH5sZ3AxGwzu-ZrY4R_7SENgv3Efobl9e2XDtkaJYQ=w800-h800-l90-rj' },
+            { id: 'qkC4waEZVt4', videoId: 'qkC4waEZVt4', title: 'Rahasia Hati', artist: 'NIDJI', duration: '4:00', cover: 'https://yt3.googleusercontent.com/BBwze-UA-5yXDXvA0Xlo6s7wscduYbGLrFr86fzZh9YF-ZMbj0W3UbietgHeixksRtqNEjDa8lduHmKuLg=w800-h800-l90-rj' },
+            { id: 'u0TGmIDOY4s', videoId: 'u0TGmIDOY4s', title: 'Pulang', artist: 'Insomniacks', duration: '4:00', cover: 'https://yt3.googleusercontent.com/er1eRS9TJGiDOFBqcXxsw4wu6jFq5InV39zF2AH0-OxWMjAlGOMhJHWxOcKwUmsIH0LMOdyEA2SHmSnmsA=w800-h800-l90-rj' },
+            { id: '5QMsYmJYUlQ', videoId: '5QMsYmJYUlQ', title: 'Kita Usahakan Lagi', artist: 'Batas Senja', duration: '3:00', cover: 'https://yt3.googleusercontent.com/CNJzI56YM9Lm4CfscfWmLiBcF_vWhNpXKZpfAjLEiELf2eDIY-YvM0vPXMNUxmwJNtWeRqUJyxi-4DpO=w800-h800-l90-rj' },
+            { id: '9ZR4G6CqqQA', videoId: '9ZR4G6CqqQA', title: 'TABOLA BALE', artist: 'Diva Aurel', duration: '4:00', cover: 'https://yt3.googleusercontent.com/HxJjyBXxR_eG32d-QKwLjMj7aDovmaEjPhuJdJSdT4Kna0WdvvgpZeUKsYafrIYABXkOfayg1GxBBHWg=w800-h800-l90-rj' },
+            { id: 'D0fzGl640wE', videoId: 'D0fzGl640wE', title: 'Jangan Paksa Rindu', artist: 'Ifan Seventeen', duration: '4:00', cover: 'https://yt3.googleusercontent.com/EhJCP_-PRh3_78t1fSouQ7D3mrBszq3mmXSc1JRxawuMr8C3Gq0bKC--XP1dXp4KW8UdLX09LXba8F4=w800-h800-l90-rj' }
+        ],
+        santai_akustik: [
+            { id: 'LW0ltko-TpI', videoId: 'LW0ltko-TpI', title: 'Melukis Senja', artist: 'Budi Doremi', duration: '4:00', cover: 'https://yt3.googleusercontent.com/0L0lkttCMNHjRHUkSFbMu0DEGncMiOmamDECdb847xXVAxvnq-vWZ3OFBjy4qhNYLHBDyJpSuc1J_fo=w800-h800-l90-rj' },
+            { id: '5QMsYmJYUlQ', videoId: '5QMsYmJYUlQ', title: 'Kita Usahakan Lagi', artist: 'Batas Senja', duration: '3:00', cover: 'https://yt3.googleusercontent.com/CNJzI56YM9Lm4CfscfWmLiBcF_vWhNpXKZpfAjLEiELf2eDIY-YvM0vPXMNUxmwJNtWeRqUJyxi-4DpO=w800-h800-l90-rj' },
+            { id: 'V697wAtn6cI', videoId: 'V697wAtn6cI', title: 'Nanti Kita Seperti Ini', artist: 'BATAS SENJA', duration: '3:00', cover: 'https://yt3.googleusercontent.com/fWMqPQ9ebElRuZVQnNC1JzhbFDu66wLcDpKk2juEhGyRNOjcvL-5AuoLclYuM2c54TeAPSGkHkSkUzEZ=w800-h800-l90-rj' },
+            { id: 'rRBJfpmYN08', videoId: 'rRBJfpmYN08', title: 'Menuju Senja', artist: 'Payung Teduh', duration: '5:00', cover: 'https://yt3.googleusercontent.com/mi84OPSQF0RFm6tZCM4aItW8kZ6e6YIF4C3U6R_IX6LfjtOGeo8R4RdQhO0d2H0WXVkDatWGittYVVc=w800-h800-l90-rj' },
+            { id: 'vq2wjFKHDkg', videoId: 'vq2wjFKHDkg', title: 'Bunga Maaf (Acoustic)', artist: 'Grace Kaitlin', duration: '4:00', cover: 'https://yt3.googleusercontent.com/oy8UJgsaf1F0Ih6hr5TmseT37SDWAqGctcMDxguEybdijxLkVYS7oQDlpqC3LLAOtG-ElXJOIY0MlCRbMA=w800-h800-l90-rj' },
+            { id: 'yiM2Xi-0esg', videoId: 'yiM2Xi-0esg', title: 'Senja Sudut Kota', artist: 'Samuel Cipta', duration: '3:00', cover: 'https://yt3.googleusercontent.com/c666du-YzKLL1P-Vdt8WF9hRHhMGZVnJ0WUICm0HKNkg3qjHNF8SqaFkFm3bZXWOTzmUf3zwrybNQcZh=w800-h800-l90-rj' },
+            { id: 'AnNo_4PwV3k', videoId: 'AnNo_4PwV3k', title: 'Menua Bersamamu', artist: 'Shandy Pagalla Channel', duration: '5:00', cover: 'https://yt3.googleusercontent.com/lKebOySAHZD2Ao5HFk9DCTKnKiPPNO_yH1UJeloywPEl_KNMvgrbPFilWFNCs94x0pAuagsnzLgTiuBI=w800-h800-l90-rj' },
+            { id: 'UmBNAt4xMSE', videoId: 'UmBNAt4xMSE', title: 'Sesi Potret (feat. Ari Lesmana)', artist: 'Ari Lesmana', duration: '4:00', cover: 'https://yt3.googleusercontent.com/WnS8_TSqLTP0D5Ltvu5mypx6ypsFj0dM0fSNvD8vz8K_f18nAU10bNsExXoI6t6mI-zR7ezxPYv3e7w=w800-h800-l90-rj' },
+            { id: '-07Xbws-LB4', videoId: '-07Xbws-LB4', title: 'Bersenja Gurau', artist: 'Raim Laode', duration: '3:00', cover: 'https://yt3.googleusercontent.com/nQBSWQqbSoLRqLZkB0CWXDlpYuCygMvgesBPRFQmm2eZZlQUcMLtmsHjUrfY8wK6gQvVwy_dsL9ONjo=w800-h800-l90-rj' },
+            { id: 'F_XNNVO5zUU', videoId: 'F_XNNVO5zUU', title: 'Pacarku Yang Cantik', artist: 'Sunset', duration: '5:00', cover: 'https://yt3.googleusercontent.com/x4B53ZaSlKcgEnEIE4F-ujAfRTYLPfgJBgoyNgpyR0ubSy_XyNJ2jTOZOHyrWMpCmN1BjpZF-PpFH3Hi=w800-h800-l90-rj' }
+        ],
+        nostalgia_indo: [
+            { id: 'k1BfsO0mxWQ', videoId: 'k1BfsO0mxWQ', title: 'Dan...', artist: 'Sheila On 7', duration: '4:00', cover: 'https://yt3.googleusercontent.com/h52YQ8oAiGCiZFp5W1RGaj8GQMde1hNmYV7_ad3XgWcygvz7riguymmuvMj2yUoP1qhU2C3zoDJu72w=w800-h800-l90-rj' },
+            { id: 'Y90xQ-bxkWU', videoId: 'Y90xQ-bxkWU', title: 'Sephia', artist: 'Sheila On 7', duration: '4:00', cover: 'https://yt3.googleusercontent.com/uRNMjIdr9gJMlYK3iB0ELqVQZf7zOy7CopKWBYp3oYOqH0WEI099MlplqwwPArkYa50PWRGJaxNWVgFz=w800-h800-l90-rj' },
+            { id: '-e_VUdAXZXY', videoId: '-e_VUdAXZXY', title: 'Melompat Lebih Tinggi', artist: 'Sheila On 7', duration: '3:00', cover: 'https://yt3.googleusercontent.com/6DnShx3WB0NiYvVCCuUsYSIOlaUzQV7woHhWAvSVdQfoPTuOrq7DyB3hj25J14_OaNDsEZeN4RQBTjZ8=w800-h800-l90-rj' },
+            { id: 'YKK5_OQiEa4', videoId: 'YKK5_OQiEa4', title: 'Kangen', artist: 'Dewa 19', duration: '5:00', cover: 'https://yt3.googleusercontent.com/0X2smLKVh_UoeMveIyPwCq-6LvVoHsuqa2w-ib-62OJS04wdXmeibdGhfxU8TRzghN7Dg6sNsmBtKCo=w800-h800-l90-rj' },
+            { id: '2fcoKwfNNsE', videoId: '2fcoKwfNNsE', title: 'Berhenti Berharap', artist: 'Sheila On 7', duration: '5:00', cover: 'https://yt3.googleusercontent.com/6DnShx3WB0NiYvVCCuUsYSIOlaUzQV7woHhWAvSVdQfoPTuOrq7DyB3hj25J14_OaNDsEZeN4RQBTjZ8=w800-h800-l90-rj' },
+            { id: 'Lw17JMX-ILk', videoId: 'Lw17JMX-ILk', title: 'Sahabat Jadi Cinta', artist: 'Zigaz', duration: '3:00', cover: 'https://yt3.googleusercontent.com/XFcbW_Rnikz2-zJDhGnGRuaKG5pW0fJUMKlDmtpTwe2dnOCoPAVT_oc3evmzSJs4YYVD1hmcIeN6UlM=w800-h800-l90-rj' },
+            { id: 'Qu4QWfa-yX4', videoId: 'Qu4QWfa-yX4', title: 'Sebuah Kisah Klasik', artist: 'Sheila On 7', duration: '4:00', cover: 'https://yt3.googleusercontent.com/uRNMjIdr9gJMlYK3iB0ELqVQZf7zOy7CopKWBYp3oYOqH0WEI099MlplqwwPArkYa50PWRGJaxNWVgFz=w800-h800-l90-rj' },
+            { id: 'kitkOTxGfjI', videoId: 'kitkOTxGfjI', title: 'Separuh Nafas', artist: 'Dewa 19', duration: '3:00', cover: 'https://yt3.googleusercontent.com/N3M5JqmaFqDtGjCAm9tPKTl4AIgTV8EDrqXJ3Twq-SCAdI0faC4lBlmY5Nb42ONatHxM98CepCXawlap=w800-h800-l90-rj' },
+            { id: '5a0EkeqWNBs', videoId: '5a0EkeqWNBs', title: 'Aku Milikmu', artist: 'Dewa 19', duration: '5:00', cover: 'https://yt3.googleusercontent.com/e7Q5TF9qRIN8rME4t7aU_gkAcKyCgoD1ywCSfWk5-Xd3RjXFAE5vIRWexZyBR2arDpHaYUru3GSREjhO=w800-h800-l90-rj' },
+            { id: 'WvOmQYbNEY8', videoId: 'WvOmQYbNEY8', title: 'Itu Aku', artist: 'Sheila On 7', duration: '4:00', cover: 'https://yt3.googleusercontent.com/I9tPrYRq1rvGwBAYzSVVqqvKXV-rErc5Evqwyj5U5wMD4ZJCKbpmtyqEK7l9Iz-cK22bvcQGqkIoQrc=w800-h800-l90-rj' }
+        ]
+    },
+
     initCache() {
         try {
-            var raw = localStorage.getItem('musifystar_home_sections_cache_v4');
+            var raw = localStorage.getItem('musifystar_home_sections_cache_v5');
             if (raw) {
                 var parsed = JSON.parse(raw);
                 if (parsed && typeof parsed === 'object') {
@@ -95,6 +194,15 @@ var Home = {
                 }
             }
         } catch(e) {}
+
+        // Guarantee non-empty sections on first paint using verified defaultSections
+        if (Home.defaultSections) {
+            Object.keys(Home.defaultSections).forEach(function(k) {
+                if (!Array.isArray(Home.sections[k]) || Home.sections[k].length === 0) {
+                    Home.sections[k] = Home.defaultSections[k];
+                }
+            });
+        }
 
         // Always guarantee the latest verified popular artists and community playlists are used
         Home.sections.artis_populer = Home.defaultArtists;
@@ -505,38 +613,55 @@ var Home = {
 
     async fetch() {
         if (!navigator.onLine) return;
+        var applied = false;
         try {
-            var res = await fetch(API.homeSections || '/api/home-sections');
+            var res = await fetch((API.homeSections || '/api/home-sections') + '?v=5');
             var data = await res.json();
             if (data && data.status && data.sections) {
                 Object.keys(data.sections).forEach(function(k) {
                     if (Array.isArray(data.sections[k]) && data.sections[k].length > 0) {
                         Home.sections[k] = deepFreeze(data.sections[k]);
+                        if (k === 'pilihan_cepat') applied = true;
                     }
                 });
-
-                if (typeof S !== 'undefined') {
-                    S.homeSections = Home.sections;
-                    S.ht = Home.sections.pilihan_cepat || [];
-                    S.ha = Home.sections.artis_populer || [];
-                    S.hp = Home.sections.playlist_komunitas || [];
-                    try {
-                        deepFreeze(S.homeSections);
-                        deepFreeze(S.ht);
-                        deepFreeze(S.ha);
-                        deepFreeze(S.hp);
-                    } catch(e) {}
-                }
-
-                try {
-                    localStorage.setItem('musifystar_home_sections_cache_v4', JSON.stringify(Home.sections));
-                } catch(e) {}
-
-                Home.show();
             }
         } catch (e) {
-            console.warn('[Home] Background sync failed:', e.message);
+            console.warn('[Home] Primary home-sections fetch failed:', e.message);
         }
+
+        // Fallback to static /verified_sections.json if API returned empty on serverless cold start
+        if (!applied || !Home.sections.top_50_indo || Home.sections.top_50_indo.length < 20) {
+            try {
+                var staticRes = await fetch('/verified_sections.json');
+                var staticData = await staticRes.json();
+                if (staticData && typeof staticData === 'object') {
+                    Object.keys(staticData).forEach(function(k) {
+                        if (Array.isArray(staticData[k]) && staticData[k].length > 0) {
+                            Home.sections[k] = deepFreeze(staticData[k]);
+                        }
+                    });
+                }
+            } catch (e2) {}
+        }
+
+        if (typeof S !== 'undefined') {
+            S.homeSections = Home.sections;
+            S.ht = Home.sections.pilihan_cepat || [];
+            S.ha = Home.sections.artis_populer || [];
+            S.hp = Home.sections.playlist_komunitas || [];
+            try {
+                deepFreeze(S.homeSections);
+                deepFreeze(S.ht);
+                deepFreeze(S.ha);
+                deepFreeze(S.hp);
+            } catch(e) {}
+        }
+
+        try {
+            localStorage.setItem('musifystar_home_sections_cache_v5', JSON.stringify(Home.sections));
+        } catch(e) {}
+
+        Home.show();
     },
 
     // Renders all 10 requested sections into the DOM

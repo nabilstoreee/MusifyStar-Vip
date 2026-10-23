@@ -1,10 +1,11 @@
-const CACHE_STATIC_NAME = 'MusifyStar-static-v101';
-const CACHE_DATA_NAME = 'MusifyStar-api-v101';
+const CACHE_STATIC_NAME = 'MusifyStar-static-v102';
+const CACHE_DATA_NAME = 'MusifyStar-api-v102';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/verified_sections.json',
   '/logo.png',
   '/banner.png',
   '/app.js',
