@@ -90,48 +90,97 @@ const DEFAULT_VIP_BENEFITS = [
     }
 ];
 
+const crypto = require('crypto');
+const USER_JWT_SECRET = process.env.USER_JWT_SECRET || 'musifystar_user_secret_key_v2_sign_98741';
+
 const DEFAULT_PAYMENT_CONFIG = {
     qrisUrl: '/qris.png',
     qrisFilename: 'QRIS-MusifyStar-Nabil.png',
     qrisHolder: 'NABIL (MusifyStar Official)',
     adminWhatsapp: '6281234567890',
-    accounts: [
-        {
-            id: 'acc_seabank',
-            bankName: 'SeaBank',
-            accountNumber: '9012 3456 7890',
-            accountHolder: 'NABIL (MusifyStar)',
-            badge: 'Prioritas Bebas Admin',
-            icon: 'credit-card'
-        },
-        {
-            id: 'acc_dana',
-            bankName: 'DANA / GoPay',
-            accountNumber: '0812 3456 7890',
-            accountHolder: 'NABIL',
-            badge: 'E-Wallet',
-            icon: 'smartphone'
-        }
-    ],
+    accounts: [],
     packages: DEFAULT_VIP_PACKAGES,
     benefits: DEFAULT_VIP_BENEFITS,
+    showAccounts: true,
     title: 'MusifyStar VIP Membership',
     description: 'Upgrade akun Anda sekarang untuk menikmati akses tak terbatas ke semua avatar, border eksklusif, serta audio Ultra HD bebas iklan.',
     note: 'Pembayaran instan didukung semua aplikasi Bank & E-Wallet (BCA, Mandiri, BRI, BNI, Dana, GoPay, OVO, ShopeePay, LinkAja).',
     updatedAt: new Date().toISOString()
 };
 
+async function isAdminAuthorized(req) {
+    const adminToken = req.headers['x-admin-token'] || req.query.token || '';
+    if (adminToken && adminAuth.isValidToken(adminToken)) {
+        return true;
+    }
+
+    const rawAuth = req.headers.authorization || adminToken || '';
+    const cleanToken = String(rawAuth).replace(/^Bearer\s+/i, '').trim();
+    if (!cleanToken) return false;
+
+    if (adminAuth.isValidToken(cleanToken)) {
+        return true;
+    }
+
+    try {
+        const usersData = await storage.readDataAsync('users.json', { users: [], sessions: {} });
+        let userId = null;
+
+        if (cleanToken.startsWith('usr_')) {
+            const parts = cleanToken.slice(4).split('.');
+            if (parts.length === 2) {
+                const [payloadStr, signature] = parts;
+                const expectedSig = crypto.createHmac('sha256', USER_JWT_SECRET).update(payloadStr).digest('base64url');
+                if (signature === expectedSig) {
+                    const payload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString('utf8'));
+                    if (payload && payload.uid && (!payload.exp || Math.floor(Date.now() / 1000) < payload.exp)) {
+                        userId = typeof payload.uid === 'object' ? (payload.uid.id || payload.uid.userId) : String(payload.uid);
+                    }
+                }
+            }
+        }
+
+        if (!userId && usersData.sessions && usersData.sessions[cleanToken]) {
+            const s = usersData.sessions[cleanToken];
+            userId = typeof s.userId === 'object' ? (s.userId.id || s.userId.userId) : String(s.userId);
+        }
+
+        if (userId && Array.isArray(usersData.users)) {
+            const user = usersData.users.find(u => u && String(u.id || u.userId) === String(userId));
+            if (user) {
+                const email = String(user.email || user.rawEmail || '').toLowerCase().trim();
+                if (user.role === 'admin' || email === 'jrnabil570@gmail.com') {
+                    return true;
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[PAYMENT_CONFIG] Admin auth check error:', e.message);
+    }
+
+    return false;
+}
+
 async function getPaymentConfig() {
     try {
         const data = await storage.readDataAsync(PAYMENT_CONFIG_FILE, DEFAULT_PAYMENT_CONFIG);
         if (data && typeof data === 'object') {
+            const cleanedAccounts = Array.isArray(data.accounts)
+                ? data.accounts.filter(acc => {
+                    if (!acc) return false;
+                    const num = String(acc.accountNumber || '').trim();
+                    if (num === '9012 3456 7890' || num === '0812 3456 7890') return false;
+                    return Boolean(acc.bankName || acc.accountNumber);
+                })
+                : [];
             return {
                 qrisUrl: data.qrisUrl || (data.qrisBase64 ? data.qrisBase64 : '/qris.png'),
                 qrisBase64: data.qrisBase64 || null,
                 qrisFilename: data.qrisFilename || 'QRIS-MusifyStar-Nabil.png',
                 qrisHolder: data.qrisHolder || 'NABIL (MusifyStar Official)',
                 adminWhatsapp: data.adminWhatsapp || DEFAULT_PAYMENT_CONFIG.adminWhatsapp || '6281234567890',
-                accounts: Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_PAYMENT_CONFIG.accounts,
+                accounts: cleanedAccounts,
+                showAccounts: data.showAccounts !== false,
                 packages: Array.isArray(data.packages) && data.packages.length ? data.packages : DEFAULT_VIP_PACKAGES,
                 benefits: Array.isArray(data.benefits) && data.benefits.length ? data.benefits : DEFAULT_VIP_BENEFITS,
                 title: data.title || DEFAULT_PAYMENT_CONFIG.title,
@@ -280,8 +329,8 @@ module.exports = async (req, res) => {
 
     // POST /api/payment-config (Admin Update Config)
     if (req.method === 'POST') {
-        const token = req.headers['x-admin-token'] || req.query.token;
-        if (!token || !adminAuth.isValidToken(token)) {
+        const authorized = await isAdminAuthorized(req);
+        if (!authorized) {
             return res.status(401).json({
                 status: false,
                 message: 'Akses ditolak: Token admin tidak valid atau kedaluwarsa'
@@ -360,6 +409,7 @@ module.exports = async (req, res) => {
                 badge: String(acc.badge || 'Transfer').trim(),
                 icon: String(acc.icon || 'credit-card').trim()
             })) : currentConfig.accounts,
+            showAccounts: body.showAccounts !== undefined ? Boolean(body.showAccounts) : (currentConfig.showAccounts !== false),
             packages: updatedPackages,
             benefits: updatedBenefits,
             title: (body.title && typeof body.title === 'string') ? body.title.trim() : currentConfig.title,
