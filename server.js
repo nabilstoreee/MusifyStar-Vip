@@ -151,6 +151,8 @@ function getAllowedOrigin(req) {
             if (
                 (fHost && originUrl.host === fHost) ||
                 (rHost && originUrl.host === rHost) ||
+                originUrl.host.endsWith('.vercel.app') ||
+                originUrl.host.endsWith('.netlify.app') ||
                 originUrl.host.endsWith('.run.app') ||
                 originUrl.host.endsWith('.usercontent.goog') ||
                 originUrl.host.endsWith('.google.com')
@@ -183,6 +185,15 @@ app.use((req, res, next) => {
 
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
+    }
+    next();
+});
+
+// Ensure storage engine has loaded initial keys on serverless cold starts
+const storage = require('./api/storage.js');
+app.use('/api', async (req, res, next) => {
+    if (typeof storage.waitForInit === 'function') {
+        try { await storage.waitForInit(2500); } catch (e) {}
     }
     next();
 });
