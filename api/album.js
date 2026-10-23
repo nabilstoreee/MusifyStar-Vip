@@ -2,13 +2,33 @@ const https = require('https');
 const storage = require('./storage.js');
 const API_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
 
+let BUNDLED_COMMUNITY_PLAYLISTS = null;
+try {
+    BUNDLED_COMMUNITY_PLAYLISTS = require('./community_playlists.json');
+} catch (e) {}
+
 let communityPlaylists = null;
 function getCommunityPlaylists() {
-    if (communityPlaylists) return communityPlaylists;
+    if (communityPlaylists && Object.keys(communityPlaylists).length > 0) return communityPlaylists;
     try {
-        communityPlaylists = storage.readData('community_playlists.json', null);
+        const stored = storage.readData('community_playlists.json', BUNDLED_COMMUNITY_PLAYLISTS);
+        if (stored && typeof stored === 'object') {
+            communityPlaylists = stored;
+        }
     } catch (e) {}
-    return communityPlaylists;
+    return communityPlaylists || BUNDLED_COMMUNITY_PLAYLISTS;
+}
+
+async function getCommunityPlaylistsAsync() {
+    if (communityPlaylists && Object.keys(communityPlaylists).length > 0) return communityPlaylists;
+    try {
+        const stored = await storage.readDataAsync('community_playlists.json', BUNDLED_COMMUNITY_PLAYLISTS);
+        if (stored && typeof stored === 'object' && Object.keys(stored).length > 0) {
+            communityPlaylists = stored;
+            return communityPlaylists;
+        }
+    } catch (e) {}
+    return BUNDLED_COMMUNITY_PLAYLISTS || getCommunityPlaylists();
 }
 
 function getRunsText(r) { return Array.isArray(r) ? r.map(x=>x.text||'').join('') : ''; }
@@ -67,7 +87,7 @@ module.exports = async (req, res) => {
     if (!id) { res.status(400).json({ status: false, message: 'Parameter id wajib diisi' }); return; }
     
     // Instant response for curated community playlists
-    const playlists = getCommunityPlaylists();
+    const playlists = (await getCommunityPlaylistsAsync()) || BUNDLED_COMMUNITY_PLAYLISTS;
     if (playlists && playlists[id]) {
         const cp = playlists[id];
         return res.status(200).json({

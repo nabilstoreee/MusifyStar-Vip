@@ -128,8 +128,29 @@ async function writeToPostgres(key, data) {
     }
 }
 
+function loadLocalFallbackFile(key) {
+    const candidates = [
+        path.join(__dirname, key),
+        path.join(__dirname, '..', 'public', key),
+        path.join(__dirname, '..', key)
+    ];
+    for (const filePath of candidates) {
+        try {
+            if (fs.existsSync(filePath)) {
+                const raw = fs.readFileSync(filePath, 'utf8');
+                const parsed = JSON.parse(raw);
+                if (parsed !== null && parsed !== undefined) {
+                    memoryStore.set(key, parsed);
+                    return parsed;
+                }
+            }
+        } catch (e) {}
+    }
+    return undefined;
+}
+
 /**
- * Synchronous read accessor (reads from live RAM memory mirror synced with Supabase PostgreSQL)
+ * Synchronous read accessor (reads from live RAM memory mirror synced with Supabase PostgreSQL, with bundled file fallback)
  */
 function readData(filename, defaultValue) {
     const key = normalizeKey(filename);
@@ -138,8 +159,14 @@ function readData(filename, defaultValue) {
         return memoryStore.get(key);
     }
 
+    const localData = loadLocalFallbackFile(key);
+
     if (pool) {
         fetchFromPostgres(key).catch(() => {});
+    }
+
+    if (localData !== undefined) {
+        return localData;
     }
 
     return defaultValue !== undefined ? defaultValue : null;
@@ -164,6 +191,7 @@ function writeData(filename, data) {
 
 // Direct preload of all remote state from Supabase PostgreSQL into RAM at startup
 let initPromise = null;
+let isInitialized = false;
 async function initStorageEngine() {
     if (pool) {
         try {
@@ -174,20 +202,30 @@ async function initStorageEngine() {
                     memoryUpdatedAt.set(row.key, new Date(row.updated_at).getTime());
                 }
             }
+            isInitialized = true;
             console.log(`[Supabase PostgreSQL] Cloud DB active: Loaded ${res.rows.length} keys directly into live RAM memory cache.`);
         } catch (e) {
             console.warn('[Supabase PostgreSQL] Initial load notice:', sanitizeLog(e));
         }
     }
+    isInitialized = true;
 }
-initPromise = initStorageEngine().catch(() => {});
+initPromise = initStorageEngine().catch(() => { isInitialized = true; });
+
+async function waitForInit(timeoutMs = 2500) {
+    if (isInitialized || !initPromise) return;
+    try {
+        await Promise.race([
+            initPromise,
+            new Promise(resolve => setTimeout(resolve, timeoutMs))
+        ]);
+    } catch (e) {}
+}
 
 // Async direct read from storage (verifies updated_at in PostgreSQL so multi-instance serverless functions never serve stale RAM)
 async function readDataAsync(filename, defaultValue) {
     const key = normalizeKey(filename);
-    if (initPromise) {
-        try { await initPromise; } catch (e) {}
-    }
+    await waitForInit(2500);
 
     if (pool) {
         try {
@@ -213,6 +251,12 @@ async function readDataAsync(filename, defaultValue) {
     if (memoryStore.has(key)) {
         return memoryStore.get(key);
     }
+
+    const localData = loadLocalFallbackFile(key);
+    if (localData !== undefined) {
+        return localData;
+    }
+
     return defaultValue !== undefined ? defaultValue : null;
 }
 
@@ -231,6 +275,7 @@ module.exports = {
     fetchFromPostgres,
     writeToPostgres,
     initStorageEngine,
+    waitForInit,
     pool
 };
 

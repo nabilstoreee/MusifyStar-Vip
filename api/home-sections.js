@@ -2,13 +2,37 @@ const fs = require('fs');
 const path = require('path');
 const storage = require('./storage.js');
 
+let BUNDLED_VERIFIED_SECTIONS = null;
+try {
+    BUNDLED_VERIFIED_SECTIONS = require('./verified_sections.json');
+} catch (e) {}
+
 let verifiedCache = null;
 function getVerifiedSections() {
-    if (verifiedCache) return verifiedCache;
+    if (verifiedCache && Array.isArray(verifiedCache.pilihan_cepat) && verifiedCache.pilihan_cepat.length > 0) {
+        return verifiedCache;
+    }
     try {
-        verifiedCache = storage.readData('verified_sections.json', null);
+        const stored = storage.readData('verified_sections.json', BUNDLED_VERIFIED_SECTIONS);
+        if (stored && typeof stored === 'object') {
+            verifiedCache = stored;
+        }
     } catch (e) {}
-    return verifiedCache;
+    return verifiedCache || BUNDLED_VERIFIED_SECTIONS;
+}
+
+async function getVerifiedSectionsAsync() {
+    if (verifiedCache && Array.isArray(verifiedCache.pilihan_cepat) && verifiedCache.pilihan_cepat.length > 0) {
+        return verifiedCache;
+    }
+    try {
+        const stored = await storage.readDataAsync('verified_sections.json', BUNDLED_VERIFIED_SECTIONS);
+        if (stored && typeof stored === 'object' && Array.isArray(stored.pilihan_cepat) && stored.pilihan_cepat.length > 0) {
+            verifiedCache = stored;
+            return verifiedCache;
+        }
+    } catch (e) {}
+    return BUNDLED_VERIFIED_SECTIONS || getVerifiedSections();
 }
 
 // In-memory sections cache with timestamp
@@ -196,31 +220,24 @@ const POPULAR_ARTISTS = [
     }
 ];
 
-function buildFallbackSections() {
-    const data = getVerifiedSections();
-    if (data) {
-        return {
-            pilihan_cepat: data.pilihan_cepat || [],
-            terpopuler_hari_ini: data.terpopuler_hari_ini || [],
-            viral_tiktok: data.viral_tiktok || [],
-            trending_sekarang: data.trending_sekarang || [],
-            rilis_terbaru: data.rilis_terbaru || [],
-            top_50_indo: data.top_50_indo || [],
-            santai_akustik: data.santai_akustik || [],
-            nostalgia_indo: data.nostalgia_indo || [],
-            playlist_komunitas: COMMUNITY_PLAYLISTS,
-            artis_populer: POPULAR_ARTISTS
-        };
-    }
+function pickNonEmpty(primaryArr, fallbackArr) {
+    if (Array.isArray(primaryArr) && primaryArr.length > 0) return primaryArr;
+    if (Array.isArray(fallbackArr) && fallbackArr.length > 0) return fallbackArr;
+    return [];
+}
+
+function buildFallbackSections(rawSource) {
+    const data = rawSource || getVerifiedSections() || {};
+    const bundled = BUNDLED_VERIFIED_SECTIONS || {};
     return {
-        pilihan_cepat: [],
-        terpopuler_hari_ini: [],
-        viral_tiktok: [],
-        trending_sekarang: [],
-        rilis_terbaru: [],
-        top_50_indo: [],
-        santai_akustik: [],
-        nostalgia_indo: [],
+        pilihan_cepat: pickNonEmpty(data.pilihan_cepat, bundled.pilihan_cepat),
+        terpopuler_hari_ini: pickNonEmpty(data.terpopuler_hari_ini, bundled.terpopuler_hari_ini),
+        viral_tiktok: pickNonEmpty(data.viral_tiktok, bundled.viral_tiktok),
+        trending_sekarang: pickNonEmpty(data.trending_sekarang, bundled.trending_sekarang),
+        rilis_terbaru: pickNonEmpty(data.rilis_terbaru, bundled.rilis_terbaru),
+        top_50_indo: pickNonEmpty(data.top_50_indo, bundled.top_50_indo),
+        santai_akustik: pickNonEmpty(data.santai_akustik, bundled.santai_akustik),
+        nostalgia_indo: pickNonEmpty(data.nostalgia_indo, bundled.nostalgia_indo),
         playlist_komunitas: COMMUNITY_PLAYLISTS,
         artis_populer: POPULAR_ARTISTS
     };
@@ -234,8 +251,13 @@ module.exports = async (req, res) => {
 
     try {
         const now = Date.now();
-        // Return memory cached data if valid
-        if (memorySections && (now - lastFetchTime < CACHE_TTL_MS)) {
+        // Return memory cached data if valid and non-empty
+        if (
+            memorySections &&
+            Array.isArray(memorySections.pilihan_cepat) &&
+            memorySections.pilihan_cepat.length > 0 &&
+            (now - lastFetchTime < CACHE_TTL_MS)
+        ) {
             return res.json({
                 status: true,
                 cached: true,
@@ -243,9 +265,12 @@ module.exports = async (req, res) => {
             });
         }
 
-        const sections = buildFallbackSections();
-        memorySections = sections;
-        lastFetchTime = now;
+        const verifiedData = await getVerifiedSectionsAsync();
+        const sections = buildFallbackSections(verifiedData);
+        if (Array.isArray(sections.pilihan_cepat) && sections.pilihan_cepat.length > 0) {
+            memorySections = sections;
+            lastFetchTime = now;
+        }
 
         return res.json({
             status: true,
@@ -253,10 +278,10 @@ module.exports = async (req, res) => {
             sections: sections
         });
     } catch (err) {
-        return res.status(500).json({
-            status: false,
-            message: 'Gagal memuat home sections: ' + err.message,
-            sections: buildFallbackSections()
+        return res.status(200).json({
+            status: true,
+            cached: false,
+            sections: buildFallbackSections(BUNDLED_VERIFIED_SECTIONS)
         });
     }
 };
