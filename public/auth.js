@@ -3200,7 +3200,7 @@ var Auth = {
                                 <span class="font-black font-mono text-emerald-300">${timeRemainingText}</span>
                             </div>
                             <p class="text-[10px] text-white/50 leading-relaxed">
-                                * ID akun Anda akan otomatis kembali ke ID 10-digit semula (<span class="text-white/80 font-mono font-bold">${Profile.escapeHtml(currentOriginalId)}</span>) setelah masa trial habis.
+                                * ID akun Anda akan otomatis kembali ke ID 10-digit semula setelah masa trial habis.
                             </p>
                         </div>
                     ` : ''}

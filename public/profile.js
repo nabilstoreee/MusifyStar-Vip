@@ -977,15 +977,21 @@ var Profile = {
             config = {
                 qrisUrl: '/qris.png',
                 qrisFilename: 'QRIS-MusifyStar-Nabil.png',
-                accounts: [
-                    { bankName: 'SeaBank', accountNumber: '9012 3456 7890', accountHolder: 'NABIL (MusifyStar)', badge: 'Prioritas Bebas Admin', icon: 'credit-card' },
-                    { bankName: 'DANA / GoPay', accountNumber: '0812 3456 7890', accountHolder: 'NABIL', badge: 'E-Wallet', icon: 'smartphone' }
-                ],
+                showAccounts: true,
+                accounts: [],
                 title: 'Dukung Pengembang MusifyStar',
                 description: 'Donasi sukarela Anda sangat berharga untuk biaya sewa server & pengembangan aplikasi MusifyStar.',
                 note: 'Semua dana donasi digunakan untuk perawatan server & penambahan fitur baru agar aplikasi tetap gratis tanpa iklan.'
             };
         }
+
+        var showAccounts = config.showAccounts !== false;
+        var currentUser = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+        var currentUserEmail = currentUser ? String(currentUser.email || currentUser.rawEmail || '').toLowerCase().trim() : '';
+        var isAdminViewer = Boolean(
+            (currentUser && (currentUser.role === 'admin' || currentUserEmail === 'jrnabil570@gmail.com')) ||
+            (typeof Profile.getAdminToken === 'function' && Profile.getAdminToken())
+        );
 
         var accountsListHtml = '';
         if (Array.isArray(config.accounts) && config.accounts.length > 0) {
@@ -1006,10 +1012,17 @@ var Profile = {
                         </div>
                         <p class="text-[11px] text-white/50 truncate">a.n. <strong class="text-white/80">${safeHolder}</strong></p>
                     </div>
-                    <button type="button" onclick="Profile.copyAccountNumber('${safeNum}', this)" class="shrink-0 py-2 px-3 rounded-xl bg-white/10 hover:bg-amber-500 hover:text-black text-white text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm">
-                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                        <span>Salin</span>
-                    </button>
+                    <div class="shrink-0 flex items-center gap-1.5">
+                        ${isAdminViewer ? `
+                        <button type="button" onclick="Profile.deleteDonationAccountFromModal(${idx}, this)" class="py-2 px-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500 hover:text-white text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1 transition-all active:scale-95 cursor-pointer" title="Hapus Rekening Ini">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                        ` : ''}
+                        <button type="button" onclick="Profile.copyAccountNumber('${safeNum}', this)" class="py-2 px-3 rounded-xl bg-white/10 hover:bg-amber-500 hover:text-black text-white text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            <span>Salin</span>
+                        </button>
+                    </div>
                 </div>`;
             }).join('');
         } else {
@@ -1050,7 +1063,25 @@ var Profile = {
                 <p class="text-xs text-white/60 mt-1 max-w-xs mx-auto leading-relaxed">${config.description || 'Donasi sukarela Anda sangat berharga untuk biaya sewa server & pengembangan aplikasi MusifyStar.'}</p>
             </div>
 
-            <!-- Subtab Switcher: QRIS vs Rekening Transfer -->
+            ${isAdminViewer ? `
+            <!-- Kontrol Cepat Admin: Tampilkan / Sembunyikan Rekening & E-Wallet -->
+            <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2 min-w-0">
+                    <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400 shrink-0"></i>
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-bold text-amber-300 truncate">Akses Admin: Bagian Rekening & E-Wallet</p>
+                        <p class="text-[10px] text-white/60 truncate">Status saat ini: <strong class="${showAccounts ? 'text-emerald-400' : 'text-rose-400'}">${showAccounts ? 'DITAMPILKAN' : 'DISEMBUNYIKAN'}</strong></p>
+                    </div>
+                </div>
+                <button type="button" onclick="Profile.toggleDonationAccountsVisibility(${!showAccounts}, this)" class="shrink-0 py-1.5 px-3 rounded-xl text-[11px] font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 ${showAccounts ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'}">
+                    <i data-lucide="${showAccounts ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5"></i>
+                    <span>${showAccounts ? 'Sembunyikan' : 'Munculkan'}</span>
+                </button>
+            </div>
+            ` : ''}
+
+            ${showAccounts ? `
+            <!-- Subtab Switcher: QRIS vs Rekening Transfer (Hanya tampil jika Rekening & E-Wallet diaktifkan Admin) -->
             <div class="shrink-0">
                 <div class="grid grid-cols-2 p-1 bg-white/5 border border-white/10 rounded-2xl gap-1">
                     <button id="don-tab-btn-qris" onclick="Profile.setDonationSubTab('qris')" class="py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-gradient-to-r from-amber-500 to-emerald-500 text-black shadow-md">
@@ -1063,6 +1094,7 @@ var Profile = {
                     </button>
                 </div>
             </div>
+            ` : ''}
 
             <!-- Scrollable Body Content -->
             <div class="space-y-3.5">
@@ -1095,6 +1127,7 @@ var Profile = {
                     </div>
                 </div>
 
+                ${showAccounts ? `
                 <!-- PANEL 2: REKENING & E-WALLET VIEW -->
                 <div id="don-view-accounts" class="hidden space-y-2.5">
                     ${accountsListHtml}
@@ -1110,6 +1143,7 @@ var Profile = {
                         </button>
                     </div>
                 </div>
+                ` : ''}
             </div>
         </div>`;
 
@@ -1119,6 +1153,91 @@ var Profile = {
 
         document.body.appendChild(modal);
         lucide.createIcons();
+    },
+
+    getAdminAuthHeaders() {
+        var adminTok = (typeof Profile.getAdminToken === 'function' ? Profile.getAdminToken() : '') || '';
+        var userTok = (typeof Auth !== 'undefined' && Auth.token) ? Auth.token : (localStorage.getItem('musifystar_auth_token') || sessionStorage.getItem('musifystar_auth_token') || '');
+        var headers = { 'Content-Type': 'application/json' };
+        if (adminTok) headers['x-admin-token'] = adminTok;
+        if (userTok) headers['Authorization'] = 'Bearer ' + userTok;
+        return headers;
+    },
+
+    async toggleDonationAccountsVisibility(nextShowState, btnEl) {
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Menyimpan...</span>';
+            if (window.lucide) lucide.createIcons();
+        }
+        try {
+            var res = await fetch('/api/payment-config', {
+                method: 'POST',
+                headers: Profile.getAdminAuthHeaders(),
+                body: JSON.stringify({ showAccounts: Boolean(nextShowState) })
+            });
+            var data = await res.json();
+            if (data && data.status && data.config) {
+                Profile.cachedPaymentConfig = data.config;
+                Profile.adminShowPaymentAccounts = data.config.showAccounts !== false;
+                if (typeof showToast === 'function') {
+                    showToast(data.config.showAccounts !== false ? 'Rekening & E-Wallet ditampilkan di halaman Donasi' : 'Rekening & E-Wallet disembunyikan dari halaman Donasi');
+                }
+                Profile.openDonationModal();
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast((data && data.message) || 'Gagal mengubah visibilitas Rekening & E-Wallet');
+                }
+                if (btnEl) btnEl.disabled = false;
+            }
+        } catch (err) {
+            if (typeof showToast === 'function') {
+                showToast('Gagal menghubungi server');
+            }
+            if (btnEl) btnEl.disabled = false;
+        }
+    },
+
+    async deleteDonationAccountFromModal(idx, btnEl) {
+        var config = Profile.cachedPaymentConfig || {};
+        var accounts = Array.isArray(config.accounts) ? config.accounts.slice() : [];
+        if (idx < 0 || idx >= accounts.length) return;
+        accounts.splice(idx, 1);
+
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>';
+            if (window.lucide) lucide.createIcons();
+        }
+        try {
+            var res = await fetch('/api/payment-config', {
+                method: 'POST',
+                headers: Profile.getAdminAuthHeaders(),
+                body: JSON.stringify({ accounts: accounts })
+            });
+            var data = await res.json();
+            if (data && data.status && data.config) {
+                Profile.cachedPaymentConfig = data.config;
+                Profile.adminPaymentAccounts = JSON.parse(JSON.stringify(data.config.accounts || []));
+                if (typeof showToast === 'function') {
+                    showToast('Nomor rekening berhasil dihapus');
+                }
+                Profile.openDonationModal();
+                if (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.showAccounts !== false) {
+                    Profile.setDonationSubTab('accounts');
+                }
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast((data && data.message) || 'Gagal menghapus nomor rekening');
+                }
+                if (btnEl) btnEl.disabled = false;
+            }
+        } catch (err) {
+            if (typeof showToast === 'function') {
+                showToast('Gagal menghubungi server');
+            }
+            if (btnEl) btnEl.disabled = false;
+        }
     },
 
     setDonationSubTab(tab) {
@@ -8278,10 +8397,7 @@ var Profile = {
                 qrisUrl: '/qris.png',
                 qrisFilename: 'QRIS-MusifyStar-Nabil.png',
                 qrisHolder: 'NABIL (MusifyStar Official)',
-                accounts: [
-                    { bankName: 'SeaBank', accountNumber: '9012 3456 7890', accountHolder: 'NABIL (MusifyStar)', badge: 'Prioritas Bebas Admin', icon: 'credit-card' },
-                    { bankName: 'DANA / GoPay', accountNumber: '0812 3456 7890', accountHolder: 'NABIL', badge: 'E-Wallet', icon: 'smartphone' }
-                ],
+                accounts: [],
                 packages: [
                     { id: 'pkg_1week', name: 'Paket Mingguan', duration: '7 Hari', price: 7000, originalPrice: 10000, discount: 'Hemat 30%', badge: 'Trial VIP', popular: false, active: true },
                     { id: 'pkg_1month', name: 'Paket Bulanan', duration: '30 Hari', price: 19000, originalPrice: 35000, discount: 'Diskon 45%', badge: 'Paling Populer', popular: true, active: true },
@@ -8299,6 +8415,7 @@ var Profile = {
             };
 
             Profile.cachedPaymentConfig = config;
+            Profile.adminShowPaymentAccounts = config.showAccounts !== false;
             Profile.adminPaymentAccounts = JSON.parse(JSON.stringify(config.accounts || []));
             Profile.adminPaymentPackages = JSON.parse(JSON.stringify(config.packages || []));
             Profile.adminPaymentBenefits = JSON.parse(JSON.stringify(config.benefits || []));
@@ -8434,15 +8551,24 @@ var Profile = {
 
                     <!-- BAGIAN 4: NOMOR REKENING BANK & E-WALLET DONASI -->
                     <div class="space-y-3 pt-3 border-t border-white/10">
-                        <div class="flex items-center justify-between">
-                            <label class="block text-xs font-bold text-white/80 uppercase tracking-wider flex items-center gap-1.5">
-                                <i data-lucide="credit-card" class="w-4 h-4 text-sky-400"></i>
-                                <span>4. Nomor Rekening Bank & E-Wallet Donasi</span>
-                            </label>
-                            <button type="button" onclick="Profile.addPaymentAccountRow()" class="py-1.5 px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer">
-                                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                                <span>+ Tambah Rekening</span>
-                            </button>
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <div>
+                                <label class="block text-xs font-bold text-white/80 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i data-lucide="credit-card" class="w-4 h-4 text-sky-400"></i>
+                                    <span>4. Nomor Rekening Bank & E-Wallet Donasi</span>
+                                </label>
+                                <p class="text-[11px] text-white/50">Atur visibilitas tab Rekening & E-Wallet di halaman Donasi pengguna.</p>
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button type="button" id="admin-toggle-show-accounts-btn" onclick="Profile.toggleAdminPaymentAccountsVisibility()" class="py-1.5 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer border ${Profile.adminShowPaymentAccounts ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-300' : 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/40 text-rose-300'}">
+                                    <i data-lucide="${Profile.adminShowPaymentAccounts ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5"></i>
+                                    <span>${Profile.adminShowPaymentAccounts ? 'Rekening & E-Wallet: Ditampilkan' : 'Rekening & E-Wallet: Disembunyikan'}</span>
+                                </button>
+                                <button type="button" onclick="Profile.addPaymentAccountRow()" class="py-1.5 px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                    <span>+ Tambah Rekening</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div id="admin-payment-accounts-list" class="space-y-2.5">
@@ -8789,6 +8915,31 @@ var Profile = {
         }
     },
 
+    async toggleAdminPaymentAccountsVisibility() {
+        Profile.adminShowPaymentAccounts = Profile.adminShowPaymentAccounts === false ? true : false;
+        var btn = gid('admin-toggle-show-accounts-btn');
+        if (btn) {
+            var show = Profile.adminShowPaymentAccounts;
+            btn.className = 'py-1.5 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer border ' + (show ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-300' : 'bg-rose-500/20 hover:bg-rose-500/30 border-rose-500/40 text-rose-300');
+            btn.innerHTML = `<i data-lucide="${show ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5"></i><span>${show ? 'Rekening & E-Wallet: Ditampilkan' : 'Rekening & E-Wallet: Disembunyikan'}</span>`;
+            if (window.lucide) lucide.createIcons();
+        }
+        try {
+            var res = await fetch('/api/payment-config', {
+                method: 'POST',
+                headers: Profile.getAdminAuthHeaders(),
+                body: JSON.stringify({ showAccounts: Profile.adminShowPaymentAccounts !== false })
+            });
+            var data = await res.json();
+            if (data && data.status && data.config) {
+                Profile.cachedPaymentConfig = data.config;
+            }
+        } catch (e) {}
+        if (typeof showToast === 'function') {
+            showToast(Profile.adminShowPaymentAccounts ? 'Rekening & E-Wallet ditampilkan di halaman Donasi' : 'Rekening & E-Wallet disembunyikan dari halaman Donasi');
+        }
+    },
+
     addPaymentAccountRow() {
         Profile.syncPaymentAccountsFromDom();
         Profile.adminPaymentAccounts.push({
@@ -8804,7 +8955,7 @@ var Profile = {
         }
     },
 
-    removePaymentAccountRow(idx) {
+    async removePaymentAccountRow(idx) {
         Profile.syncPaymentAccountsFromDom();
         Profile.adminPaymentAccounts.splice(idx, 1);
         var container = gid('admin-payment-accounts-list');
@@ -8812,6 +8963,23 @@ var Profile = {
             container.innerHTML = Profile.getPaymentAccountsHtml();
             lucide.createIcons();
         }
+        // Auto-save account deletion immediately to server so deleted items don't return
+        try {
+            var res = await fetch('/api/payment-config', {
+                method: 'POST',
+                headers: Profile.getAdminAuthHeaders(),
+                body: JSON.stringify({
+                    accounts: Profile.adminPaymentAccounts.filter(function(a){ return a.bankName || a.accountNumber; })
+                })
+            });
+            var data = await res.json();
+            if (data && data.status && data.config) {
+                Profile.cachedPaymentConfig = data.config;
+                if (typeof showToast === 'function') {
+                    showToast('Rekening berhasil dihapus & disimpan');
+                }
+            }
+        } catch (e) {}
     },
 
     syncPaymentAccountsFromDom() {
@@ -8859,6 +9027,7 @@ var Profile = {
             note: note,
             qrisHolder: holder || 'NABIL (MusifyStar Official)',
             adminWhatsapp: adminWa || '6281234567890',
+            showAccounts: Profile.adminShowPaymentAccounts !== false,
             accounts: Profile.adminPaymentAccounts.filter(function(a){ return a.bankName || a.accountNumber; }),
             packages: Profile.adminPaymentPackages,
             benefits: Profile.adminPaymentBenefits
@@ -12907,7 +13076,7 @@ var Profile = {
                 </div>
                 ${expiresAt ? `
                 <p class="text-[9px] text-white/50 leading-tight">
-                    * Masa trial custom ID aktif. Jika masa trial habis, ID akun otomatis kembali ke ID semula (<span class="font-mono text-amber-300/80 font-bold">${Profile.escapeHtml(currentOriginalId)}</span>).
+                    * Masa trial custom ID aktif. Jika masa trial habis, ID akun otomatis kembali ke ID semula.
                 </p>
                 ` : `
                 <p class="text-[9px] text-amber-400/80 leading-tight font-semibold">
@@ -13041,7 +13210,7 @@ var Profile = {
                             </p>
                         ` : ''}
                         <p class="text-[10px] text-white/40 leading-snug">
-                            * Jika masa trial habis, ID akun akan otomatis kembali ke ID 10-digit semula (${Profile.escapeHtml(currentOriginalId)}).
+                            * Jika masa trial habis, ID akun akan otomatis kembali ke ID semula.
                         </p>
                         ${isTrialActive ? `
                             <p class="text-[9.5px] text-amber-300/80 italic font-semibold">

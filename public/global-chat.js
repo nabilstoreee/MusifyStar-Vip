@@ -1215,7 +1215,7 @@
                 : '';
             var vipBadge = isVipActive && typeof Auth !== 'undefined' && Auth.getVipBadgeHTML ? Auth.getVipBadgeHTML('text-[7.5px]') : '';
 
-            // 2. ID (Selalu ditampilkan untuk semua pengguna; jika VIP / Admin & pasang Custom ID, ditampilkan juga)
+            // 2. ID (Jika memakai Custom ID: sembunyikan ID utama & tampilkan Custom ID langsung tanpa teks "Custom ID")
             var fallbackNumericId = GlobalChat.derive10DigitId(p.username, isTargetAdmin);
             var rawOrigId = String(p.originalId || '').trim();
             var rawId = String(p.id || '').trim();
@@ -1226,7 +1226,8 @@
             if (!customIdText && rawId && !rawId.startsWith('u_') && rawId !== baseNumericId) {
                 customIdText = rawId;
             }
-            var showCustomIdBadge = Boolean((isVipActive || isTargetAdmin) && customIdText);
+            var hasCustomId = Boolean((isVipActive || isTargetAdmin) && customIdText && customIdText !== baseNumericId);
+            var displayIdText = hasCustomId ? customIdText : baseNumericId;
 
             // 3. Logo Rank Badge
             var rankBadgeHtml = '';
@@ -1262,10 +1263,6 @@
                     megaSupporterHtml = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/50 text-purple-300 text-[9px] font-black">💎 Mega Supporter</span>`;
                 }
             }
-
-            // 6. Status Global Stats (Shown if Admin or if user is in Global Stats Leaderboard)
-            var gsRank = p.globalStatsRank || (isTargetAdmin ? 1 : null);
-            var showGlobalStatsRow = Boolean(isTargetAdmin || (gsRank && gsRank >= 1 && gsRank <= 100));
 
             // 7. Status Pengguna Mendengarkan (Hari, Jam, Menit)
             var formattedListening = p.formattedListening || '0 Hari, 0 Jam, 0 Menit';
@@ -1384,12 +1381,11 @@
                         </div>
                     </div>
 
-                    <!-- 2. ID (Ditampilkan untuk semua pengguna; jika VIP / Admin punya Custom ID ditampilkan juga) -->
+                    <!-- 2. ID (Jika memakai Custom ID, tampilkan Custom ID tanpa teks Custom ID & sembunyikan ID utama) -->
                     <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5">
                         <span class="text-slate-400 text-[11px] shrink-0">ID:</span>
                         <div class="flex items-center gap-1.5 justify-end flex-wrap">
-                            <span class="font-mono font-black text-amber-300 tracking-wider text-[11.5px]">${GlobalChat.escapeHtml(baseNumericId)}</span>
-                            ${showCustomIdBadge ? `<span class="px-2 py-0.5 rounded-full bg-yellow-500/20 border border-yellow-400/50 text-yellow-300 font-mono font-extrabold text-[9.5px]">Custom ID: ${GlobalChat.escapeHtml(customIdText)}</span>` : ''}
+                            <span class="font-mono font-black text-amber-300 tracking-wider text-[11.5px]">${GlobalChat.escapeHtml(displayIdText)}</span>
                         </div>
                     </div>
 
@@ -1412,16 +1408,6 @@
                     <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5">
                         <span class="text-slate-400 text-[11px] shrink-0">Logo Mega Supporter:</span>
                         <div class="flex items-center justify-end">${megaSupporterHtml}</div>
-                    </div>
-                    ` : ''}
-
-                    <!-- 6. Status Global Stats (Jika masuk Global Stats / Admin) -->
-                    ${showGlobalStatsRow ? `
-                    <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5">
-                        <span class="text-slate-400 text-[11px] shrink-0">Status Global Stats:</span>
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/45 text-amber-300 font-black text-[10px] font-mono">
-                            🏆 Juara #${gsRank} Global Stats
-                        </span>
                     </div>
                     ` : ''}
 
