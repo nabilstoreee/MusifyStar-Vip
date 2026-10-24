@@ -353,17 +353,21 @@ async function readDbAsync(banRegistry) {
             result.users.forEach(u => {
                 if (u) {
                     const isMaster = (u.rawEmail || u.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com';
-                    const isTenDigits = typeof u.id === 'string' && /^\d{10}$/.test(u.id);
-                    if (!isTenDigits || (isMaster && u.id !== '8589478687')) {
+                    const baseId = u.originalId || u.id;
+                    const isTenDigits = typeof baseId === 'string' && /^\d{10}$/.test(baseId);
+                    if (!isTenDigits || (isMaster && baseId !== '8589478687')) {
                         const oldId = u.id;
                         const newId = isMaster ? '8589478687' : generate10DigitUserId(result.users);
-                        u.id = newId;
+                        u.originalId = newId;
+                        if (!u.customId) {
+                            u.id = newId;
+                        }
                         dbModified = true;
                         if (oldId && result.sessions) {
                             Object.keys(result.sessions).forEach(tok => {
                                 const sess = result.sessions[tok];
                                 if (sess && (sess.userId === oldId || (sess.userId && sess.userId.id === oldId))) {
-                                    sess.userId = newId;
+                                    sess.userId = u.customId || newId;
                                 }
                             });
                         }
@@ -1714,7 +1718,12 @@ module.exports = async (req, res) => {
             if (!targetUserId) {
                 return res.status(401).json({ status: false, message: 'Sesi login tidak valid atau sudah berakhir' });
             }
-            const userIndex = db.users.findIndex(u => u.id === targetUserId);
+            const userIndex = db.users.findIndex(u => u && (
+        u.id === targetUserId ||
+        u.originalId === targetUserId ||
+        u.customId === targetUserId ||
+        (u.customId && String(u.customId).toLowerCase() === String(targetUserId).toLowerCase())
+      ));
             if (userIndex === -1) {
                 return res.status(404).json({ status: false, message: 'Pengguna tidak ditemukan' });
             }

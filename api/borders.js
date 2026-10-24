@@ -95,13 +95,48 @@ function ensureBordersOnDisk() {
 
 ensureBordersOnDisk();
 
-function deduplicateAndNormalizeCustomBorders(rawList, deletedIdsSet = new Set()) {
+function normalizeScaleValue(val) {
+    const num = Number(val);
+    if (!Number.isFinite(num) || num <= 0) return 100;
+    return Math.max(50, Math.min(180, Math.round(num)));
+}
+
+function attachScaleParamToUrl(url, scale) {
+    if (!url || typeof url !== 'string') return '';
+    const s = normalizeScaleValue(scale);
+    // Remove any existing s= parameter first
+    let clean = url.replace(/([?&])s=\d+(&?)/g, (match, p1, p2) => (p2 ? p1 : '')).replace(/[?&]$/, '');
+    if (s === 100) return clean;
+    const sep = clean.includes('?') ? '&' : '?';
+    return `${clean}${sep}s=${s}`;
+}
+
+function getBorderScalesMap() {
+    try {
+        const map = storage.readData('border_scales.json', {});
+        return (map && typeof map === 'object') ? map : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+async function getBorderScalesMapAsync() {
+    try {
+        const map = await storage.readDataAsync('border_scales.json', {});
+        return (map && typeof map === 'object') ? map : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function deduplicateAndNormalizeCustomBorders(rawList, deletedIdsSet = new Set(), scalesMap = {}) {
     if (!Array.isArray(rawList)) return [];
     const seen = new Set();
     const result = [];
     for (const item of rawList) {
         if (!item || !item.id || seen.has(item.id) || deletedIdsSet.has(item.id)) continue;
         seen.add(item.id);
+        const resolvedScale = normalizeScaleValue(scalesMap[item.id] !== undefined ? scalesMap[item.id] : item.scale);
         // Normalize custom border URL so it works across both Vercel serverless and local containers
         let normalizedUrl = item.url || '';
         if (item.isCustom && item.imageBase64 && (!normalizedUrl || normalizedUrl.startsWith('/borders/border_'))) {
@@ -111,8 +146,10 @@ function deduplicateAndNormalizeCustomBorders(rawList, deletedIdsSet = new Set()
             }
             normalizedUrl = `/api/borders?action=image&id=${item.id}&ext=${ext}`;
         }
+        normalizedUrl = attachScaleParamToUrl(normalizedUrl, resolvedScale);
         result.push({
             ...item,
+            scale: resolvedScale,
             url: normalizedUrl,
             isCustom: true
         });
@@ -124,8 +161,9 @@ function getCustomBorders() {
     try {
         const custom = storage.readData('custom_borders.json', []);
         const deleted = storage.readData('deleted_borders.json', []);
+        const scalesMap = getBorderScalesMap();
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
-        return deduplicateAndNormalizeCustomBorders(custom, deletedSet);
+        return deduplicateAndNormalizeCustomBorders(custom, deletedSet, scalesMap);
     } catch (e) {
         return [];
     }
@@ -135,6 +173,7 @@ async function getCustomBordersAsync(forceFresh = false) {
     try {
         const memCustom = storage.readData('custom_borders.json', []);
         const deleted = await storage.readDataAsync('deleted_borders.json', []);
+        const scalesMap = await getBorderScalesMapAsync();
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
 
         let dbCustom = null;
@@ -145,12 +184,12 @@ async function getCustomBordersAsync(forceFresh = false) {
             dbCustom = await storage.readDataAsync('custom_borders.json', []);
         }
 
-        // Merge authoritative DB list with any newer in-memory items not yet flushed, excluding deleted IDs
+        // Merge in-memory items first so recently updated scales or borders are never overwritten by stale DB reads
         const combined = [
-            ...(Array.isArray(dbCustom) ? dbCustom : []),
-            ...(Array.isArray(memCustom) ? memCustom : [])
+            ...(Array.isArray(memCustom) ? memCustom : []),
+            ...(Array.isArray(dbCustom) ? dbCustom : [])
         ];
-        return deduplicateAndNormalizeCustomBorders(combined, deletedSet);
+        return deduplicateAndNormalizeCustomBorders(combined, deletedSet, scalesMap);
     } catch (e) {
         return [];
     }
@@ -159,8 +198,9 @@ async function getCustomBordersAsync(forceFresh = false) {
 async function saveCustomBordersAsync(list) {
     try {
         const deleted = await storage.readDataAsync('deleted_borders.json', []);
+        const scalesMap = await getBorderScalesMapAsync();
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
-        const cleanList = deduplicateAndNormalizeCustomBorders(list, deletedSet);
+        const cleanList = deduplicateAndNormalizeCustomBorders(list, deletedSet, scalesMap);
         await storage.writeDataAsync('custom_borders.json', cleanList);
         return true;
     } catch (e) {
@@ -187,14 +227,28 @@ function toClientBordersList(list) {
     return out;
 }
 
+function applyScalesToSystemBorders(scalesMap = {}) {
+    return BORDERS_LIST.map(b => {
+        if (!b || b.id === 'none') return { ...b, scale: 100 };
+        const s = normalizeScaleValue(scalesMap[b.id] !== undefined ? scalesMap[b.id] : b.scale);
+        return {
+            ...b,
+            scale: s,
+            url: attachScaleParamToUrl(b.url, s)
+        };
+    });
+}
+
 function getAllBorders() {
+    const scalesMap = getBorderScalesMap();
     const custom = getCustomBorders();
-    return [...BORDERS_LIST, ...custom];
+    return [...applyScalesToSystemBorders(scalesMap), ...custom];
 }
 
 async function getAllBordersAsync(forceFresh = false) {
+    const scalesMap = await getBorderScalesMapAsync();
     const custom = await getCustomBordersAsync(forceFresh);
-    return [...BORDERS_LIST, ...custom];
+    return [...applyScalesToSystemBorders(scalesMap), ...custom];
 }
 
 const TIER_RANKS = {
@@ -475,12 +529,16 @@ module.exports = async function handler(req, res) {
             return res.status(400).json({ status: false, message: 'Silakan pilih foto border dari galeri atau masukkan URL gambar.' });
         }
 
+        const borderScale = normalizeScaleValue(body.scale);
+        borderUrl = attachScaleParamToUrl(borderUrl, borderScale);
+
         const newBorder = {
             id: borderId,
             name: name,
             category: chosenCategory,
             file: fileName,
             url: borderUrl,
+            scale: borderScale,
             imageBase64: imageBase64Saved,
             isVip: true,
             tier: tierMeta.label,
@@ -492,19 +550,84 @@ module.exports = async function handler(req, res) {
             createdAt: Date.now()
         };
 
+        try {
+            const scalesMap = await getBorderScalesMapAsync();
+            scalesMap[borderId] = borderScale;
+            await storage.writeDataAsync('border_scales.json', scalesMap);
+        } catch (e) {}
+
         // Force fresh read from PostgreSQL before appending so no borders from other instances are ever lost
         const customList = await getCustomBordersAsync(true);
         customList.push(newBorder);
         await saveCustomBordersAsync(customList);
 
-        const updatedAll = [...BORDERS_LIST, ...customList];
+        const updatedAll = await getAllBordersAsync(false);
 
         return res.json({
             status: true,
-            message: `Border profile "${name}" berhasil ditambahkan & disimpan otomatis! Pengguna yang membeli ${tierMeta.label} akan otomatis terbuka border ini.`,
+            message: `Border profile "${name}" (Ukuran ${borderScale}%) berhasil ditambahkan & disimpan otomatis!`,
             border: toClientBorder(newBorder),
             borders: toClientBordersList(updatedAll)
         });
+    }
+
+    // POST /api/borders?action=update_scale (Admin adjust border size/scale)
+    if (req.method === 'POST' && action === 'update_scale') {
+        if (!checkAdminAuth()) {
+            return res.status(403).json({ status: false, message: 'Akses ditolak: Hanya admin yang dapat mengatur ukuran border.' });
+        }
+
+        const borderId = String(req.body?.borderId || req.query.borderId || '').trim();
+        const newScale = normalizeScaleValue(req.body?.scale !== undefined ? req.body.scale : req.query.scale);
+
+        if (!borderId || borderId === 'none') {
+            return res.status(400).json({ status: false, message: 'ID border tidak valid.' });
+        }
+
+        try {
+            const scalesMap = await getBorderScalesMapAsync();
+            scalesMap[borderId] = newScale;
+            await storage.writeDataAsync('border_scales.json', scalesMap);
+
+            const customList = await getCustomBordersAsync(true);
+            const cIdx = customList.findIndex(b => b.id === borderId);
+            if (cIdx !== -1) {
+                customList[cIdx].scale = newScale;
+                customList[cIdx].url = attachScaleParamToUrl(customList[cIdx].url, newScale);
+                await saveCustomBordersAsync(customList);
+            }
+
+            const updatedAll = await getAllBordersAsync(false);
+            const updatedBorder = updatedAll.find(b => b.id === borderId);
+
+            // Sync updated borderUrl to any user currently wearing this border
+            if (updatedBorder && updatedBorder.url) {
+                try {
+                    const db = await storage.readDataAsync('users.json', { users: [], sessions: {} });
+                    let changedUsers = false;
+                    if (Array.isArray(db.users)) {
+                        db.users.forEach(u => {
+                            if (u && u.border === borderId) {
+                                u.borderUrl = updatedBorder.url;
+                                changedUsers = true;
+                            }
+                        });
+                    }
+                    if (changedUsers) {
+                        await storage.writeDataAsync('users.json', db);
+                    }
+                } catch (e) {}
+            }
+
+            return res.json({
+                status: true,
+                message: `Ukuran border "${updatedBorder ? updatedBorder.name : borderId}" disimpan ke ${newScale}%`,
+                border: toClientBorder(updatedBorder),
+                borders: toClientBordersList(updatedAll)
+            });
+        } catch (e) {
+            return res.status(500).json({ status: false, message: 'Gagal menyimpan ukuran border: ' + e.message });
+        }
     }
 
     // POST /api/borders?action=delete_border (Admin delete custom border)
@@ -593,7 +716,12 @@ module.exports = async function handler(req, res) {
                 return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu untuk memasang border profil' });
             }
 
-            let userIndex = (db.users || []).findIndex(u => u.id === userId);
+            let userIndex = (db.users || []).findIndex(u => u && (
+                u.id === userId ||
+                u.originalId === userId ||
+                u.customId === userId ||
+                (u.customId && String(u.customId).toLowerCase() === String(userId).toLowerCase())
+            ));
             if (userIndex === -1 && isAdminSession) {
                 // If admin session but user id not matched, locate master admin user
                 userIndex = (db.users || []).findIndex(u => (u.email && u.email.toLowerCase().trim() === 'jrnabil570@gmail.com') || (u.rawEmail && u.rawEmail.toLowerCase().trim() === 'jrnabil570@gmail.com'));
@@ -627,11 +755,25 @@ module.exports = async function handler(req, res) {
                 }
             }
 
-            // Simpan border yang dipilih
-            user.border = found.id === 'none' ? '' : found.id;
-            user.borderUrl = found.url || '';
-            user.borderName = found.name;
-            db.users[userIndex] = user;
+            // Simpan border yang dipilih ke seluruh record akun yang sama
+            const nextBorderId = found.id === 'none' ? '' : found.id;
+            const nextBorderUrl = found.url || '';
+            const nextBorderName = found.name;
+            const targetEmail = (user.rawEmail || user.email || '').toLowerCase().trim();
+            (db.users || []).forEach(u => {
+                if (!u) return;
+                const uEmail = (u.rawEmail || u.email || '').toLowerCase().trim();
+                if (
+                    u.id === user.id ||
+                    (user.originalId && (u.id === user.originalId || u.originalId === user.originalId)) ||
+                    (user.customId && u.customId === user.customId) ||
+                    (targetEmail && uEmail === targetEmail)
+                ) {
+                    u.border = nextBorderId;
+                    u.borderUrl = nextBorderUrl;
+                    u.borderName = nextBorderName;
+                }
+            });
             await storage.writeDataAsync('users.json', db);
 
             // Sync ke userStats di analytics_data.json untuk konsistensi instan
