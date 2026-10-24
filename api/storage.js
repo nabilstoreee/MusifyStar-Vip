@@ -87,12 +87,14 @@ if (DATABASE_URL) {
 
 // Track last known PostgreSQL updated_at timestamp per key for multi-instance cache coherence
 const memoryUpdatedAt = new Map();
+const memoryLastCheckedAt = new Map();
 
 // Load data directly from PostgreSQL into memory cache
 async function fetchFromPostgres(key) {
     if (!pool) return null;
     try {
         const res = await pool.query('SELECT data, updated_at FROM app_storage WHERE key = $1', [key]);
+        memoryLastCheckedAt.set(key, Date.now());
         if (res.rows && res.rows.length > 0) {
             const row = res.rows[0];
             memoryStore.set(key, row.data);
@@ -100,6 +102,8 @@ async function fetchFromPostgres(key) {
                 memoryUpdatedAt.set(key, new Date(row.updated_at).getTime());
             }
             return row.data;
+        } else {
+            memoryUpdatedAt.set(key, -1);
         }
     } catch (err) {
         console.warn(`[Supabase PostgreSQL] Read notice for key "${key}":`, sanitizeLog(err));
@@ -118,6 +122,7 @@ async function writeToPostgres(key, data) {
             [key, JSON.stringify(data)]
         );
         memoryStore.set(key, data);
+        memoryLastCheckedAt.set(key, Date.now());
         if (res.rows && res.rows[0] && res.rows[0].updated_at) {
             memoryUpdatedAt.set(key, new Date(res.rows[0].updated_at).getTime());
         }
@@ -169,7 +174,12 @@ function readData(filename, defaultValue) {
         return localData;
     }
 
-    return defaultValue !== undefined ? defaultValue : null;
+    if (defaultValue !== undefined) {
+        memoryStore.set(key, defaultValue);
+        return defaultValue;
+    }
+
+    return null;
 }
 
 /**
@@ -180,6 +190,7 @@ function writeData(filename, data) {
 
     // 1. Immediately update active memory state (0ms latency for client)
     memoryStore.set(key, data);
+    memoryLastCheckedAt.set(key, Date.now());
 
     // 2. Persist to Supabase PostgreSQL cloud database
     if (pool) {
@@ -195,9 +206,11 @@ let isInitialized = false;
 async function initStorageEngine() {
     if (pool) {
         try {
+            const now = Date.now();
             const res = await pool.query('SELECT key, data, updated_at FROM app_storage');
             for (const row of res.rows) {
                 memoryStore.set(row.key, row.data);
+                memoryLastCheckedAt.set(row.key, now);
                 if (row.updated_at) {
                     memoryUpdatedAt.set(row.key, new Date(row.updated_at).getTime());
                 }
@@ -222,21 +235,30 @@ async function waitForInit(timeoutMs = 2500) {
     } catch (e) {}
 }
 
-// Async direct read from storage (verifies updated_at in PostgreSQL so multi-instance serverless functions never serve stale RAM)
+// Async direct read from storage (verifies updated_at in PostgreSQL with short TTL so requests stay ultra-fast)
 async function readDataAsync(filename, defaultValue) {
     const key = normalizeKey(filename);
     await waitForInit(2500);
+
+    const now = Date.now();
+    const lastChecked = memoryLastCheckedAt.get(key) || 0;
+    if (memoryStore.has(key) && (now - lastChecked < 4000)) {
+        return memoryStore.get(key);
+    }
 
     if (pool) {
         try {
             if (memoryStore.has(key) && memoryUpdatedAt.has(key)) {
                 // Lightweight 8-byte primary key header check (avoids transferring large TOAST JSONB unless changed)
                 const metaRes = await pool.query('SELECT updated_at FROM app_storage WHERE key = $1', [key]);
+                memoryLastCheckedAt.set(key, Date.now());
                 if (metaRes.rows && metaRes.rows.length > 0) {
                     const dbUpdatedAt = metaRes.rows[0].updated_at ? new Date(metaRes.rows[0].updated_at).getTime() : 0;
                     if (dbUpdatedAt && dbUpdatedAt === memoryUpdatedAt.get(key)) {
                         return memoryStore.get(key);
                     }
+                } else if (memoryUpdatedAt.get(key) === -1) {
+                    return memoryStore.get(key);
                 }
             }
             const freshData = await fetchFromPostgres(key);
@@ -257,7 +279,12 @@ async function readDataAsync(filename, defaultValue) {
         return localData;
     }
 
-    return defaultValue !== undefined ? defaultValue : null;
+    if (defaultValue !== undefined) {
+        memoryStore.set(key, defaultValue);
+        return defaultValue;
+    }
+
+    return null;
 }
 
 // Async direct write to storage (updates RAM and persists to Supabase PostgreSQL)

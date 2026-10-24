@@ -172,17 +172,14 @@ function getCustomBorders() {
 async function getCustomBordersAsync(forceFresh = false) {
     try {
         const memCustom = storage.readData('custom_borders.json', []);
-        const deleted = await storage.readDataAsync('deleted_borders.json', []);
-        const scalesMap = await getBorderScalesMapAsync();
+        const [deleted, scalesMap, dbCustom] = await Promise.all([
+            storage.readDataAsync('deleted_borders.json', []),
+            getBorderScalesMapAsync(),
+            (forceFresh && typeof storage.fetchFromPostgres === 'function')
+                ? storage.fetchFromPostgres('custom_borders.json').then(r => Array.isArray(r) ? r : storage.readDataAsync('custom_borders.json', []))
+                : storage.readDataAsync('custom_borders.json', [])
+        ]);
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
-
-        let dbCustom = null;
-        if (forceFresh && typeof storage.fetchFromPostgres === 'function') {
-            dbCustom = await storage.fetchFromPostgres('custom_borders.json');
-        }
-        if (!Array.isArray(dbCustom)) {
-            dbCustom = await storage.readDataAsync('custom_borders.json', []);
-        }
 
         // Merge in-memory items first so recently updated scales or borders are never overwritten by stale DB reads
         const combined = [
@@ -191,14 +188,16 @@ async function getCustomBordersAsync(forceFresh = false) {
         ];
         return deduplicateAndNormalizeCustomBorders(combined, deletedSet, scalesMap);
     } catch (e) {
-        return [];
+        return getCustomBorders();
     }
 }
 
 async function saveCustomBordersAsync(list) {
     try {
-        const deleted = await storage.readDataAsync('deleted_borders.json', []);
-        const scalesMap = await getBorderScalesMapAsync();
+        const [deleted, scalesMap] = await Promise.all([
+            storage.readDataAsync('deleted_borders.json', []),
+            getBorderScalesMapAsync()
+        ]);
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
         const cleanList = deduplicateAndNormalizeCustomBorders(list, deletedSet, scalesMap);
         await storage.writeDataAsync('custom_borders.json', cleanList);
@@ -246,8 +245,10 @@ function getAllBorders() {
 }
 
 async function getAllBordersAsync(forceFresh = false) {
-    const scalesMap = await getBorderScalesMapAsync();
-    const custom = await getCustomBordersAsync(forceFresh);
+    const [scalesMap, custom] = await Promise.all([
+        getBorderScalesMapAsync(),
+        getCustomBordersAsync(forceFresh)
+    ]);
     return [...applyScalesToSystemBorders(scalesMap), ...custom];
 }
 
@@ -585,27 +586,27 @@ module.exports = async function handler(req, res) {
         }
 
         try {
-            const scalesMap = await getBorderScalesMapAsync();
+            const scalesMap = { ...(await getBorderScalesMapAsync()) };
             scalesMap[borderId] = newScale;
             await storage.writeDataAsync('border_scales.json', scalesMap);
 
-            const customList = await getCustomBordersAsync(true);
+            const customList = getCustomBorders();
             const cIdx = customList.findIndex(b => b.id === borderId);
             if (cIdx !== -1) {
                 customList[cIdx].scale = newScale;
                 customList[cIdx].url = attachScaleParamToUrl(customList[cIdx].url, newScale);
-                await saveCustomBordersAsync(customList);
+                storage.writeData('custom_borders.json', customList);
             }
 
-            const updatedAll = await getAllBordersAsync(false);
+            const updatedAll = getAllBorders();
             const updatedBorder = updatedAll.find(b => b.id === borderId);
 
-            // Sync updated borderUrl to any user currently wearing this border
+            // Sync updated borderUrl to any user currently wearing this border in RAM & background DB
             if (updatedBorder && updatedBorder.url) {
                 try {
-                    const db = await storage.readDataAsync('users.json', { users: [], sessions: {} });
+                    const db = storage.readData('users.json', { users: [], sessions: {} });
                     let changedUsers = false;
-                    if (Array.isArray(db.users)) {
+                    if (db && Array.isArray(db.users)) {
                         db.users.forEach(u => {
                             if (u && u.border === borderId) {
                                 u.borderUrl = updatedBorder.url;
@@ -614,7 +615,7 @@ module.exports = async function handler(req, res) {
                         });
                     }
                     if (changedUsers) {
-                        await storage.writeDataAsync('users.json', db);
+                        storage.writeData('users.json', db);
                     }
                 } catch (e) {}
             }
