@@ -158,6 +158,24 @@
             this.onUserProfileUpdated(myUser);
         },
 
+        buildLeaderboardSig(lb) {
+            if (!Array.isArray(lb)) return '';
+            return lb.map(function(x) {
+                return [
+                    x.id,
+                    x.rank,
+                    x.username,
+                    x.avatar,
+                    x.borderUrl,
+                    x.borderName,
+                    x.formattedDuration,
+                    x.totalPlays,
+                    x.equippedBadge,
+                    x.isOnline ? 1 : 0
+                ].join(':');
+            }).join('|');
+        },
+
         startLivePolling() {
             this.stopLivePolling();
             var self = this;
@@ -170,7 +188,11 @@
                 // Background silent poll without disrupting scroll or user interaction
                 self.fetchData(self.timeframe, true, true).then(function(newData) {
                     if (document.getElementById('global-stats-modal') && newData) {
-                        var sig = JSON.stringify(newData.leaderboard || []);
+                        var liveBadge = document.getElementById('gs-live-badge-text');
+                        if (liveBadge && newData.liveActiveCount !== undefined) {
+                            liveBadge.textContent = newData.liveActiveCount > 0 ? (newData.liveActiveCount + ' Online') : 'Live';
+                        }
+                        var sig = self.buildLeaderboardSig(newData.leaderboard);
                         if (self.lastLeaderboardSig !== sig) {
                             self.lastLeaderboardSig = sig;
                             self.renderCurrentTab();
@@ -360,6 +382,7 @@
                 liveBadge.textContent = data.liveActiveCount > 0 ? (data.liveActiveCount + ' Online') : 'Live';
             }
 
+            this.lastLeaderboardSig = this.buildLeaderboardSig(data.leaderboard);
             this.renderCurrentTab();
         },
 
@@ -440,13 +463,13 @@
 
                         <div class="flex items-center justify-between gap-3 relative z-10">
                             <div class="flex items-center gap-3 min-w-0 flex-1">
-                                <!-- Avatar with Border Frame (36px avatar + 56px border = 1.55x flush ratio) -->
-                                <div class="relative flex items-center justify-center shrink-0" style="width: 52px; height: 52px;">
+                                <!-- Avatar with Border Frame (36px avatar + 48px border) -->
+                                <div class="relative flex items-center justify-center shrink-0" style="width: 48px; height: 48px;">
                                     <div class="rounded-full overflow-hidden bg-black/90 ${myInfo.borderUrl ? '' : 'ring-1 ring-white/20'} shadow-sm flex items-center justify-center" style="width: 36px; height: 36px;">
                                         <img src="${myInfo.avatar}" class="w-full h-full object-cover rounded-full" onerror="this.src='/logo.png'" />
                                     </div>
                                     ${myInfo.borderUrl ? `
-                                    <img src="${myInfo.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" style="width: 56px; height: 56px;" onerror="this.style.display='none';" />
+                                    <img src="${myInfo.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" style="width: 48px; height: 48px; ${typeof Auth !== 'undefined' && Auth.getBorderScaleStyle ? Auth.getBorderScaleStyle(myInfo.borderUrl) : ''}" onerror="this.style.display='none';" />
                                     ` : ''}
                                 </div>
 
@@ -551,12 +574,12 @@
                     var clickCardJs = `GlobalStats.openUserCard('${self.escapeJs(itemObj.id || '')}', '${self.escapeJs(uInfo.username)}', '${self.escapeJs(uInfo.avatar)}', '${self.escapeJs(uInfo.borderUrl)}', '${self.escapeJs(uInfo.borderName)}', ${!!uInfo.isMasterAdmin}, ${!!uInfo.isVip})`;
                     return `
                         <div onclick="${clickCardJs}" class="flex-1 min-w-0 p-2.5 rounded-2xl border ${cardBorder} backdrop-blur-xl shadow-md flex items-center gap-2.5 relative overflow-hidden cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all">
-                            <div class="relative flex items-center justify-center shrink-0" style="width: 46px; height: 46px;">
-                                <div class="rounded-full overflow-hidden bg-black/90 ${uInfo.borderUrl ? '' : 'ring-1 ring-white/20'} flex items-center justify-center" style="width: 30px; height: 30px;">
+                            <div class="relative flex items-center justify-center shrink-0" style="width: 44px; height: 44px;">
+                                <div class="rounded-full overflow-hidden bg-black/90 ${uInfo.borderUrl ? '' : 'ring-1 ring-white/20'} flex items-center justify-center" style="width: 32px; height: 32px;">
                                     <img src="${uInfo.avatar}" class="w-full h-full object-cover rounded-full" onerror="this.src='/logo.png'" />
                                 </div>
                                 ${uInfo.borderUrl ? `
-                                <img src="${uInfo.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_6px_rgba(245,158,11,0.5)]" style="width: 47px; height: 47px;" onerror="this.style.display='none';" />
+                                <img src="${uInfo.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_6px_rgba(245,158,11,0.5)]" style="width: 42px; height: 42px; ${typeof Auth !== 'undefined' && Auth.getBorderScaleStyle ? Auth.getBorderScaleStyle(uInfo.borderUrl) : ''}" onerror="this.style.display='none';" />
                                 ` : ''}
                                 <span class="absolute -bottom-1 left-1/2 -translate-x-1/2 z-30 rounded-full bg-gradient-to-tr ${badgeColor} font-black flex items-center justify-center shadow-[0_2px_6px_rgba(0,0,0,0.95)] border-2 border-[#07090e] ring-1 font-mono" style="width: 16px; height: 16px; font-size: 8.5px; line-height: 1;">${rankNum}</span>
                             </div>
@@ -616,12 +639,12 @@
                         <!-- PODIUM #2: Perak (Silver) -->
                         ${second && u2 ? `
                         <div onclick="GlobalStats.openUserCard('${this.escapeJs(second.id || '')}', '${this.escapeJs(u2.username)}', '${this.escapeJs(u2.avatar)}', '${this.escapeJs(u2.borderUrl)}', '${this.escapeJs(u2.borderName)}', ${!!u2.isMasterAdmin}, ${!!u2.isVip})" class="flex-1 flex flex-col items-center max-w-[112px] sm:max-w-[125px] text-center cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all">
-                            <div class="relative mb-3.5 flex items-center justify-center" style="width: 56px; height: 56px;">
+                            <div class="relative mb-3.5 flex items-center justify-center" style="width: 50px; height: 50px;">
                                 <div class="rounded-full overflow-hidden bg-black/90 ${u2.borderUrl ? '' : 'ring-2 ring-slate-300'} shadow-sm flex items-center justify-center" style="width: 36px; height: 36px;">
                                     <img src="${u2.avatar}" class="w-full h-full object-cover rounded-full" onerror="this.src='/logo.png'" />
                                 </div>
                                 ${u2.borderUrl ? `
-                                <img src="${u2.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_6px_rgba(203,213,225,0.6)]" style="width: 56px; height: 56px;" onerror="this.style.display='none';" />
+                                <img src="${u2.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_6px_rgba(203,213,225,0.6)]" style="width: 48px; height: 48px; ${typeof Auth !== 'undefined' && Auth.getBorderScaleStyle ? Auth.getBorderScaleStyle(u2.borderUrl) : ''}" onerror="this.style.display='none';" />
                                 ` : ''}
                                 <span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 z-30 rounded-full bg-gradient-to-tr from-slate-300 via-white to-slate-200 text-black font-black flex items-center justify-center shadow-[0_2px_6px_rgba(0,0,0,0.95)] border-2 border-[#07090e] ring-1 ring-slate-300 font-mono" style="width: 18px; height: 18px; font-size: 9px; line-height: 1;">2</span>
                             </div>
@@ -677,12 +700,12 @@
                                     <svg style="width: 13px; height: 13px;" class="fill-amber-400 text-amber-300 shrink-0" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.3 8.87l5.378-2.689a.5.5 0 0 1 .7.574l-2.002 11.01a1 1 0 0 1-.985.821H5.609a1 1 0 0 1-.985-.821L2.622 6.755a.5.5 0 0 1 .7-.574l5.378 2.689z"/></svg>
                                 </div>
                             </div>
-                            <div class="relative mb-3.5 flex items-center justify-center" style="width: 68px; height: 68px;">
+                            <div class="relative mb-3.5 flex items-center justify-center" style="width: 60px; height: 60px;">
                                 <div class="rounded-full overflow-hidden bg-black/90 ${u1.borderUrl ? '' : 'ring-2 ring-amber-400'} shadow-[0_0_15px_rgba(245,158,11,0.5)] flex items-center justify-center" style="width: 44px; height: 44px;">
                                     <img src="${u1.avatar}" class="w-full h-full object-cover rounded-full" onerror="this.src='/logo.png'" />
                                 </div>
                                 ${u1.borderUrl ? `
-                                <img src="${u1.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" style="width: 68px; height: 68px;" onerror="this.style.display='none';" />
+                                <img src="${u1.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" style="width: 58px; height: 58px; ${typeof Auth !== 'undefined' && Auth.getBorderScaleStyle ? Auth.getBorderScaleStyle(u1.borderUrl) : ''}" onerror="this.style.display='none';" />
                                 ` : ''}
                                 <span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 z-30 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-300 to-amber-400 text-black font-black flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.95)] border-2 border-[#07090e] ring-1 ring-amber-300 font-mono" style="width: 20px; height: 20px; font-size: 10px; line-height: 1;">1</span>
                             </div>
@@ -715,12 +738,12 @@
                         <!-- PODIUM #3: Perunggu (Bronze) -->
                         ${third && u3 ? `
                         <div onclick="GlobalStats.openUserCard('${this.escapeJs(third.id || '')}', '${this.escapeJs(u3.username)}', '${this.escapeJs(u3.avatar)}', '${this.escapeJs(u3.borderUrl)}', '${this.escapeJs(u3.borderName)}', ${!!u3.isMasterAdmin}, ${!!u3.isVip})" class="flex-1 flex flex-col items-center max-w-[112px] sm:max-w-[125px] text-center cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all">
-                            <div class="relative mb-3.5 flex items-center justify-center" style="width: 56px; height: 56px;">
+                            <div class="relative mb-3.5 flex items-center justify-center" style="width: 50px; height: 50px;">
                                 <div class="rounded-full overflow-hidden bg-black/90 ${u3.borderUrl ? '' : 'ring-2 ring-amber-700/60'} shadow-sm flex items-center justify-center" style="width: 36px; height: 36px;">
                                     <img src="${u3.avatar}" class="w-full h-full object-cover rounded-full" onerror="this.src='/logo.png'" />
                                 </div>
                                 ${u3.borderUrl ? `
-                                <img src="${u3.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_6px_rgba(180,83,9,0.5)]" style="width: 56px; height: 56px;" onerror="this.style.display='none';" />
+                                <img src="${u3.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_6px_rgba(180,83,9,0.5)]" style="width: 48px; height: 48px; ${typeof Auth !== 'undefined' && Auth.getBorderScaleStyle ? Auth.getBorderScaleStyle(u3.borderUrl) : ''}" onerror="this.style.display='none';" />
                                 ` : ''}
                                 <span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 z-30 rounded-full bg-gradient-to-tr from-amber-800 via-amber-600 to-amber-700 text-white font-black flex items-center justify-center shadow-[0_2px_6px_rgba(0,0,0,0.95)] border-2 border-[#07090e] ring-1 ring-amber-500 font-mono" style="width: 18px; height: 18px; font-size: 9px; line-height: 1;">3</span>
                             </div>
@@ -807,13 +830,13 @@
                             <div class="flex items-center gap-2.5 min-w-0">
                                 <span class="px-2 py-1 rounded-lg bg-amber-400/15 border border-amber-400/35 text-amber-300 font-black font-mono shrink-0 text-center" style="min-width: 36px; font-size: 10px;">#${r}</span>
                                 
-                                <!-- Avatar with Border Frame (30px avatar + 47px border = 1.56x flush ratio) -->
+                                <!-- Avatar with Border Frame (32px avatar + 42px border) -->
                                 <div class="relative flex items-center justify-center shrink-0 mr-0.5" style="width: 44px; height: 44px;">
-                                    <div class="rounded-full overflow-hidden bg-black/90 ${ui.borderUrl ? '' : 'ring-1 ring-white/15'} flex items-center justify-center" style="width: 30px; height: 30px;">
+                                    <div class="rounded-full overflow-hidden bg-black/90 ${ui.borderUrl ? '' : 'ring-1 ring-white/15'} flex items-center justify-center" style="width: 32px; height: 32px;">
                                         <img src="${ui.avatar}" class="w-full h-full object-cover rounded-full" onerror="this.src='/logo.png'" />
                                     </div>
                                     ${ui.borderUrl ? `
-                                    <img src="${ui.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_6px_rgba(245,158,11,0.5)]" style="width: 47px; height: 47px;" onerror="this.style.display='none';" />
+                                    <img src="${ui.borderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_6px_rgba(245,158,11,0.5)]" style="width: 42px; height: 42px; ${typeof Auth !== 'undefined' && Auth.getBorderScaleStyle ? Auth.getBorderScaleStyle(ui.borderUrl) : ''}" onerror="this.style.display='none';" />
                                     ` : ''}
                                 </div>
 

@@ -92,6 +92,7 @@ var Auth = {
         Auth.initGoogleAuth();
         Auth.checkSession();
         Auth.startRealtimeBanMonitor();
+        Auth.initBorderScaleObserver();
 
         // Check ban immediately when switching back to browser tab
         document.addEventListener('visibilitychange', function() {
@@ -99,6 +100,86 @@ var Auth = {
                 Auth.checkSession();
             }
         });
+    },
+
+    getBorderScaleValue(borderOrUrl) {
+        if (!borderOrUrl) return 100;
+        if (typeof borderOrUrl === 'object') {
+            var num = Number(borderOrUrl.scale);
+            if (Number.isFinite(num) && num >= 50 && num <= 180) return Math.round(num);
+            borderOrUrl = borderOrUrl.url || '';
+        }
+        var str = String(borderOrUrl || '');
+        var m = str.match(/[?&]s=(\d+)/);
+        if (m && m[1]) {
+            var parsed = parseInt(m[1], 10);
+            if (Number.isFinite(parsed) && parsed >= 50 && parsed <= 180) return parsed;
+        }
+        if (Array.isArray(Auth.availableBorders)) {
+            var cleanPath = str.split('?')[0];
+            var found = Auth.availableBorders.find(function(b) {
+                return b && b.url && String(b.url).split('?')[0] === cleanPath;
+            });
+            if (found && Number.isFinite(Number(found.scale))) {
+                return Math.max(50, Math.min(180, Math.round(Number(found.scale))));
+            }
+        }
+        return 100;
+    },
+
+    getBorderScaleStyle(borderOrUrl) {
+        var scaleVal = Auth.getBorderScaleValue(borderOrUrl);
+        if (scaleVal !== 100) {
+            return 'transform: translate(-50%, -50%) scale(' + (scaleVal / 100) + ');';
+        }
+        return '';
+    },
+
+    applyBorderScaleToEl(el) {
+        if (!el || el.tagName !== 'IMG') return;
+        if (el.id === 'admin-border-live-preview-frame') return;
+        if (el.id && el.id.indexOf('admin-card-border-img-') === 0) return;
+        var src = el.getAttribute('src') || el.src || '';
+        if (!src) return;
+        var isBorderImg = src.indexOf('/borders/') !== -1 || src.indexOf('action=image') !== -1 || /[?&]s=\d+/.test(src);
+        if (!isBorderImg) return;
+        var cls = String(el.className || '');
+        if (cls.indexOf('-translate-x-1/2') !== -1 && cls.indexOf('-translate-y-1/2') !== -1) {
+            var scaleVal = Auth.getBorderScaleValue(src);
+            if (scaleVal !== 100) {
+                el.style.transform = 'translate(-50%, -50%) scale(' + (scaleVal / 100) + ')';
+            } else if (el.style.transform && el.style.transform.indexOf('scale(') !== -1) {
+                el.style.transform = 'translate(-50%, -50%) scale(1)';
+            }
+        }
+    },
+
+    initBorderScaleObserver() {
+        if (window._borderScaleObserverInitialized) return;
+        window._borderScaleObserverInitialized = true;
+        document.addEventListener('load', function(e) {
+            Auth.applyBorderScaleToEl(e.target);
+        }, true);
+        if (typeof MutationObserver !== 'undefined' && document.body) {
+            var mo = new MutationObserver(function(mutations) {
+                for (var i = 0; i < mutations.length; i++) {
+                    var added = mutations[i].addedNodes;
+                    for (var j = 0; j < added.length; j++) {
+                        var node = added[j];
+                        if (!node || node.nodeType !== 1) continue;
+                        if (node.tagName === 'IMG') {
+                            Auth.applyBorderScaleToEl(node);
+                        } else if (node.querySelectorAll) {
+                            var imgs = node.querySelectorAll('img');
+                            for (var k = 0; k < imgs.length; k++) {
+                                Auth.applyBorderScaleToEl(imgs[k]);
+                            }
+                        }
+                    }
+                }
+            });
+            mo.observe(document.body, { childList: true, subtree: true });
+        }
     },
 
     startRealtimeBanMonitor() {
@@ -306,14 +387,19 @@ var Auth = {
 
     updateHeaderUI() {
         var profileBtns = document.querySelectorAll('.header-profile-btn');
+        var u = Auth.currentUser;
+        var bUrl = u ? Auth.getBorderUrl(u) : '';
+        var bScaleStyle = bUrl ? Auth.getBorderScaleStyle(bUrl) : '';
+        var btnSig = u ? [u.id, u.username, u.avatar || '/logo.png', bUrl].join('|') : 'guest';
+
         profileBtns.forEach(function(btn) {
-            if (Auth.currentUser) {
-                var u = Auth.currentUser;
-                var bUrl = Auth.getBorderUrl(u);
+            if (btn.dataset.renderSig === btnSig) return;
+            btn.dataset.renderSig = btnSig;
+            if (u) {
                 btn.innerHTML = `
                     <div class="relative w-full h-full flex items-center justify-center">
                         <img src="${u.avatar || '/logo.png'}" class="w-full h-full rounded-full object-cover" alt="Avatar" onerror="this.src='/logo.png'">
-                        ${bUrl ? `<img src="${bUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[155%] h-[155%] max-w-none object-contain z-10 select-none drop-shadow-sm" alt="" onerror="this.remove()">` : ''}
+                        ${bUrl ? `<img src="${bUrl}" style="${bScaleStyle}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[138%] h-[138%] max-w-none object-contain z-10 select-none drop-shadow-sm" alt="" onerror="this.remove()">` : ''}
                     </div>
                 `;
                 btn.setAttribute('title', 'Akun: ' + u.username);
@@ -337,14 +423,23 @@ var Auth = {
         var navDev = gid('nav-dev');
         if (navDev) {
             var iconWrap = navDev.querySelector('.magic-tab-icon');
-            if (iconWrap) {
+            if (iconWrap && !iconWrap.querySelector('[data-lucide="code"], svg')) {
                 iconWrap.innerHTML = '<i data-lucide="code"></i>';
             }
         }
 
-        // Re-render Profile page if it is currently displayed
+        // Re-render Profile page only when user display signature actually changed
         if (typeof Profile !== 'undefined' && typeof Profile.render === 'function' && typeof S !== 'undefined' && S.at === 'dev') {
-            Profile.render();
+            var profileSig = u ? [
+                u.id, u.originalId, u.customId, u.username, u.email, u.avatar,
+                bUrl, Auth.getBorderName(u), u.vipTier, u.isPremium, u.equippedBadge, u.equippedBadgeTitle
+            ].join('|') : 'guest';
+            var devContainer = document.getElementById('view-dev');
+            var isDevEmpty = !devContainer || !devContainer.children.length;
+            if (Profile._lastRenderedUserSig !== profileSig || isDevEmpty) {
+                Profile._lastRenderedUserSig = profileSig;
+                Profile.render();
+            }
         }
 
         if (window.lucide && typeof window.lucide.createIcons === 'function') {
@@ -972,7 +1067,7 @@ var Auth = {
                         <img src="${u.avatar || '/logo.png'}" class="w-full h-full object-cover rounded-full" alt="Avatar" onerror="this.src='/logo.png'" />
                     </div>
                     ${bUrl ? `
-                    <img src="${bUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[66px] h-[66px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_10px_rgba(245,158,11,0.55)]" alt="" onerror="this.onerror=null; this.style.display='none';">
+                    <img src="${bUrl}" style="${Auth.getBorderScaleStyle(bUrl)}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[54px] h-[54px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_10px_rgba(245,158,11,0.55)]" alt="" onerror="this.onerror=null; this.style.display='none';">
                     ` : ''}
                 </div>
                 <div class="min-w-0 flex-1 space-y-1.5">
@@ -1090,16 +1185,9 @@ var Auth = {
         else if (rawTier === 'permanent' || rawTier === 'lifetime' || rawTier === 'sultan' || isMasterAdmin) vipTierDisplay = 'Paket Permanen';
         else if (isUserVip) vipTierDisplay = 'Paket VIP Aktif';
 
-        var borderMap = {
-            'border_platinum': { name: 'Platinum', url: '/borders/Platinum.png' },
-            'border_master': { name: 'Master', url: '/borders/Master.png' },
-            'border_legend': { name: 'Legend', url: '/borders/Legend.png' },
-            'border_immortal': { name: 'Immortal', url: '/borders/Imortal.png' }
-        };
-        var currentBorderId = u.border || '';
-        var activeBorderObj = borderMap[currentBorderId] || (u.borderUrl ? { name: u.borderName || 'VIP', url: u.borderUrl } : null);
-        var activeBorderUrl = activeBorderObj ? activeBorderObj.url : '';
-        var activeBorderName = activeBorderObj ? activeBorderObj.name : '';
+        var activeBorderUrl = Auth.getBorderUrl(u);
+        var activeBorderName = Auth.getBorderName(u);
+        var activeBorderScaleStyle = Auth.getBorderScaleStyle(activeBorderUrl);
 
         // Clear any prior VIP countdown timer
         if (Auth._vipCountdownInterval) {
@@ -1198,7 +1286,7 @@ var Auth = {
                                 <img id="modal-user-avatar-img" src="${avatarUrl}" class="w-full h-full object-cover rounded-full" alt="Foto Profil" onerror="this.src='/logo.png'">
                             </div>
                             <!-- Border Frame Overlay (Centered mathematically on avatar circle) -->
-                            <img id="modal-user-border-img" src="${activeBorderUrl}" class="${activeBorderUrl ? '' : 'hidden'} pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[124px] h-[124px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" alt="" onerror="this.onerror=null; this.style.display='none';">
+                            <img id="modal-user-border-img" src="${activeBorderUrl}" style="${activeBorderScaleStyle}" class="${activeBorderUrl ? '' : 'hidden'} pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[108px] h-[108px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" alt="" onerror="this.onerror=null; this.style.display='none';">
                         </div>
                         <div class="mt-2 text-center">
                             <p class="text-white font-black text-sm truncate flex items-center justify-center">
@@ -2597,7 +2685,7 @@ var Auth = {
                         <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-black/90 flex items-center justify-center shadow-inner z-0">
                             <img src="${avatarUrl}" class="w-full h-full object-cover rounded-full" alt="Preview Foto" onerror="this.src='/logo.png'">
                         </div>
-                        <img id="border-picker-live-frame" src="${selectedBorderObj.url || ''}" class="${selectedBorderObj.url ? '' : 'hidden'} pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] sm:w-[124px] sm:h-[124px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_18px_rgba(245,158,11,0.65)]" alt="Frame">
+                        <img id="border-picker-live-frame" src="${selectedBorderObj.url || ''}" style="transform: translate(-50%, -50%) scale(${Auth.getBorderScaleValue(selectedBorderObj) / 100});" class="${selectedBorderObj.url ? '' : 'hidden'} pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] sm:w-[124px] sm:h-[124px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_18px_rgba(245,158,11,0.65)] transition-transform duration-150" alt="Frame">
                     </div>
                     <div class="text-center mt-1">
                         <p id="border-picker-live-title" class="text-xs font-black text-white flex items-center justify-center gap-1.5">
@@ -2806,7 +2894,7 @@ var Auth = {
                             <img src="${avatarUrl}" class="w-full h-full object-cover ${isLocked ? 'filter grayscale brightness-50' : ''}" onerror="this.src='/logo.png'">
                         </div>
                         ${b.url ? `
-                            <img src="${b.url}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[56px] h-[56px] sm:w-[62px] sm:h-[62px] max-w-none object-contain z-10 select-none ${isLocked ? 'filter grayscale brightness-75' : ''}">
+                            <img src="${b.url}" style="transform: translate(-50%, -50%) scale(${Auth.getBorderScaleValue(b) / 100});" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[56px] h-[56px] sm:w-[62px] sm:h-[62px] max-w-none object-contain z-10 select-none ${isLocked ? 'filter grayscale brightness-75' : ''}">
                         ` : ''}
                     </div>
                     <div class="min-w-0">
@@ -2874,9 +2962,11 @@ var Auth = {
         if (liveFrame) {
             if (target.url) {
                 liveFrame.src = target.url;
+                liveFrame.style.transform = 'translate(-50%, -50%) scale(' + (Auth.getBorderScaleValue(target) / 100) + ')';
                 liveFrame.classList.remove('hidden');
             } else {
                 liveFrame.src = '';
+                liveFrame.style.transform = '';
                 liveFrame.classList.add('hidden');
             }
         }

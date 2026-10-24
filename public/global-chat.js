@@ -447,10 +447,16 @@
                         GlobalChat.friendUpdates = data.friendUpdates;
                     }
                     var reqChanged = GlobalChat.incomingFriendRequests.length !== prevReqCount;
+                    var msgSig = data.messages.map(function(m) {
+                        return [m.id, m.username, m.avatar, m.borderUrl, m.borderName, m.equippedBadge, m.message].join(':');
+                    }).join('|') + '||' + GlobalChat.incomingFriendRequests.length;
                     GlobalChat.messages = data.messages;
                     GlobalChat.lastMessageCount = data.messages.length;
 
-                    GlobalChat.renderMessagesList(data.messages, isBackground ? (isNewMessage || reqChanged) : true);
+                    if (!isBackground || msgSig !== GlobalChat._lastMessagesSig || reqChanged) {
+                        GlobalChat._lastMessagesSig = msgSig;
+                        GlobalChat.renderMessagesList(data.messages, isBackground ? (isNewMessage || reqChanged) : true);
+                    }
                 }
             } catch (e) {
                 if (!isBackground) {
@@ -961,13 +967,14 @@
             // When user has an equipped border, provide a dedicated 44px container footprint
             // so border flourishes, horns, wings, or dragons do not invade or collide with chat bubbles.
             var containerSize = hasBorder ? 44 : 34;
-            var innerCircleSize = hasBorder ? 30 : 34;
-            var frameSize = 52;
+            var innerCircleSize = hasBorder ? 34 : 34;
+            var frameSize = 46;
+            var scaleStyle = (hasBorder && typeof Auth !== 'undefined' && Auth.getBorderScaleStyle) ? Auth.getBorderScaleStyle(borderUrl) : '';
 
             var borderImg = hasBorder ? `
                 <img src="${borderUrl}" 
                      class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none object-contain z-10 select-none drop-shadow-[0_0_8px_rgba(245,158,11,0.55)]" 
-                     style="width: ${frameSize}px; height: ${frameSize}px;"
+                     style="width: ${frameSize}px; height: ${frameSize}px; ${scaleStyle}"
                      alt="Border">
             ` : '';
 
@@ -1474,8 +1481,12 @@
                     GlobalChat._currentModalProfile = data.profile;
                     var container = document.getElementById('chat-profile-dynamic-body');
                     if (container) {
-                        container.innerHTML = GlobalChat.renderProfileDetailsContent(data.profile, isSelf);
-                        if (window.lucide) lucide.createIcons();
+                        var nextHtml = GlobalChat.renderProfileDetailsContent(data.profile, isSelf);
+                        if (container._lastRenderedHtml !== nextHtml) {
+                            container._lastRenderedHtml = nextHtml;
+                            container.innerHTML = nextHtml;
+                            if (window.lucide) lucide.createIcons();
+                        }
                     }
                 }
             } catch (e) {}
@@ -1582,7 +1593,7 @@
                                 `}
                             </div>
                             ${safeBorderUrl ? `
-                                <img src="${safeBorderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120px] h-[120px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_18px_rgba(245,158,11,0.65)]" alt="" onerror="this.onerror=null; this.style.display='none';">
+                                <img src="${safeBorderUrl}" style="${typeof Auth !== 'undefined' && Auth.getBorderScaleStyle ? Auth.getBorderScaleStyle(safeBorderUrl) : ''}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[108px] h-[108px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_18px_rgba(245,158,11,0.65)]" alt="" onerror="this.onerror=null; this.style.display='none';">
                             ` : ''}
                         </div>
 

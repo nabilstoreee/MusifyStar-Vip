@@ -110,11 +110,11 @@ var Profile = {
                 <div class="flex items-center gap-4 relative z-10 pb-4 border-b border-white/[0.08]">
                     <!-- Avatar with Border Frame -->
                     <div class="relative w-16 h-16 shrink-0 flex items-center justify-center">
-                        <div class="w-12 h-12 rounded-full overflow-hidden bg-black/80 ring-2 ring-white/20 shadow-lg flex items-center justify-center z-0">
+                        <div class="w-14 h-14 rounded-full overflow-hidden bg-black/80 ring-2 ring-white/20 shadow-lg flex items-center justify-center z-0">
                             <img src="${uAvatar}" class="w-full h-full object-cover rounded-full" alt="Avatar" onerror="this.src='/logo.png'" />
                         </div>
                         ${uBorderUrl ? `
-                        <img src="${uBorderUrl}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[86px] h-[86px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]" alt="" onerror="this.onerror=null; this.style.display='none';">
+                        <img src="${uBorderUrl}" style="${typeof Auth !== 'undefined' && Auth.getBorderScaleStyle ? Auth.getBorderScaleStyle(uBorderUrl) : ''}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[76px] h-[76px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_12px_rgba(245,158,11,0.6)]" alt="" onerror="this.onerror=null; this.style.display='none';">
                         ` : ''}
                     </div>
 
@@ -10691,6 +10691,23 @@ var Profile = {
     adminBorderSelectedTier: '5months',
     adminBorderSelectedCategory: 'immortal',
     adminBordersGalleryFilter: 'all',
+    adminBorderScale: 100,
+
+    getBorderScaleValue(borderOrUrl) {
+        if (!borderOrUrl) return 100;
+        if (typeof borderOrUrl === 'object') {
+            var num = Number(borderOrUrl.scale);
+            if (Number.isFinite(num) && num >= 50 && num <= 180) return Math.round(num);
+            borderOrUrl = borderOrUrl.url || '';
+        }
+        var str = String(borderOrUrl || '');
+        var m = str.match(/[?&]s=(\d+)/);
+        if (m && m[1]) {
+            var parsed = parseInt(m[1], 10);
+            if (Number.isFinite(parsed) && parsed >= 50 && parsed <= 180) return parsed;
+        }
+        return 100;
+    },
 
     renderAdminBordersTab() {
         var container = gid('admin-borders-container');
@@ -10699,6 +10716,7 @@ var Profile = {
         var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
         var previewAvatar = u.avatar || u.photoURL || u.profilePicture || '/dev.png';
         var defaultBorderImg = Profile.adminBorderFileBase64 || '/borders/Imortal.png';
+        var currentScale = Profile.adminBorderScale || 100;
 
         container.innerHTML = `
             <div class="space-y-5">
@@ -10748,7 +10766,7 @@ var Profile = {
                                     <div class="w-16 h-16 rounded-full overflow-hidden bg-black/90 flex items-center justify-center shadow-inner z-0 border border-white/20">
                                         <img id="admin-border-preview-avatar-img" src="${previewAvatar}" class="w-full h-full object-cover rounded-full" alt="Avatar Preview" onerror="this.src='/logo.png'">
                                     </div>
-                                    <img id="admin-border-live-preview-frame" src="${defaultBorderImg}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]" alt="" onerror="this.onerror=null; this.style.display='none';">
+                                    <img id="admin-border-live-preview-frame" src="${defaultBorderImg}" style="transform: translate(-50%, -50%) scale(${currentScale / 100});" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_15px_rgba(245,158,11,0.6)] transition-transform duration-150" alt="" onerror="this.onerror=null; this.style.display='none';">
                                 </div>
 
                                 <div class="text-center mt-1 w-full px-2">
@@ -10761,6 +10779,27 @@ var Profile = {
                                     <span id="admin-border-preview-unlock-hint" class="text-[10px] text-white/50 block mt-1 truncate">
                                         Terbuka khusus VIP 5 Bulan & Permanen
                                     </span>
+                                </div>
+
+                                <!-- Kontrol Atur Ukuran Border Live Preview -->
+                                <div class="w-full mt-3 pt-2.5 border-t border-white/10 space-y-2">
+                                    <div class="flex items-center justify-between px-1">
+                                        <span class="text-[10px] font-extrabold text-amber-300 flex items-center gap-1">
+                                            <i data-lucide="maximize-2" class="w-3 h-3"></i> Ukuran Border:
+                                        </span>
+                                        <span id="admin-border-scale-label" class="text-[10px] font-mono font-black px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/30">${currentScale}%</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <button type="button" onclick="Profile.adjustNewBorderScale(-5)" class="w-7 h-7 rounded-lg bg-white/10 hover:bg-amber-400 hover:text-black text-white font-black text-xs flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0" title="Perkecil Border (-5%)">-</button>
+                                        <input type="range" id="admin-border-scale-slider" min="60" max="150" step="1" value="${currentScale}" oninput="Profile.setNewBorderScale(this.value)" class="w-full accent-amber-400 h-1.5 bg-white/15 rounded-lg cursor-pointer" />
+                                        <button type="button" onclick="Profile.adjustNewBorderScale(5)" class="w-7 h-7 rounded-lg bg-white/10 hover:bg-amber-400 hover:text-black text-white font-black text-xs flex items-center justify-center transition-all active:scale-90 cursor-pointer shrink-0" title="Perbesar Border (+5%)">+</button>
+                                    </div>
+                                    <div class="grid grid-cols-4 gap-1 pt-0.5">
+                                        <button type="button" onclick="Profile.setNewBorderScale(85)" class="py-1 rounded-md bg-white/5 hover:bg-amber-400/20 text-[9px] font-bold text-white/70 hover:text-amber-300 border border-white/10 transition-all cursor-pointer">85%</button>
+                                        <button type="button" onclick="Profile.setNewBorderScale(100)" class="py-1 rounded-md bg-amber-400/15 hover:bg-amber-400/25 text-[9px] font-extrabold text-amber-300 border border-amber-400/30 transition-all cursor-pointer">100%</button>
+                                        <button type="button" onclick="Profile.setNewBorderScale(110)" class="py-1 rounded-md bg-white/5 hover:bg-amber-400/20 text-[9px] font-bold text-white/70 hover:text-amber-300 border border-white/10 transition-all cursor-pointer">110%</button>
+                                        <button type="button" onclick="Profile.setNewBorderScale(125)" class="py-1 rounded-md bg-white/5 hover:bg-amber-400/20 text-[9px] font-bold text-white/70 hover:text-amber-300 border border-white/10 transition-all cursor-pointer">125%</button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -11077,6 +11116,7 @@ var Profile = {
 
         grid.innerHTML = filtered.map(function(b) {
             var isCustom = !!b.isCustom;
+            var bScale = Profile.getBorderScaleValue(b);
             var tierColor = {
                 '1month': 'bg-sky-400/20 text-sky-300 border-sky-400/30',
                 '2months': 'bg-yellow-400/20 text-yellow-300 border-yellow-400/30',
@@ -11117,7 +11157,7 @@ var Profile = {
                                 <img src="${previewAvatar}" class="w-full h-full object-cover rounded-full" onerror="this.src='/logo.png'">
                             </div>
                             ${b.url ? `
-                                <img src="${b.url}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88px] h-[88px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]" onerror="this.style.display='none'">
+                                <img id="admin-card-border-img-${b.id}" src="${b.url}" style="transform: translate(-50%, -50%) scale(${bScale / 100});" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88px] h-[88px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_12px_rgba(245,158,11,0.5)] transition-transform duration-150" onerror="this.style.display='none'">
                             ` : ''}
                         </div>
                     </div>
@@ -11129,7 +11169,20 @@ var Profile = {
                     </div>
                 </div>
 
-                <div class="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                <div class="pt-2 border-t border-white/5 space-y-2">
+                    <!-- Kontrol Atur Ukuran Border pada Kartu -->
+                    <div class="flex items-center justify-between gap-1.5 bg-black/40 border border-white/10 rounded-xl px-2 py-1">
+                        <span class="text-[9px] font-bold text-white/60 flex items-center gap-1">
+                            <i data-lucide="maximize-2" class="w-2.5 h-2.5 text-amber-400"></i> Ukuran:
+                        </span>
+                        <div class="flex items-center gap-1">
+                            <button type="button" onclick="Profile.adjustExistingBorderScale('${b.id}', -5)" class="w-5 h-5 rounded-md bg-white/10 hover:bg-amber-400 hover:text-black text-white font-black text-[10px] flex items-center justify-center transition-all active:scale-90 cursor-pointer" title="Perkecil (-5%)">-</button>
+                            <span id="admin-card-border-scale-${b.id}" class="text-[9px] font-mono font-black text-amber-300 min-w-[34px] text-center">${bScale}%</span>
+                            <button type="button" onclick="Profile.adjustExistingBorderScale('${b.id}', 5)" class="w-5 h-5 rounded-md bg-white/10 hover:bg-amber-400 hover:text-black text-white font-black text-[10px] flex items-center justify-center transition-all active:scale-90 cursor-pointer" title="Perbesar (+5%)">+</button>
+                            <button type="button" onclick="Profile.adjustExistingBorderScale('${b.id}', 0)" class="px-1.5 h-5 rounded-md bg-white/5 hover:bg-white/15 text-white/60 hover:text-white font-bold text-[8px] flex items-center justify-center transition-all cursor-pointer" title="Reset 100%">Reset</button>
+                        </div>
+                    </div>
+
                     <button type="button" onclick="Profile.testEquipBorder('${b.id}', '${Profile.escapeHtml(b.name)}')" class="w-full py-1.5 px-3 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-black text-white text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer">
                         <i data-lucide="check" class="w-3 h-3"></i>
                         <span>Coba Pakai Sekarang</span>
@@ -11164,15 +11217,30 @@ var Profile = {
 
             if (data && data.status && Array.isArray(data.borders)) {
                 var cleanBorders = Profile.deduplicateBordersArray(data.borders);
-                var sig = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier; }).join('|');
+                if (Profile._pendingBorderScales) {
+                    cleanBorders.forEach(function(b) {
+                        if (Profile._pendingBorderScales[b.id] !== undefined) {
+                            var pScale = Profile._pendingBorderScales[b.id];
+                            b.scale = pScale;
+                            if (b.url) {
+                                b.url = b.url.replace(/([?&])s=\d+(&|$)/, '$1').replace(/[?&]$/, '');
+                                if (pScale !== 100) {
+                                    b.url += (b.url.indexOf('?') === -1 ? '?' : '&') + 's=' + pScale;
+                                }
+                            }
+                        }
+                    });
+                }
+                var sig = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.url || ''); }).join('|');
                 Profile.adminBordersData = cleanBorders;
                 if (window.Auth) {
                     Auth.availableBorders = cleanBorders;
                 }
+                if (countEl) {
+                    countEl.textContent = cleanBorders.length + ' Border Aktif';
+                }
                 if (!silent || sig !== Profile._lastBordersSignature || !grid.children.length) {
                     Profile._lastBordersSignature = sig;
-                    Profile.renderAdminBordersGrid();
-                } else if (countEl) {
                     Profile.renderAdminBordersGrid();
                 }
             } else {
@@ -11430,7 +11498,8 @@ var Profile = {
                 vipTier: vipTier,
                 imageBase64: Profile.adminBorderFileBase64 || null,
                 imageUrl: url || '',
-                desc: desc
+                desc: desc,
+                scale: Profile.adminBorderScale || 100
             };
 
             var res = await fetch('/api/borders?action=add_border&t=' + Date.now(), {
@@ -11450,6 +11519,7 @@ var Profile = {
                 
                 // Clear photo and form fields without destroying the form UI
                 Profile.clearSelectedBorderPhoto();
+                Profile.setNewBorderScale(100);
                 var defaultNextName = Profile.adminBorderSelectedCategory ? (Profile.adminBorderSelectedCategory.charAt(0).toUpperCase() + Profile.adminBorderSelectedCategory.slice(1)) : 'Immortal';
                 if (nameInput) nameInput.value = defaultNextName;
                 if (urlInput) urlInput.value = '';
@@ -11461,7 +11531,7 @@ var Profile = {
                 if (Array.isArray(data.borders)) {
                     var cleanBorders = Profile.deduplicateBordersArray(data.borders);
                     Profile.adminBordersData = cleanBorders;
-                    Profile._lastBordersSignature = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier; }).join('|');
+                    Profile._lastBordersSignature = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100); }).join('|');
                     Profile.renderAdminBordersGrid();
                     if (window.Auth) {
                         Auth.availableBorders = cleanBorders;
@@ -11532,6 +11602,135 @@ var Profile = {
                 }
             }
         });
+    },
+
+    setNewBorderScale(val) {
+        var num = Number(val);
+        if (!Number.isFinite(num)) num = 100;
+        var clamped = Math.max(50, Math.min(180, Math.round(num)));
+        Profile.adminBorderScale = clamped;
+        var previewFrame = gid('admin-border-live-preview-frame');
+        if (previewFrame) {
+            previewFrame.style.transform = 'translate(-50%, -50%) scale(' + (clamped / 100) + ')';
+        }
+        var label = gid('admin-border-scale-label');
+        if (label) {
+            label.innerText = clamped + '%';
+        }
+        var slider = gid('admin-border-scale-slider');
+        if (slider && Number(slider.value) !== clamped) {
+            slider.value = clamped;
+        }
+    },
+
+    adjustNewBorderScale(delta) {
+        var current = Profile.adminBorderScale || 100;
+        Profile.setNewBorderScale(current + Number(delta || 0));
+    },
+
+    async adjustExistingBorderScale(borderId, delta) {
+        if (!borderId) return;
+        var token = Profile.getAdminToken();
+        if (!token) {
+            if (typeof showToast === 'function') showToast('Sesi admin tidak valid');
+            return;
+        }
+        if (!Profile._pendingBorderScales) Profile._pendingBorderScales = {};
+        if (!Profile._scaleReqSeq) Profile._scaleReqSeq = {};
+
+        var list = Array.isArray(Profile.adminBordersData) ? Profile.adminBordersData : [];
+        var item = list.find(function(b) { return b.id === borderId; });
+        var currentScale = Profile._pendingBorderScales[borderId] !== undefined
+            ? Number(Profile._pendingBorderScales[borderId])
+            : (item ? Profile.getBorderScaleValue(item) : 100);
+        if (!Number.isFinite(currentScale) || currentScale < 50 || currentScale > 180) currentScale = 100;
+
+        var nextScale = (delta === 0) ? 100 : Math.max(50, Math.min(180, currentScale + Number(delta)));
+        Profile._pendingBorderScales[borderId] = nextScale;
+
+        if (item) {
+            item.scale = nextScale;
+            if (item.url) {
+                var baseUrl = String(item.url).replace(/([?&])s=\d+(&|$)/, '$1').replace(/[?&]$/, '');
+                item.url = nextScale !== 100
+                    ? (baseUrl + (baseUrl.indexOf('?') === -1 ? '?' : '&') + 's=' + nextScale)
+                    : baseUrl;
+            }
+        }
+        var imgEl = gid('admin-card-border-img-' + borderId);
+        if (imgEl) {
+            imgEl.style.transform = 'translate(-50%, -50%) scale(' + (nextScale / 100) + ')';
+        }
+        var lblEl = gid('admin-card-border-scale-' + borderId);
+        if (lblEl) {
+            lblEl.innerText = nextScale + '%';
+        }
+
+        // Update Auth.availableBorders immediately for instant live scale across views
+        if (window.Auth && Array.isArray(Auth.availableBorders)) {
+            var authItem = Auth.availableBorders.find(function(b) { return b && b.id === borderId; });
+            if (authItem) {
+                authItem.scale = nextScale;
+                if (item && item.url) authItem.url = item.url;
+            }
+            if (Auth.currentUser && Auth.currentUser.border === borderId && item && item.url) {
+                Auth.currentUser.borderUrl = item.url;
+                Auth.saveUser(Auth.currentUser);
+                if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+            }
+        }
+
+        var seq = (Profile._scaleReqSeq[borderId] || 0) + 1;
+        Profile._scaleReqSeq[borderId] = seq;
+
+        clearTimeout(Profile['_scaleSaveTimer_' + borderId]);
+        Profile['_scaleSaveTimer_' + borderId] = setTimeout(async function() {
+            var targetScale = Profile._pendingBorderScales[borderId] !== undefined ? Profile._pendingBorderScales[borderId] : nextScale;
+            try {
+                var res = await fetch('/api/borders?action=update_scale&t=' + Date.now(), {
+                    method: 'POST',
+                    cache: 'no-store',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'x-admin-token': token
+                    },
+                    body: JSON.stringify({
+                        action: 'update_scale',
+                        borderId: borderId,
+                        scale: targetScale
+                    })
+                });
+                var data = await res.json();
+                if (Profile._scaleReqSeq[borderId] !== seq) return;
+                delete Profile._pendingBorderScales[borderId];
+                if (data && data.status) {
+                    if (Array.isArray(data.borders)) {
+                        var cleanBorders = Profile.deduplicateBordersArray(data.borders);
+                        // Preserve any other border's pending scale
+                        cleanBorders.forEach(function(b) {
+                            if (Profile._pendingBorderScales && Profile._pendingBorderScales[b.id] !== undefined) {
+                                b.scale = Profile._pendingBorderScales[b.id];
+                            }
+                        });
+                        Profile.adminBordersData = cleanBorders;
+                        Profile._lastBordersSignature = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.url || ''); }).join('|');
+                        if (window.Auth) {
+                            Auth.availableBorders = cleanBorders;
+                            if (Auth.currentUser && Auth.currentUser.border === borderId) {
+                                var updatedBorder = cleanBorders.find(function(x) { return x.id === borderId; });
+                                if (updatedBorder && updatedBorder.url) {
+                                    Auth.currentUser.borderUrl = updatedBorder.url;
+                                    Auth.saveUser(Auth.currentUser);
+                                    if (typeof Auth.updateUI === 'function') Auth.updateUI();
+                                }
+                            }
+                        }
+                    }
+                    if (typeof showToast === 'function') showToast('Ukuran border disimpan (' + targetScale + '%)');
+                }
+            } catch (e) {}
+        }, 300);
     },
 
     async testEquipBorder(borderId, borderName) {
