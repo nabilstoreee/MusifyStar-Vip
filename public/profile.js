@@ -10709,6 +10709,16 @@ var Profile = {
         return 100;
     },
 
+    getDefaultSystemBorders() {
+        return [
+            { id: 'none', name: 'Tanpa Border', file: '', url: '', scale: 100, isVip: false, tier: 'Gratis', requiredTier: 'none', color: '#a1a1aa', badge: 'Default', desc: 'Tampilan avatar melingkar standar tanpa bingkai tambahan.' },
+            { id: 'border_platinum', name: 'Platinum', file: 'Platinum.png', url: '/borders/Platinum.png', scale: 100, isVip: true, tier: '1 Bulan+', requiredTier: '1month', color: '#38bdf8', badge: '1 Bulan+', desc: 'Bingkai Platinum naga api cyber. Terbuka untuk Paket 1 Bulan, 5 Bulan & Permanen.' },
+            { id: 'border_master', name: 'Master', file: 'Master.png', url: '/borders/Master.png', scale: 100, isVip: true, tier: '1 Bulan+', requiredTier: '1month', color: '#f97316', badge: '1 Bulan+', desc: 'Bingkai Master mahkota emas membara. Terbuka untuk Paket 1 Bulan, 5 Bulan & Permanen.' },
+            { id: 'border_legend', name: 'Legend', file: 'Legend.png', url: '/borders/Legend.png', scale: 100, isVip: true, tier: '2 Bulan+', requiredTier: '2months', color: '#eab308', badge: '2 Bulan+', desc: 'Sayap emas kemegahan kerajaan Legenda. Khusus Paket 2 Bulan, 5 Bulan & Permanen.' },
+            { id: 'border_immortal', name: 'Immortal', file: 'Imortal.png', url: '/borders/Imortal.png', scale: 100, isVip: true, tier: '5 Bulan+', requiredTier: '5months', color: '#ec4899', badge: '5 Bulan+', desc: 'Kasta tertinggi Immortal Mahkota Dewa Musik. Khusus Paket 5 Bulan & Permanen.' }
+        ];
+    },
+
     renderAdminBordersTab() {
         var container = gid('admin-borders-container');
         if (!container) return;
@@ -11023,8 +11033,16 @@ var Profile = {
             </div>
         `;
 
+        if (!Array.isArray(Profile.adminBordersData) || Profile.adminBordersData.length === 0) {
+            if (window.Auth && Array.isArray(Auth.availableBorders) && Auth.availableBorders.length > 0) {
+                Profile.adminBordersData = Profile.deduplicateBordersArray(Auth.availableBorders);
+            } else {
+                Profile.adminBordersData = Profile.getDefaultSystemBorders();
+            }
+        }
+        Profile.renderAdminBordersGrid();
         if (window.lucide) lucide.createIcons();
-        Profile.loadAdminBordersList(true);
+        Profile.loadAdminBordersList(false);
     },
 
     filterAdminBordersGallery(filter) {
@@ -11196,13 +11214,20 @@ var Profile = {
     },
 
     async loadAdminBordersList(silent = false) {
-        if (Profile._isMutatingBorders) return;
         var grid = gid('admin-borders-list-grid');
         var countEl = gid('admin-borders-total-count');
         if (!grid) {
             if (!silent) Profile.renderAdminBordersTab();
             return;
         }
+
+        var isShowingLoader = !grid.children.length || grid.innerHTML.includes('Memuat koleksi') || grid.innerHTML.includes('loader-2');
+        if (isShowingLoader && Array.isArray(Profile.adminBordersData) && Profile.adminBordersData.length > 0) {
+            Profile.renderAdminBordersGrid();
+            isShowingLoader = false;
+        }
+
+        if (Profile._isMutatingBorders) return;
 
         try {
             var res = await fetch('/api/borders?action=list_all&t=' + Date.now(), {
@@ -11239,19 +11264,22 @@ var Profile = {
                 if (countEl) {
                     countEl.textContent = cleanBorders.length + ' Border Aktif';
                 }
-                if (!silent || sig !== Profile._lastBordersSignature || !grid.children.length) {
+                var stillLoader = !grid.children.length || grid.innerHTML.includes('Memuat koleksi') || grid.innerHTML.includes('loader-2');
+                if (!silent || sig !== Profile._lastBordersSignature || stillLoader) {
                     Profile._lastBordersSignature = sig;
                     Profile.renderAdminBordersGrid();
                 }
             } else {
-                if (!silent && grid && (!Profile.adminBordersData || Profile.adminBordersData.length === 0)) {
-                    grid.innerHTML = `<div class="col-span-full p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs text-center">Gagal memuat data border profile.</div>`;
+                if (!Array.isArray(Profile.adminBordersData) || Profile.adminBordersData.length === 0) {
+                    Profile.adminBordersData = Profile.getDefaultSystemBorders();
                 }
+                Profile.renderAdminBordersGrid();
             }
         } catch(e) {
-            if (!silent && grid && (!Profile.adminBordersData || Profile.adminBordersData.length === 0)) {
-                grid.innerHTML = `<div class="col-span-full p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs text-center">Koneksi bermasalah saat memuat border.</div>`;
+            if (!Array.isArray(Profile.adminBordersData) || Profile.adminBordersData.length === 0) {
+                Profile.adminBordersData = Profile.getDefaultSystemBorders();
             }
+            Profile.renderAdminBordersGrid();
         }
     },
 
@@ -11680,6 +11708,8 @@ var Profile = {
             }
         }
 
+        Profile._lastBordersSignature = list.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.url || ''); }).join('|');
+
         var seq = (Profile._scaleReqSeq[borderId] || 0) + 1;
         Profile._scaleReqSeq[borderId] = seq;
 
@@ -11722,7 +11752,7 @@ var Profile = {
                                 if (updatedBorder && updatedBorder.url) {
                                     Auth.currentUser.borderUrl = updatedBorder.url;
                                     Auth.saveUser(Auth.currentUser);
-                                    if (typeof Auth.updateUI === 'function') Auth.updateUI();
+                                    if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
                                 }
                             }
                         }
