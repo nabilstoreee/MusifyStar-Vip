@@ -101,14 +101,38 @@ function normalizeScaleValue(val) {
     return Math.max(50, Math.min(180, Math.round(num)));
 }
 
-function attachScaleParamToUrl(url, scale) {
+function normalizeOffsetYValue(val) {
+    if (val === undefined || val === null || val === '') return 0;
+    const num = Number(val);
+    if (!Number.isFinite(num)) return 0;
+    return Math.max(-45, Math.min(45, Math.round(num)));
+}
+
+function normalizeOffsetXValue(val) {
+    if (val === undefined || val === null || val === '') return 0;
+    const num = Number(val);
+    if (!Number.isFinite(num)) return 0;
+    return Math.max(-45, Math.min(45, Math.round(num)));
+}
+
+function attachScaleParamToUrl(url, scale, offsetY = 0, offsetX = 0) {
     if (!url || typeof url !== 'string') return '';
     const s = normalizeScaleValue(scale);
-    // Remove any existing s= parameter first
-    let clean = url.replace(/([?&])s=\d+(&?)/g, (match, p1, p2) => (p2 ? p1 : '')).replace(/[?&]$/, '');
-    if (s === 100) return clean;
+    const y = normalizeOffsetYValue(offsetY);
+    const x = normalizeOffsetXValue(offsetX);
+    // Remove any existing s=, y=, and x= parameters first
+    let clean = url
+        .replace(/([?&])s=\d+(&?)/g, (match, p1, p2) => (p2 ? p1 : ''))
+        .replace(/([?&])y=-?\d+(&?)/g, (match, p1, p2) => (p2 ? p1 : ''))
+        .replace(/([?&])x=-?\d+(&?)/g, (match, p1, p2) => (p2 ? p1 : ''))
+        .replace(/[?&]+$/, '');
+    const params = [];
+    if (s !== 100) params.push(`s=${s}`);
+    if (y !== 0) params.push(`y=${y}`);
+    if (x !== 0) params.push(`x=${x}`);
+    if (params.length === 0) return clean;
     const sep = clean.includes('?') ? '&' : '?';
-    return `${clean}${sep}s=${s}`;
+    return `${clean}${sep}${params.join('&')}`;
 }
 
 function getBorderScalesMap() {
@@ -129,7 +153,43 @@ async function getBorderScalesMapAsync() {
     }
 }
 
-function deduplicateAndNormalizeCustomBorders(rawList, deletedIdsSet = new Set(), scalesMap = {}) {
+function getBorderOffsetsMap() {
+    try {
+        const map = storage.readData('border_offsets.json', {});
+        return (map && typeof map === 'object') ? map : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+async function getBorderOffsetsMapAsync() {
+    try {
+        const map = await storage.readDataAsync('border_offsets.json', {});
+        return (map && typeof map === 'object') ? map : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function getBorderOffsetsXMap() {
+    try {
+        const map = storage.readData('border_offsets_x.json', {});
+        return (map && typeof map === 'object') ? map : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+async function getBorderOffsetsXMapAsync() {
+    try {
+        const map = await storage.readDataAsync('border_offsets_x.json', {});
+        return (map && typeof map === 'object') ? map : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function deduplicateAndNormalizeCustomBorders(rawList, deletedIdsSet = new Set(), scalesMap = {}, offsetsMap = {}, offsetsXMap = {}) {
     if (!Array.isArray(rawList)) return [];
     const seen = new Set();
     const result = [];
@@ -137,6 +197,8 @@ function deduplicateAndNormalizeCustomBorders(rawList, deletedIdsSet = new Set()
         if (!item || !item.id || seen.has(item.id) || deletedIdsSet.has(item.id)) continue;
         seen.add(item.id);
         const resolvedScale = normalizeScaleValue(scalesMap[item.id] !== undefined ? scalesMap[item.id] : item.scale);
+        const resolvedOffsetY = normalizeOffsetYValue(offsetsMap[item.id] !== undefined ? offsetsMap[item.id] : item.offsetY);
+        const resolvedOffsetX = normalizeOffsetXValue(offsetsXMap[item.id] !== undefined ? offsetsXMap[item.id] : item.offsetX);
         // Normalize custom border URL so it works across both Vercel serverless and local containers
         let normalizedUrl = item.url || '';
         if (item.isCustom && item.imageBase64 && (!normalizedUrl || normalizedUrl.startsWith('/borders/border_'))) {
@@ -146,10 +208,12 @@ function deduplicateAndNormalizeCustomBorders(rawList, deletedIdsSet = new Set()
             }
             normalizedUrl = `/api/borders?action=image&id=${item.id}&ext=${ext}`;
         }
-        normalizedUrl = attachScaleParamToUrl(normalizedUrl, resolvedScale);
+        normalizedUrl = attachScaleParamToUrl(normalizedUrl, resolvedScale, resolvedOffsetY, resolvedOffsetX);
         result.push({
             ...item,
             scale: resolvedScale,
+            offsetY: resolvedOffsetY,
+            offsetX: resolvedOffsetX,
             url: normalizedUrl,
             isCustom: true
         });
@@ -162,8 +226,10 @@ function getCustomBorders() {
         const custom = storage.readData('custom_borders.json', []);
         const deleted = storage.readData('deleted_borders.json', []);
         const scalesMap = getBorderScalesMap();
+        const offsetsMap = getBorderOffsetsMap();
+        const offsetsXMap = getBorderOffsetsXMap();
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
-        return deduplicateAndNormalizeCustomBorders(custom, deletedSet, scalesMap);
+        return deduplicateAndNormalizeCustomBorders(custom, deletedSet, scalesMap, offsetsMap, offsetsXMap);
     } catch (e) {
         return [];
     }
@@ -172,9 +238,11 @@ function getCustomBorders() {
 async function getCustomBordersAsync(forceFresh = false) {
     try {
         const memCustom = storage.readData('custom_borders.json', []);
-        const [deleted, scalesMap, dbCustom] = await Promise.all([
+        const [deleted, scalesMap, offsetsMap, offsetsXMap, dbCustom] = await Promise.all([
             storage.readDataAsync('deleted_borders.json', []),
             getBorderScalesMapAsync(),
+            getBorderOffsetsMapAsync(),
+            getBorderOffsetsXMapAsync(),
             (forceFresh && typeof storage.fetchFromPostgres === 'function')
                 ? storage.fetchFromPostgres('custom_borders.json').then(r => Array.isArray(r) ? r : storage.readDataAsync('custom_borders.json', []))
                 : storage.readDataAsync('custom_borders.json', [])
@@ -186,7 +254,7 @@ async function getCustomBordersAsync(forceFresh = false) {
             ...(Array.isArray(memCustom) ? memCustom : []),
             ...(Array.isArray(dbCustom) ? dbCustom : [])
         ];
-        return deduplicateAndNormalizeCustomBorders(combined, deletedSet, scalesMap);
+        return deduplicateAndNormalizeCustomBorders(combined, deletedSet, scalesMap, offsetsMap, offsetsXMap);
     } catch (e) {
         return getCustomBorders();
     }
@@ -194,12 +262,14 @@ async function getCustomBordersAsync(forceFresh = false) {
 
 async function saveCustomBordersAsync(list) {
     try {
-        const [deleted, scalesMap] = await Promise.all([
+        const [deleted, scalesMap, offsetsMap, offsetsXMap] = await Promise.all([
             storage.readDataAsync('deleted_borders.json', []),
-            getBorderScalesMapAsync()
+            getBorderScalesMapAsync(),
+            getBorderOffsetsMapAsync(),
+            getBorderOffsetsXMapAsync()
         ]);
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
-        const cleanList = deduplicateAndNormalizeCustomBorders(list, deletedSet, scalesMap);
+        const cleanList = deduplicateAndNormalizeCustomBorders(list, deletedSet, scalesMap, offsetsMap, offsetsXMap);
         await storage.writeDataAsync('custom_borders.json', cleanList);
         return true;
     } catch (e) {
@@ -226,30 +296,38 @@ function toClientBordersList(list) {
     return out;
 }
 
-function applyScalesToSystemBorders(scalesMap = {}) {
+function applyScalesToSystemBorders(scalesMap = {}, offsetsMap = {}, offsetsXMap = {}) {
     return BORDERS_LIST.map(b => {
-        if (!b || b.id === 'none') return { ...b, scale: 100 };
+        if (!b || b.id === 'none') return { ...b, scale: 100, offsetY: 0, offsetX: 0 };
         const s = normalizeScaleValue(scalesMap[b.id] !== undefined ? scalesMap[b.id] : b.scale);
+        const y = normalizeOffsetYValue(offsetsMap[b.id] !== undefined ? offsetsMap[b.id] : b.offsetY);
+        const x = normalizeOffsetXValue(offsetsXMap[b.id] !== undefined ? offsetsXMap[b.id] : b.offsetX);
         return {
             ...b,
             scale: s,
-            url: attachScaleParamToUrl(b.url, s)
+            offsetY: y,
+            offsetX: x,
+            url: attachScaleParamToUrl(b.url, s, y, x)
         };
     });
 }
 
 function getAllBorders() {
     const scalesMap = getBorderScalesMap();
+    const offsetsMap = getBorderOffsetsMap();
+    const offsetsXMap = getBorderOffsetsXMap();
     const custom = getCustomBorders();
-    return [...applyScalesToSystemBorders(scalesMap), ...custom];
+    return [...applyScalesToSystemBorders(scalesMap, offsetsMap, offsetsXMap), ...custom];
 }
 
 async function getAllBordersAsync(forceFresh = false) {
-    const [scalesMap, custom] = await Promise.all([
+    const [scalesMap, offsetsMap, offsetsXMap, custom] = await Promise.all([
         getBorderScalesMapAsync(),
+        getBorderOffsetsMapAsync(),
+        getBorderOffsetsXMapAsync(),
         getCustomBordersAsync(forceFresh)
     ]);
-    return [...applyScalesToSystemBorders(scalesMap), ...custom];
+    return [...applyScalesToSystemBorders(scalesMap, offsetsMap, offsetsXMap), ...custom];
 }
 
 const TIER_RANKS = {
@@ -385,7 +463,15 @@ module.exports = async function handler(req, res) {
     // GET /api/borders (list borders)
     if (req.method === 'GET' || action === 'list' || action === 'list_all') {
         ensureBordersOnDisk();
-        const all = await getAllBordersAsync(false);
+        let all;
+        try {
+            all = await Promise.race([
+                getAllBordersAsync(false),
+                new Promise(resolve => setTimeout(() => resolve(getAllBorders()), 1800))
+            ]);
+        } catch (e) {
+            all = getAllBorders();
+        }
         return res.json({
             status: true,
             borders: toClientBordersList(all)
@@ -531,7 +617,9 @@ module.exports = async function handler(req, res) {
         }
 
         const borderScale = normalizeScaleValue(body.scale);
-        borderUrl = attachScaleParamToUrl(borderUrl, borderScale);
+        const borderOffsetY = normalizeOffsetYValue(body.offsetY);
+        const borderOffsetX = normalizeOffsetXValue(body.offsetX);
+        borderUrl = attachScaleParamToUrl(borderUrl, borderScale, borderOffsetY, borderOffsetX);
 
         const newBorder = {
             id: borderId,
@@ -540,6 +628,8 @@ module.exports = async function handler(req, res) {
             file: fileName,
             url: borderUrl,
             scale: borderScale,
+            offsetY: borderOffsetY,
+            offsetX: borderOffsetX,
             imageBase64: imageBase64Saved,
             isVip: true,
             tier: tierMeta.label,
@@ -552,9 +642,19 @@ module.exports = async function handler(req, res) {
         };
 
         try {
-            const scalesMap = await getBorderScalesMapAsync();
+            const [scalesMap, offsetsMap, offsetsXMap] = await Promise.all([
+                getBorderScalesMapAsync(),
+                getBorderOffsetsMapAsync(),
+                getBorderOffsetsXMapAsync()
+            ]);
             scalesMap[borderId] = borderScale;
-            await storage.writeDataAsync('border_scales.json', scalesMap);
+            offsetsMap[borderId] = borderOffsetY;
+            offsetsXMap[borderId] = borderOffsetX;
+            await Promise.all([
+                storage.writeDataAsync('border_scales.json', scalesMap),
+                storage.writeDataAsync('border_offsets.json', offsetsMap),
+                storage.writeDataAsync('border_offsets_x.json', offsetsXMap)
+            ]);
         } catch (e) {}
 
         // Force fresh read from PostgreSQL before appending so no borders from other instances are ever lost
@@ -572,29 +672,69 @@ module.exports = async function handler(req, res) {
         });
     }
 
-    // POST /api/borders?action=update_scale (Admin adjust border size/scale)
-    if (req.method === 'POST' && action === 'update_scale') {
+    // POST /api/borders?action=update_scale (Admin adjust border size/scale & vertical/horizontal position offsetY/offsetX)
+    if (req.method === 'POST' && (action === 'update_scale' || action === 'update_offset')) {
         if (!checkAdminAuth()) {
-            return res.status(403).json({ status: false, message: 'Akses ditolak: Hanya admin yang dapat mengatur ukuran border.' });
+            return res.status(403).json({ status: false, message: 'Akses ditolak: Hanya admin yang dapat mengatur ukuran/posisi border.' });
         }
 
         const borderId = String(req.body?.borderId || req.query.borderId || '').trim();
-        const newScale = normalizeScaleValue(req.body?.scale !== undefined ? req.body.scale : req.query.scale);
+        const hasScaleInput = req.body?.scale !== undefined || req.query.scale !== undefined;
+        const hasOffsetYInput = req.body?.offsetY !== undefined || req.query.offsetY !== undefined;
+        const hasOffsetXInput = req.body?.offsetX !== undefined || req.query.offsetX !== undefined;
 
         if (!borderId || borderId === 'none') {
             return res.status(400).json({ status: false, message: 'ID border tidak valid.' });
         }
 
         try {
-            const scalesMap = { ...(await getBorderScalesMapAsync()) };
-            scalesMap[borderId] = newScale;
-            await storage.writeDataAsync('border_scales.json', scalesMap);
+            const [rawScalesMap, rawOffsetsMap, rawOffsetsXMap] = await Promise.all([
+                getBorderScalesMapAsync(),
+                getBorderOffsetsMapAsync(),
+                getBorderOffsetsXMapAsync()
+            ]);
+            const scalesMap = { ...rawScalesMap };
+            const offsetsMap = { ...rawOffsetsMap };
+            const offsetsXMap = { ...rawOffsetsXMap };
 
             const customList = getCustomBorders();
             const cIdx = customList.findIndex(b => b.id === borderId);
+
+            const currentScale = scalesMap[borderId] !== undefined
+                ? normalizeScaleValue(scalesMap[borderId])
+                : (cIdx !== -1 ? normalizeScaleValue(customList[cIdx].scale) : 100);
+            const currentOffsetY = offsetsMap[borderId] !== undefined
+                ? normalizeOffsetYValue(offsetsMap[borderId])
+                : (cIdx !== -1 ? normalizeOffsetYValue(customList[cIdx].offsetY) : 0);
+            const currentOffsetX = offsetsXMap[borderId] !== undefined
+                ? normalizeOffsetXValue(offsetsXMap[borderId])
+                : (cIdx !== -1 ? normalizeOffsetXValue(customList[cIdx].offsetX) : 0);
+
+            const newScale = hasScaleInput
+                ? normalizeScaleValue(req.body?.scale !== undefined ? req.body.scale : req.query.scale)
+                : currentScale;
+            const newOffsetY = hasOffsetYInput
+                ? normalizeOffsetYValue(req.body?.offsetY !== undefined ? req.body.offsetY : req.query.offsetY)
+                : currentOffsetY;
+            const newOffsetX = hasOffsetXInput
+                ? normalizeOffsetXValue(req.body?.offsetX !== undefined ? req.body.offsetX : req.query.offsetX)
+                : currentOffsetX;
+
+            scalesMap[borderId] = newScale;
+            offsetsMap[borderId] = newOffsetY;
+            offsetsXMap[borderId] = newOffsetX;
+
+            await Promise.all([
+                storage.writeDataAsync('border_scales.json', scalesMap),
+                storage.writeDataAsync('border_offsets.json', offsetsMap),
+                storage.writeDataAsync('border_offsets_x.json', offsetsXMap)
+            ]);
+
             if (cIdx !== -1) {
                 customList[cIdx].scale = newScale;
-                customList[cIdx].url = attachScaleParamToUrl(customList[cIdx].url, newScale);
+                customList[cIdx].offsetY = newOffsetY;
+                customList[cIdx].offsetX = newOffsetX;
+                customList[cIdx].url = attachScaleParamToUrl(customList[cIdx].url, newScale, newOffsetY, newOffsetX);
                 storage.writeData('custom_borders.json', customList);
             }
 
@@ -622,12 +762,12 @@ module.exports = async function handler(req, res) {
 
             return res.json({
                 status: true,
-                message: `Ukuran border "${updatedBorder ? updatedBorder.name : borderId}" disimpan ke ${newScale}%`,
+                message: `Pengaturan border "${updatedBorder ? updatedBorder.name : borderId}" disimpan (Ukuran ${newScale}%)`,
                 border: toClientBorder(updatedBorder),
                 borders: toClientBordersList(updatedAll)
             });
         } catch (e) {
-            return res.status(500).json({ status: false, message: 'Gagal menyimpan ukuran border: ' + e.message });
+            return res.status(500).json({ status: false, message: 'Gagal menyimpan ukuran/posisi border: ' + e.message });
         }
     }
 

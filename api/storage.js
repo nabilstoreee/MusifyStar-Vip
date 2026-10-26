@@ -238,30 +238,40 @@ async function waitForInit(timeoutMs = 2500) {
 // Async direct read from storage (verifies updated_at in PostgreSQL with short TTL so requests stay ultra-fast)
 async function readDataAsync(filename, defaultValue) {
     const key = normalizeKey(filename);
-    await waitForInit(2500);
+    await waitForInit(2000);
 
     const now = Date.now();
     const lastChecked = memoryLastCheckedAt.get(key) || 0;
-    if (memoryStore.has(key) && (now - lastChecked < 4000)) {
+    if (memoryStore.has(key) && (now - lastChecked < 12000)) {
         return memoryStore.get(key);
     }
 
     if (pool) {
         try {
-            if (memoryStore.has(key) && memoryUpdatedAt.has(key)) {
-                // Lightweight 8-byte primary key header check (avoids transferring large TOAST JSONB unless changed)
-                const metaRes = await pool.query('SELECT updated_at FROM app_storage WHERE key = $1', [key]);
-                memoryLastCheckedAt.set(key, Date.now());
-                if (metaRes.rows && metaRes.rows.length > 0) {
-                    const dbUpdatedAt = metaRes.rows[0].updated_at ? new Date(metaRes.rows[0].updated_at).getTime() : 0;
-                    if (dbUpdatedAt && dbUpdatedAt === memoryUpdatedAt.get(key)) {
+            const dbCheckPromise = (async () => {
+                if (memoryStore.has(key) && memoryUpdatedAt.has(key)) {
+                    // Lightweight 8-byte primary key header check (avoids transferring large TOAST JSONB unless changed)
+                    const metaRes = await pool.query('SELECT updated_at FROM app_storage WHERE key = $1', [key]);
+                    memoryLastCheckedAt.set(key, Date.now());
+                    if (metaRes.rows && metaRes.rows.length > 0) {
+                        const dbUpdatedAt = metaRes.rows[0].updated_at ? new Date(metaRes.rows[0].updated_at).getTime() : 0;
+                        if (dbUpdatedAt && dbUpdatedAt === memoryUpdatedAt.get(key)) {
+                            return memoryStore.get(key);
+                        }
+                    } else if (memoryUpdatedAt.get(key) === -1) {
                         return memoryStore.get(key);
                     }
-                } else if (memoryUpdatedAt.get(key) === -1) {
-                    return memoryStore.get(key);
                 }
-            }
-            const freshData = await fetchFromPostgres(key);
+                return await fetchFromPostgres(key);
+            })();
+
+            const freshData = memoryStore.has(key)
+                ? await Promise.race([
+                    dbCheckPromise,
+                    new Promise(resolve => setTimeout(() => resolve(memoryStore.get(key)), 2200))
+                ])
+                : await dbCheckPromise;
+
             if (freshData !== null && freshData !== undefined) {
                 return freshData;
             }

@@ -248,15 +248,41 @@ module.exports = async function (req, res) {
 
     const method = req.method.toUpperCase();
 
+    // Helper to check if request comes from logged-in Master Admin (jrnabil570@gmail.com)
+    const isMasterUserRequest = () => {
+        try {
+            const authHeader = req.headers['authorization'] || req.headers['x-user-token'] || '';
+            const uTok = authHeader.replace(/^Bearer\s+/i, '').trim() || (req.body && req.body.userToken) || (req.query && req.query.userToken) || '';
+            if (!uTok) return false;
+            const userAuth = require('./user-auth.js');
+            const db = storage.readData('users.json', { users: [], sessions: {} });
+            const uId = userAuth.getUserIdFromToken(uTok, db);
+            if (!uId) return false;
+            const u = (db.users || []).find(x => x.id === uId);
+            if (!u) return false;
+            const email = String(u.rawEmail || u.email || '').toLowerCase().trim();
+            return email === 'jrnabil570@gmail.com';
+        } catch (e) {
+            return false;
+        }
+    };
+
     if (method === 'GET') {
         const token = req.headers['x-admin-token'] || req.query.token;
         const creds = await getStoredCredentialsAsync();
-        const isAuthenticated = Boolean(token && verifySessionToken(token));
+        let isAuthenticated = Boolean(token && verifySessionToken(token));
+        let autoIssuedToken = null;
+
+        if (!isAuthenticated && isMasterUserRequest() && (!creds || !creds.twoFactorEnabled)) {
+            autoIssuedToken = createSignedSessionToken((creds && creds.username) || 'master_admin');
+            isAuthenticated = true;
+        }
 
         return res.json({
             status: true,
             hasCredentials: Boolean(creds),
             authenticated: isAuthenticated,
+            token: autoIssuedToken || undefined,
             twoFactorEnabled: creds ? Boolean(creds.twoFactorEnabled) : false
         });
     }
@@ -282,6 +308,16 @@ module.exports = async function (req, res) {
         }
 
         const creds = await getStoredCredentialsAsync();
+
+        if (action === 'auto_master' && isMasterUserRequest() && (!creds || !creds.twoFactorEnabled)) {
+            const sessionToken = createSignedSessionToken((creds && creds.username) || 'master_admin');
+            return res.json({
+                status: true,
+                success: true,
+                authenticated: true,
+                token: sessionToken
+            });
+        }
 
         // If no credentials configured yet, allow initial first-time setup
         if (!creds) {
