@@ -19,17 +19,26 @@ const ipv4Agent = new https.Agent({
   noDelay: true
 });
 
-// Memory & persistent cache for audio stream URLs (valid 12 hours)
+// Memory & persistent cache for audio stream URLs (valid 15 minutes so signed tokens never expire)
 const ytCache = new Map();
 const inFlightRequests = new Map();
-const CACHE_TTL = 12 * 60 * 60 * 1000;
+const CACHE_TTL = 15 * 60 * 1000;
+
+function normalizeAudioUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  return url.replace(/\.savetube\.vip\/file\//i, '.savetube.vip/media/');
+}
 
 try {
   const parsed = storage.readData('stream_cache.json', {});
   if (parsed && typeof parsed === 'object') {
     const now = Date.now();
     for (const [k, v] of Object.entries(parsed)) {
-      if (v && v.expireAt > now) {
+      if (v && v.expireAt > now && v.data && v.data.audio) {
+        v.data.audio = normalizeAudioUrl(v.data.audio);
+        if (v.expireAt - now > CACHE_TTL) {
+          v.expireAt = now + CACHE_TTL;
+        }
         ytCache.set(k, v);
       }
     }
@@ -41,7 +50,8 @@ function persistCache() {
     const obj = {};
     const now = Date.now();
     for (const [k, v] of ytCache.entries()) {
-      if (v && v.expireAt > now) {
+      if (v && v.expireAt > now && v.data && v.data.audio) {
+        v.data.audio = normalizeAudioUrl(v.data.audio);
         obj[k] = v;
       }
     }
@@ -51,11 +61,11 @@ function persistCache() {
 
 // Multi-source fast extractors - Active high-speed SaveTube CDNs ordered by latency
 let SAVETUBE_CDNS = [
+  "cdn403.savetube.vip",
   "cdn401.savetube.vip",
   "cdn405.savetube.vip",
   "cdn406.savetube.vip",
-  "cdn400.savetube.vip",
-  "cdn403.savetube.vip"
+  "cdn400.savetube.vip"
 ];
 
 // Dynamically promote winning CDN to top of the list for sub-600ms future requests
@@ -78,19 +88,21 @@ function demoteCdn(failingCdn) {
   }
 }
 
-async function resolveToVideoId(query) {
+async function resolveToVideoId(query, excludeId = null) {
   if (!query) return null;
   const clean = String(query).trim();
 
   // 1. Direct Regex match for YouTube & YouTube Music URLs or direct 11-char video ID
-  const directIdPatterns = [
-    /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/|v\/)|youtu\.be\/|music\.youtube\.com\/watch\?.*v=)([a-zA-Z0-9_-]{11})/,
-    /^([a-zA-Z0-9_-]{11})$/
-  ];
+  if (!excludeId) {
+    const directIdPatterns = [
+      /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/|v\/)|youtu\.be\/|music\.youtube\.com\/watch\?.*v=)([a-zA-Z0-9_-]{11})/,
+      /^([a-zA-Z0-9_-]{11})$/
+    ];
 
-  for (const pattern of directIdPatterns) {
-    const match = clean.match(pattern);
-    if (match && match[1]) return match[1];
+    for (const pattern of directIdPatterns) {
+      const match = clean.match(pattern);
+      if (match && match[1]) return match[1];
+    }
   }
 
   // 2. YouTube Music / Remix Search API
@@ -105,8 +117,10 @@ async function resolveToVideoId(query) {
       timeout: 5000
     });
     const jsonStr = JSON.stringify(data);
-    const m = jsonStr.match(/\"videoId\":\"([a-zA-Z0-9_-]{11})\"/);
-    if (m && m[1]) return m[1];
+    const matches = [...jsonStr.matchAll(/\"videoId\":\"([a-zA-Z0-9_-]{11})\"/g)];
+    for (const m of matches) {
+      if (m && m[1] && m[1] !== excludeId) return m[1];
+    }
   } catch(e) {}
 
   // 3. YouTube HTML Scrape Fallback
@@ -116,14 +130,16 @@ async function resolveToVideoId(query) {
       httpsAgent: ipv4Agent,
       timeout: 5000
     });
-    const m = res.data.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
-    if (m && m[1]) return m[1];
+    const matches = [...String(res.data || '').matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)];
+    for (const m of matches) {
+      if (m && m[1] && m[1] !== excludeId) return m[1];
+    }
   } catch(e) {}
 
   return null;
 }
 
-async function getDownload(url, title, artist) {
+async function getDownload(url, title, artist, forceRefresh = false) {
   let idMatch = await resolveToVideoId(url);
 
   if (!idMatch && (title || url)) {
@@ -135,10 +151,15 @@ async function getDownload(url, title, artist) {
     return null;
   }
 
-  // Check cache first (instant 0ms response)
-  const cached = ytCache.get(idMatch);
-  if (cached && cached.expireAt > Date.now()) {
-    return cached.data;
+  if (forceRefresh) {
+    ytCache.delete(idMatch);
+  } else {
+    // Check cache first (instant 0ms response)
+    const cached = ytCache.get(idMatch);
+    if (cached && cached.expireAt > Date.now() && cached.data && cached.data.audio) {
+      cached.data.audio = normalizeAudioUrl(cached.data.audio);
+      return cached.data;
+    }
   }
 
   // Deduplicate in-flight requests for the same video ID
@@ -163,7 +184,7 @@ async function getDownload(url, title, artist) {
             });
             if (oembedRes.data && oembedRes.data.title) {
               trackTitle = oembedRes.data.title;
-              trackArtist = oembedRes.data.author_name || '';
+              trackArtist = (oembedRes.data.author_name || '').replace(/\s*-\s*Topic$/i, '');
             }
           } catch (eOe) {}
         }
@@ -172,11 +193,12 @@ async function getDownload(url, title, artist) {
           try {
             const searchQuery = ((trackTitle || '') + ' ' + (trackArtist || '')).replace(/[-–|]/g, ' ').trim();
             if (searchQuery) {
-              const altId = await resolveToVideoId(searchQuery + ' audio');
+              const altId = await resolveToVideoId(searchQuery + ' official audio', idMatch);
               if (altId && altId !== idMatch) {
                 console.log(`[EXTRACT] Trying alternative track ID for "${searchQuery}": ${altId}`);
                 result = await executeExtraction(altId);
                 if (result && result.audio) {
+                  result.audio = normalizeAudioUrl(result.audio);
                   // Cache for the original requested video ID as well!
                   ytCache.set(idMatch, { data: result, expireAt: Date.now() + CACHE_TTL });
                   persistCache();
@@ -203,13 +225,18 @@ async function getDownload(url, title, artist) {
 
 async function executeExtraction(idMatch) {
   const fullUrl = "https://www.youtube.com/watch?v=" + idMatch;
+  let videoUnavailableAbort = false;
 
   // Single CDN extractor with IPv4 enforcement, key sharing, and multi-quality fallback
   async function trySavetube(cdn, customTimeout = 7000) {
+    if (videoUnavailableAbort) {
+      throw new Error('Video unavailable');
+    }
     const api = axios.create({
       headers: {
         "content-type": "application/json",
-        "origin": "https://yt.savetube.me",
+        "origin": "https://ytshortdown.com",
+        "referer": "https://ytshortdown.com/",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
       },
       httpsAgent: ipv4Agent,
@@ -217,6 +244,12 @@ async function executeExtraction(idMatch) {
     });
 
     const infoResponse = await api.post(`https://${cdn}/v2/info`, { url: fullUrl });
+    if (infoResponse?.data?.status === false && /unavailable|private|removed|not available/i.test(infoResponse?.data?.message || '')) {
+      videoUnavailableAbort = true;
+      const unavailErr = new Error(infoResponse.data.message || 'Video unavailable');
+      unavailErr.isVideoUnavailable = true;
+      throw unavailErr;
+    }
     const encryptedData = infoResponse?.data?.data;
     if (!encryptedData) {
       demoteCdn(cdn);
@@ -266,7 +299,8 @@ async function executeExtraction(idMatch) {
           }, {
             headers: {
               "content-type": "application/json",
-              "origin": "https://yt.savetube.me",
+              "origin": "https://ytshortdown.com",
+              "referer": "https://ytshortdown.com/",
               "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             },
             httpsAgent: ipv4Agent,
@@ -286,6 +320,7 @@ async function executeExtraction(idMatch) {
       throw new Error(`No audio URL from ${cdn}`);
     }
 
+    audioUrl = normalizeAudioUrl(audioUrl);
     promoteCdn(cdn);
 
     const dur = decrypted.duration || 0;
@@ -316,6 +351,9 @@ async function executeExtraction(idMatch) {
   if (secondaryCDNs.length > 0) {
     delayedSecondary = new Promise((resolve, reject) => {
       const timer = setTimeout(async () => {
+        if (videoUnavailableAbort) {
+          return reject(new Error('Video unavailable'));
+        }
         try {
           const secRes = await Promise.any(secondaryCDNs.map(cdn => trySavetube(cdn, 8000)));
           resolve(secRes);
@@ -332,15 +370,20 @@ async function executeExtraction(idMatch) {
 
   try {
     const winner = await Promise.any(allAttempts);
+    winner.audio = normalizeAudioUrl(winner.audio);
     ytCache.set(idMatch, { data: winner, expireAt: Date.now() + CACHE_TTL });
     persistCache();
     return winner;
   } catch (err) {
+    if (videoUnavailableAbort) {
+      return null;
+    }
     // Retry once with remaining/shuffled CDNs after short pause
     try {
       await new Promise(r => setTimeout(r, 400));
       const retryAttempts = SAVETUBE_CDNS.slice(0, 3).map(cdn => trySavetube(cdn, 7000));
       const retryWinner = await Promise.any(retryAttempts);
+      retryWinner.audio = normalizeAudioUrl(retryWinner.audio);
       ytCache.set(idMatch, { data: retryWinner, expireAt: Date.now() + CACHE_TTL });
       persistCache();
       return retryWinner;
@@ -361,18 +404,19 @@ module.exports = async (req, res) => {
     const url = (body.query || body.url || '').trim();
     const title = (body.title || '').trim();
     const artist = (body.artist || '').trim();
+    const forceRefresh = Boolean(body.refresh);
 
     if (!url && !title) { res.status(400).json({ status: false, message: 'Parameter query wajib diisi' }); return; }
 
     try {
-        let audioData = await getDownload(url, title, artist);
+        let audioData = await getDownload(url, title, artist, forceRefresh);
 
         if (audioData && audioData.audio) {
             return res.status(200).json({
                 status: true,
                 result: {
                     duration: audioData.duration || null,
-                    download: { audio: audioData.audio }
+                    download: { audio: normalizeAudioUrl(audioData.audio) }
                 }
             });
         }
