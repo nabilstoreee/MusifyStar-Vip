@@ -193,15 +193,20 @@ AU.addEventListener('waiting',function(){S.il=true;UB();});
 AU.addEventListener('playing',function(){S.ip=true;S.il=false;UB();sendPlaybackHeartbeat(true);});
 AU.addEventListener('ended',function(){ST();sendPlaybackHeartbeat(false);if(typeof handleTrackEnded==='function'&&handleTrackEnded())return;if(S.rm==='one'){AU.currentTime=0;AU.play().catch(function(){});}else if(S.autoNext){NX();}else{S.ip=false;UB();}});
 AU.addEventListener('error', function(){
-    if(AU.src){
-        S.il=false;S.ip=false;UB();sendPlaybackHeartbeat(false);
+    if(AU.src && AU.src !== window.location.href){
         if (S.ct) {
             var vid = S.ct.videoId || S.ct.id;
             if (vid && audioUrlCache[vid]) {
                 delete audioUrlCache[vid];
                 savePwaCaches();
             }
+            if (!S.ct._audioRetried && navigator.onLine) {
+                S.ct._audioRetried = true;
+                fetchAudioAndPlay(S.ct, S.pt || 0, true);
+                return;
+            }
         }
+        S.il=false;S.ip=false;UB();sendPlaybackHeartbeat(false);
     }
 });
 
@@ -524,11 +529,41 @@ function updateVolumeUI() {
     if (window.lucide) lucide.createIcons();
 }
 
+var AUDIO_CACHE_TTL_MS = 14 * 60 * 1000;
 var audioUrlCache = {};
 try {
-    var storedAudio = localStorage.getItem('pwa_audio_cache');
-    if (storedAudio) audioUrlCache = JSON.parse(storedAudio);
-} catch(e) {}
+    localStorage.removeItem('pwa_audio_cache');
+    var storedAudio = localStorage.getItem('pwa_audio_cache_v2');
+    if (storedAudio) audioUrlCache = JSON.parse(storedAudio) || {};
+} catch(e) { audioUrlCache = {}; }
+
+function normalizeAudioStreamUrl(url) {
+    if (!url || typeof url !== 'string') return '';
+    return url.replace(/(\.savetube\.vip)\/file\//i, '$1/media/');
+}
+
+function getCachedAudioUrl(vid) {
+    if (!vid || !audioUrlCache[vid]) return null;
+    var entry = audioUrlCache[vid];
+    if (typeof entry === 'string') {
+        delete audioUrlCache[vid];
+        return null;
+    }
+    if (!entry.url || !entry.ts || (Date.now() - entry.ts > AUDIO_CACHE_TTL_MS) || entry.url.includes('googlevideo.com')) {
+        delete audioUrlCache[vid];
+        return null;
+    }
+    return normalizeAudioStreamUrl(entry.url);
+}
+
+function setCachedAudioUrl(vid, url) {
+    if (!vid || !url || typeof url !== 'string' || url.includes('googlevideo.com')) return;
+    audioUrlCache[vid] = {
+        url: normalizeAudioStreamUrl(url),
+        ts: Date.now()
+    };
+    savePwaCaches();
+}
 
 var lyricsCache = {};
 try {
@@ -542,9 +577,18 @@ function savePwaCaches() {
         if (lKeys.length > 80) delete lyricsCache[lKeys[0]];
         localStorage.setItem('pwa_lyrics_cache', JSON.stringify(lyricsCache));
 
+        var now = Date.now();
         var aKeys = Object.keys(audioUrlCache);
-        if (aKeys.length > 80) delete audioUrlCache[aKeys[0]];
-        localStorage.setItem('pwa_audio_cache', JSON.stringify(audioUrlCache));
+        for (var i = 0; i < aKeys.length; i++) {
+            var k = aKeys[i];
+            var item = audioUrlCache[k];
+            if (!item || typeof item !== 'object' || !item.ts || (now - item.ts > AUDIO_CACHE_TTL_MS)) {
+                delete audioUrlCache[k];
+            }
+        }
+        var validKeys = Object.keys(audioUrlCache);
+        if (validKeys.length > 60) delete audioUrlCache[validKeys[0]];
+        localStorage.setItem('pwa_audio_cache_v2', JSON.stringify(audioUrlCache));
     } catch(e) {}
 }
 
@@ -598,7 +642,7 @@ async function triggerPreloadNextTrack(){
         }
 
         // Pre-fetch audio URL
-        if (!audioUrlCache[nextVid]) {
+        if (!getCachedAudioUrl(nextVid)) {
             var nextYtUrl = nextTrack.ytUrl || ('https://youtube.com/watch?v=' + nextVid);
             var r = await fetch(API.ytplay, {
                 method: 'POST',
@@ -611,8 +655,8 @@ async function triggerPreloadNextTrack(){
             });
             var d = await r.json();
             if (d && d.status && d.result && d.result.download && d.result.download.audio) {
-                var rawAudioUrl = d.result.download.audio;
-                audioUrlCache[nextVid] = rawAudioUrl;
+                var rawAudioUrl = normalizeAudioStreamUrl(d.result.download.audio);
+                setCachedAudioUrl(nextVid, rawAudioUrl);
 
                 var srcUrl = (typeof audioCtx !== 'undefined' && audioCtx) ? ('/api/proxy-audio?url=' + encodeURIComponent(rawAudioUrl)) : rawAudioUrl;
                 var preAudio = new Audio();
@@ -1286,7 +1330,7 @@ var prefetchingVids = new Set();
 function prefetchTrackAudio(trackOrVid) {
     if (!trackOrVid || !navigator.onLine) return;
     var vid = typeof trackOrVid === 'string' ? trackOrVid : (trackOrVid.videoId || trackOrVid.id);
-    if (!vid || audioUrlCache[vid] || prefetchingVids.has(vid)) return;
+    if (!vid || getCachedAudioUrl(vid) || prefetchingVids.has(vid)) return;
     
     prefetchingVids.add(vid);
     var ytUrl = (typeof trackOrVid === 'object' && trackOrVid.ytUrl) ? trackOrVid.ytUrl : ('https://youtube.com/watch?v=' + vid);
@@ -1300,11 +1344,8 @@ function prefetchTrackAudio(trackOrVid) {
         })
     }).then(function(r) { return r.json(); }).then(function(d) {
         if (d && d.status && d.result && d.result.download && d.result.download.audio) {
-            var rawAudioUrl = d.result.download.audio;
-            if (!rawAudioUrl.includes('googlevideo.com')) {
-                audioUrlCache[vid] = rawAudioUrl;
-                savePwaCaches();
-            }
+            var rawAudioUrl = normalizeAudioStreamUrl(d.result.download.audio);
+            setCachedAudioUrl(vid, rawAudioUrl);
         }
     }).catch(function() {}).finally(function() {
         prefetchingVids.delete(vid);
@@ -1314,6 +1355,7 @@ window.prefetchTrackAudio = prefetchTrackAudio;
 
 function loadTrack(track,resumeAt){
     if(!track)return;
+    track._audioRetried = false;
     hasPrefetchedNext = false;
     isPreloadingNext = false;
     ST();
@@ -1337,12 +1379,12 @@ function loadTrack(track,resumeAt){
             try { Profile.recordDataUsageTrackLoad(track); } catch(e){}
         }
     }
-    fetchAudioAndPlay(track,resumeAt);
+    fetchAudioAndPlay(track,resumeAt,false);
 }
 
 var currentAudioAbortController = null;
 
-async function fetchAudioAndPlay(track,resumeAt){
+async function fetchAudioAndPlay(track,resumeAt,isRetry){
     if (currentAudioAbortController) {
         try { currentAudioAbortController.abort(); } catch(e){}
     }
@@ -1352,11 +1394,7 @@ async function fetchAudioAndPlay(track,resumeAt){
     S.il=true;UB();
     var vid = track.videoId || track.id;
     try{
-        var audioUrl = audioUrlCache[vid];
-        if (audioUrl && audioUrl.includes('googlevideo.com')) {
-            delete audioUrlCache[vid];
-            audioUrl = null;
-        }
+        var audioUrl = isRetry ? null : getCachedAudioUrl(vid);
         if (!audioUrl) {
             if (!navigator.onLine) {
                 S.il = false; S.ip = false; UB();
@@ -1370,18 +1408,16 @@ async function fetchAudioAndPlay(track,resumeAt){
                 body:JSON.stringify({
                     query:ytUrl,
                     title: track.title || '',
-                    artist: track.artist || ''
+                    artist: track.artist || '',
+                    refresh: !!isRetry
                 }),
                 signal: signal
             });
             var d=await r.json();
             if(d&&d.status&&d.result){
                 if(d.result.download && d.result.download.audio){
-                    audioUrl = d.result.download.audio;
-                    if (!audioUrl.includes('googlevideo.com')) {
-                        audioUrlCache[vid] = audioUrl;
-                        savePwaCaches();
-                    }
+                    audioUrl = normalizeAudioStreamUrl(d.result.download.audio);
+                    setCachedAudioUrl(vid, audioUrl);
                 }
                 if(d.result.duration && (!track.duration || track.duration === '0:00' || track.duration === 'Video')){
                     track.duration = d.result.duration;
@@ -1425,8 +1461,17 @@ async function fetchAudioAndPlay(track,resumeAt){
                         UB();
                     }
                 }).catch(function(err){
+                    if (err && err.name === 'AbortError') return;
                     console.warn('[AUDIO] play error or waiting gesture:', err);
                     if (S.ct === track) {
+                        var isMediaErr = err && (err.name === 'NotSupportedError' || (AU.error && AU.error.code));
+                        if (isMediaErr && !isRetry && navigator.onLine) {
+                            track._audioRetried = true;
+                            delete audioUrlCache[vid];
+                            savePwaCaches();
+                            fetchAudioAndPlay(track, resumeAt, true);
+                            return;
+                        }
                         S.il = false;
                         S.ip = false;
                         UB();
@@ -1440,12 +1485,22 @@ async function fetchAudioAndPlay(track,resumeAt){
             }
         }else{
             if (S.ct === track) {
+                if (!isRetry && navigator.onLine) {
+                    track._audioRetried = true;
+                    fetchAudioAndPlay(track, resumeAt, true);
+                    return;
+                }
                 S.il=false;S.ip=false;UB();
                 if(typeof showToast === 'function') showToast('Gagal memuat audio lagu ini');
             }
         }
     }catch(e){
         if (e.name !== 'AbortError' && S.ct===track){
+            if (!isRetry && navigator.onLine) {
+                track._audioRetried = true;
+                fetchAudioAndPlay(track, resumeAt, true);
+                return;
+            }
             S.il=false;S.ip=false;UB();
         }
     }

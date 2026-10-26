@@ -10692,6 +10692,8 @@ var Profile = {
     adminBorderSelectedCategory: 'immortal',
     adminBordersGalleryFilter: 'all',
     adminBorderScale: 100,
+    adminBorderOffsetY: 0,
+    adminBorderOffsetX: 0,
 
     getBorderScaleValue(borderOrUrl) {
         if (!borderOrUrl) return 100;
@@ -10709,13 +10711,101 @@ var Profile = {
         return 100;
     },
 
+    getBorderOffsetYValue(borderOrUrl) {
+        if (!borderOrUrl) return 0;
+        if (typeof borderOrUrl === 'object') {
+            var num = Number(borderOrUrl.offsetY);
+            if (Number.isFinite(num) && num >= -45 && num <= 45) return Math.round(num);
+            borderOrUrl = borderOrUrl.url || '';
+        }
+        var str = String(borderOrUrl || '');
+        var m = str.match(/[?&]y=(-?\d+)/);
+        if (m && m[1] !== undefined) {
+            var parsed = parseInt(m[1], 10);
+            if (Number.isFinite(parsed) && parsed >= -45 && parsed <= 45) return parsed;
+        }
+        return 0;
+    },
+
+    getBorderOffsetXValue(borderOrUrl) {
+        if (!borderOrUrl) return 0;
+        if (typeof borderOrUrl === 'object') {
+            var num = Number(borderOrUrl.offsetX);
+            if (Number.isFinite(num) && num >= -45 && num <= 45) return Math.round(num);
+            borderOrUrl = borderOrUrl.url || '';
+        }
+        var str = String(borderOrUrl || '');
+        var m = str.match(/[?&]x=(-?\d+)/);
+        if (m && m[1] !== undefined) {
+            var parsed = parseInt(m[1], 10);
+            if (Number.isFinite(parsed) && parsed >= -45 && parsed <= 45) return parsed;
+        }
+        return 0;
+    },
+
+    formatBorderOffsetYLabel(val) {
+        var n = Math.round(Number(val) || 0);
+        if (n === 0) return 'Tengah (0%)';
+        if (n < 0) return 'Atas ' + Math.abs(n) + '%';
+        return 'Bawah +' + n + '%';
+    },
+
+    formatCardBorderOffsetYLabel(val) {
+        var n = Math.round(Number(val) || 0);
+        if (n === 0) return '0%';
+        if (n < 0) return '▲' + Math.abs(n) + '%';
+        return '▼' + n + '%';
+    },
+
+    formatBorderOffsetXLabel(val) {
+        var n = Math.round(Number(val) || 0);
+        if (n === 0) return 'Tengah (0%)';
+        if (n < 0) return 'Kiri ' + Math.abs(n) + '%';
+        return 'Kanan +' + n + '%';
+    },
+
+    formatCardBorderOffsetXLabel(val) {
+        var n = Math.round(Number(val) || 0);
+        if (n === 0) return '0%';
+        if (n < 0) return '◄' + Math.abs(n) + '%';
+        return '►' + n + '%';
+    },
+
+    buildBorderTransformCss(scale, offsetY, offsetX) {
+        var s = Number(scale);
+        if (!Number.isFinite(s) || s <= 0) s = 100;
+        var y = Math.round(Number(offsetY) || 0);
+        var x = Math.round(Number(offsetX) || 0);
+        var xExpr = x !== 0 ? ('calc(-50% + ' + x + '%)') : '-50%';
+        var yExpr = y !== 0 ? ('calc(-50% + ' + y + '%)') : '-50%';
+        return 'translate(' + xExpr + ', ' + yExpr + ') scale(' + (s / 100) + ')';
+    },
+
+    buildBorderUrlWithParams(url, scale, offsetY, offsetX) {
+        if (!url || typeof url !== 'string') return '';
+        var s = Math.max(50, Math.min(180, Math.round(Number(scale) || 100)));
+        var y = Math.max(-45, Math.min(45, Math.round(Number(offsetY) || 0)));
+        var x = Math.max(-45, Math.min(45, Math.round(Number(offsetX) || 0)));
+        var clean = url
+            .replace(/([?&])s=\d+(&?)/g, function(m, p1, p2) { return p2 ? p1 : ''; })
+            .replace(/([?&])y=-?\d+(&?)/g, function(m, p1, p2) { return p2 ? p1 : ''; })
+            .replace(/([?&])x=-?\d+(&?)/g, function(m, p1, p2) { return p2 ? p1 : ''; })
+            .replace(/[?&]+$/, '');
+        var params = [];
+        if (s !== 100) params.push('s=' + s);
+        if (y !== 0) params.push('y=' + y);
+        if (x !== 0) params.push('x=' + x);
+        if (params.length === 0) return clean;
+        return clean + (clean.indexOf('?') === -1 ? '?' : '&') + params.join('&');
+    },
+
     getDefaultSystemBorders() {
         return [
-            { id: 'none', name: 'Tanpa Border', file: '', url: '', scale: 100, isVip: false, tier: 'Gratis', requiredTier: 'none', color: '#a1a1aa', badge: 'Default', desc: 'Tampilan avatar melingkar standar tanpa bingkai tambahan.' },
-            { id: 'border_platinum', name: 'Platinum', file: 'Platinum.png', url: '/borders/Platinum.png', scale: 100, isVip: true, tier: '1 Bulan+', requiredTier: '1month', color: '#38bdf8', badge: '1 Bulan+', desc: 'Bingkai Platinum naga api cyber. Terbuka untuk Paket 1 Bulan, 5 Bulan & Permanen.' },
-            { id: 'border_master', name: 'Master', file: 'Master.png', url: '/borders/Master.png', scale: 100, isVip: true, tier: '1 Bulan+', requiredTier: '1month', color: '#f97316', badge: '1 Bulan+', desc: 'Bingkai Master mahkota emas membara. Terbuka untuk Paket 1 Bulan, 5 Bulan & Permanen.' },
-            { id: 'border_legend', name: 'Legend', file: 'Legend.png', url: '/borders/Legend.png', scale: 100, isVip: true, tier: '2 Bulan+', requiredTier: '2months', color: '#eab308', badge: '2 Bulan+', desc: 'Sayap emas kemegahan kerajaan Legenda. Khusus Paket 2 Bulan, 5 Bulan & Permanen.' },
-            { id: 'border_immortal', name: 'Immortal', file: 'Imortal.png', url: '/borders/Imortal.png', scale: 100, isVip: true, tier: '5 Bulan+', requiredTier: '5months', color: '#ec4899', badge: '5 Bulan+', desc: 'Kasta tertinggi Immortal Mahkota Dewa Musik. Khusus Paket 5 Bulan & Permanen.' }
+            { id: 'none', name: 'Tanpa Border', file: '', url: '', scale: 100, offsetY: 0, offsetX: 0, isVip: false, tier: 'Gratis', requiredTier: 'none', color: '#a1a1aa', badge: 'Default', desc: 'Tampilan avatar melingkar standar tanpa bingkai tambahan.' },
+            { id: 'border_platinum', name: 'Platinum', file: 'Platinum.png', url: '/borders/Platinum.png', scale: 100, offsetY: 0, offsetX: 0, isVip: true, tier: '1 Bulan+', requiredTier: '1month', color: '#38bdf8', badge: '1 Bulan+', desc: 'Bingkai Platinum naga api cyber. Terbuka untuk Paket 1 Bulan, 5 Bulan & Permanen.' },
+            { id: 'border_master', name: 'Master', file: 'Master.png', url: '/borders/Master.png', scale: 100, offsetY: 0, offsetX: 0, isVip: true, tier: '1 Bulan+', requiredTier: '1month', color: '#f97316', badge: '1 Bulan+', desc: 'Bingkai Master mahkota emas membara. Terbuka untuk Paket 1 Bulan, 5 Bulan & Permanen.' },
+            { id: 'border_legend', name: 'Legend', file: 'Legend.png', url: '/borders/Legend.png', scale: 100, offsetY: 0, offsetX: 0, isVip: true, tier: '2 Bulan+', requiredTier: '2months', color: '#eab308', badge: '2 Bulan+', desc: 'Sayap emas kemegahan kerajaan Legenda. Khusus Paket 2 Bulan, 5 Bulan & Permanen.' },
+            { id: 'border_immortal', name: 'Immortal', file: 'Imortal.png', url: '/borders/Imortal.png', scale: 100, offsetY: 0, offsetX: 0, isVip: true, tier: '5 Bulan+', requiredTier: '5months', color: '#ec4899', badge: '5 Bulan+', desc: 'Kasta tertinggi Immortal Mahkota Dewa Musik. Khusus Paket 5 Bulan & Permanen.' }
         ];
     },
 
@@ -10727,6 +10817,9 @@ var Profile = {
         var previewAvatar = u.avatar || u.photoURL || u.profilePicture || '/dev.png';
         var defaultBorderImg = Profile.adminBorderFileBase64 || '/borders/Imortal.png';
         var currentScale = Profile.adminBorderScale || 100;
+        var currentOffsetY = Profile.adminBorderOffsetY || 0;
+        var currentOffsetX = Profile.adminBorderOffsetX || 0;
+        var currentTransformCss = Profile.buildBorderTransformCss(currentScale, currentOffsetY, currentOffsetX);
 
         container.innerHTML = `
             <div class="space-y-5">
@@ -10776,7 +10869,7 @@ var Profile = {
                                     <div class="w-16 h-16 rounded-full overflow-hidden bg-black/90 flex items-center justify-center shadow-inner z-0 border border-white/20">
                                         <img id="admin-border-preview-avatar-img" src="${previewAvatar}" class="w-full h-full object-cover rounded-full" alt="Avatar Preview" onerror="this.src='/logo.png'">
                                     </div>
-                                    <img id="admin-border-live-preview-frame" src="${defaultBorderImg}" style="transform: translate(-50%, -50%) scale(${currentScale / 100});" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_15px_rgba(245,158,11,0.6)] transition-transform duration-150" alt="" onerror="this.onerror=null; this.style.display='none';">
+                                    <img id="admin-border-live-preview-frame" src="${defaultBorderImg}" style="transform: ${currentTransformCss};" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_15px_rgba(245,158,11,0.6)] transition-transform duration-150" alt="" onerror="this.onerror=null; this.style.display='none';">
                                 </div>
 
                                 <div class="text-center mt-1 w-full px-2">
@@ -10809,6 +10902,56 @@ var Profile = {
                                         <button type="button" onclick="Profile.setNewBorderScale(100)" class="py-1 rounded-md bg-amber-400/15 hover:bg-amber-400/25 text-[9px] font-extrabold text-amber-300 border border-amber-400/30 transition-all cursor-pointer">100%</button>
                                         <button type="button" onclick="Profile.setNewBorderScale(110)" class="py-1 rounded-md bg-white/5 hover:bg-amber-400/20 text-[9px] font-bold text-white/70 hover:text-amber-300 border border-white/10 transition-all cursor-pointer">110%</button>
                                         <button type="button" onclick="Profile.setNewBorderScale(125)" class="py-1 rounded-md bg-white/5 hover:bg-amber-400/20 text-[9px] font-bold text-white/70 hover:text-amber-300 border border-white/10 transition-all cursor-pointer">125%</button>
+                                    </div>
+                                </div>
+
+                                <!-- Kontrol Atur Posisi Ke Atas / Ke Bawah Live Preview -->
+                                <div class="w-full mt-2.5 pt-2.5 border-t border-white/10 space-y-2">
+                                    <div class="flex items-center justify-between px-1">
+                                        <span class="text-[10px] font-extrabold text-sky-300 flex items-center gap-1">
+                                            <i data-lucide="move-vertical" class="w-3 h-3"></i> Posisi Atas / Bawah:
+                                        </span>
+                                        <span id="admin-border-offsety-label" class="text-[10px] font-mono font-black px-2 py-0.5 rounded-md bg-sky-400/20 text-sky-300 border border-sky-400/30">${Profile.formatBorderOffsetYLabel(currentOffsetY)}</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <button type="button" onclick="Profile.adjustNewBorderOffsetY(-2)" class="px-2 h-7 rounded-lg bg-sky-500/20 hover:bg-sky-400 hover:text-black text-sky-200 border border-sky-400/30 font-black text-[10px] flex items-center justify-center gap-0.5 transition-all active:scale-90 cursor-pointer shrink-0" title="Geser Border Ke Atas">
+                                            <span>▲</span><span>Atas</span>
+                                        </button>
+                                        <input type="range" id="admin-border-offsety-slider" min="-35" max="35" step="1" value="${currentOffsetY}" oninput="Profile.setNewBorderOffsetY(this.value)" class="w-full accent-sky-400 h-1.5 bg-white/15 rounded-lg cursor-pointer" />
+                                        <button type="button" onclick="Profile.adjustNewBorderOffsetY(2)" class="px-2 h-7 rounded-lg bg-sky-500/20 hover:bg-sky-400 hover:text-black text-sky-200 border border-sky-400/30 font-black text-[10px] flex items-center justify-center gap-0.5 transition-all active:scale-90 cursor-pointer shrink-0" title="Geser Border Ke Bawah">
+                                            <span>▼</span><span>Bawah</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-4 gap-1 pt-0.5">
+                                        <button type="button" onclick="Profile.setNewBorderOffsetY(-8)" class="py-1 rounded-md bg-white/5 hover:bg-sky-400/20 text-[9px] font-bold text-white/70 hover:text-sky-300 border border-white/10 transition-all cursor-pointer">▲ Atas 8%</button>
+                                        <button type="button" onclick="Profile.setNewBorderOffsetY(-4)" class="py-1 rounded-md bg-white/5 hover:bg-sky-400/20 text-[9px] font-bold text-white/70 hover:text-sky-300 border border-white/10 transition-all cursor-pointer">▲ Atas 4%</button>
+                                        <button type="button" onclick="Profile.setNewBorderOffsetY(0)" class="py-1 rounded-md bg-sky-400/15 hover:bg-sky-400/25 text-[9px] font-extrabold text-sky-300 border border-sky-400/30 transition-all cursor-pointer">Tengah 0%</button>
+                                        <button type="button" onclick="Profile.setNewBorderOffsetY(6)" class="py-1 rounded-md bg-white/5 hover:bg-sky-400/20 text-[9px] font-bold text-white/70 hover:text-sky-300 border border-white/10 transition-all cursor-pointer">▼ Bawah 6%</button>
+                                    </div>
+                                </div>
+
+                                <!-- Kontrol Atur Posisi Ke Kiri / Ke Kanan Live Preview -->
+                                <div class="w-full mt-2.5 pt-2.5 border-t border-white/10 space-y-2">
+                                    <div class="flex items-center justify-between px-1">
+                                        <span class="text-[10px] font-extrabold text-emerald-300 flex items-center gap-1">
+                                            <i data-lucide="move-horizontal" class="w-3 h-3"></i> Posisi Kiri / Kanan:
+                                        </span>
+                                        <span id="admin-border-offsetx-label" class="text-[10px] font-mono font-black px-2 py-0.5 rounded-md bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">${Profile.formatBorderOffsetXLabel(currentOffsetX)}</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <button type="button" onclick="Profile.adjustNewBorderOffsetX(-2)" class="px-2 h-7 rounded-lg bg-emerald-500/20 hover:bg-emerald-400 hover:text-black text-emerald-200 border border-emerald-400/30 font-black text-[10px] flex items-center justify-center gap-0.5 transition-all active:scale-90 cursor-pointer shrink-0" title="Geser Border Ke Kiri">
+                                            <span>◄</span><span>Kiri</span>
+                                        </button>
+                                        <input type="range" id="admin-border-offsetx-slider" min="-35" max="35" step="1" value="${currentOffsetX}" oninput="Profile.setNewBorderOffsetX(this.value)" class="w-full accent-emerald-400 h-1.5 bg-white/15 rounded-lg cursor-pointer" />
+                                        <button type="button" onclick="Profile.adjustNewBorderOffsetX(2)" class="px-2 h-7 rounded-lg bg-emerald-500/20 hover:bg-emerald-400 hover:text-black text-emerald-200 border border-emerald-400/30 font-black text-[10px] flex items-center justify-center gap-0.5 transition-all active:scale-90 cursor-pointer shrink-0" title="Geser Border Ke Kanan">
+                                            <span>►</span><span>Kanan</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-4 gap-1 pt-0.5">
+                                        <button type="button" onclick="Profile.setNewBorderOffsetX(-6)" class="py-1 rounded-md bg-white/5 hover:bg-emerald-400/20 text-[9px] font-bold text-white/70 hover:text-emerald-300 border border-white/10 transition-all cursor-pointer">◄ Kiri 6%</button>
+                                        <button type="button" onclick="Profile.setNewBorderOffsetX(-3)" class="py-1 rounded-md bg-white/5 hover:bg-emerald-400/20 text-[9px] font-bold text-white/70 hover:text-emerald-300 border border-white/10 transition-all cursor-pointer">◄ Kiri 3%</button>
+                                        <button type="button" onclick="Profile.setNewBorderOffsetX(0)" class="py-1 rounded-md bg-emerald-400/15 hover:bg-emerald-400/25 text-[9px] font-extrabold text-emerald-300 border border-emerald-400/30 transition-all cursor-pointer">Tengah 0%</button>
+                                        <button type="button" onclick="Profile.setNewBorderOffsetX(6)" class="py-1 rounded-md bg-white/5 hover:bg-emerald-400/20 text-[9px] font-bold text-white/70 hover:text-emerald-300 border border-white/10 transition-all cursor-pointer">► Kanan 6%</button>
                                     </div>
                                 </div>
                             </div>
@@ -11135,6 +11278,9 @@ var Profile = {
         grid.innerHTML = filtered.map(function(b) {
             var isCustom = !!b.isCustom;
             var bScale = Profile.getBorderScaleValue(b);
+            var bOffsetY = Profile.getBorderOffsetYValue(b);
+            var bOffsetX = Profile.getBorderOffsetXValue(b);
+            var bTransformCss = Profile.buildBorderTransformCss(bScale, bOffsetY, bOffsetX);
             var tierColor = {
                 '1month': 'bg-sky-400/20 text-sky-300 border-sky-400/30',
                 '2months': 'bg-yellow-400/20 text-yellow-300 border-yellow-400/30',
@@ -11175,7 +11321,7 @@ var Profile = {
                                 <img src="${previewAvatar}" class="w-full h-full object-cover rounded-full" onerror="this.src='/logo.png'">
                             </div>
                             ${b.url ? `
-                                <img id="admin-card-border-img-${b.id}" src="${b.url}" style="transform: translate(-50%, -50%) scale(${bScale / 100});" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88px] h-[88px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_12px_rgba(245,158,11,0.5)] transition-transform duration-150" onerror="this.style.display='none'">
+                                <img id="admin-card-border-img-${b.id}" src="${b.url}" style="transform: ${bTransformCss};" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88px] h-[88px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_12px_rgba(245,158,11,0.5)] transition-transform duration-150" onerror="this.style.display='none'">
                             ` : ''}
                         </div>
                     </div>
@@ -11187,7 +11333,7 @@ var Profile = {
                     </div>
                 </div>
 
-                <div class="pt-2 border-t border-white/5 space-y-2">
+                <div class="pt-2 border-t border-white/5 space-y-1.5">
                     <!-- Kontrol Atur Ukuran Border pada Kartu -->
                     <div class="flex items-center justify-between gap-1.5 bg-black/40 border border-white/10 rounded-xl px-2 py-1">
                         <span class="text-[9px] font-bold text-white/60 flex items-center gap-1">
@@ -11198,6 +11344,32 @@ var Profile = {
                             <span id="admin-card-border-scale-${b.id}" class="text-[9px] font-mono font-black text-amber-300 min-w-[34px] text-center">${bScale}%</span>
                             <button type="button" onclick="Profile.adjustExistingBorderScale('${b.id}', 5)" class="w-5 h-5 rounded-md bg-white/10 hover:bg-amber-400 hover:text-black text-white font-black text-[10px] flex items-center justify-center transition-all active:scale-90 cursor-pointer" title="Perbesar (+5%)">+</button>
                             <button type="button" onclick="Profile.adjustExistingBorderScale('${b.id}', 0)" class="px-1.5 h-5 rounded-md bg-white/5 hover:bg-white/15 text-white/60 hover:text-white font-bold text-[8px] flex items-center justify-center transition-all cursor-pointer" title="Reset 100%">Reset</button>
+                        </div>
+                    </div>
+
+                    <!-- Kontrol Atur Posisi Ke Atas / Ke Bawah pada Kartu -->
+                    <div class="flex items-center justify-between gap-1.5 bg-black/40 border border-white/10 rounded-xl px-2 py-1">
+                        <span class="text-[9px] font-bold text-white/60 flex items-center gap-1">
+                            <i data-lucide="move-vertical" class="w-2.5 h-2.5 text-sky-400"></i> Atas/Bawah:
+                        </span>
+                        <div class="flex items-center gap-1">
+                            <button type="button" onclick="Profile.adjustExistingBorderOffsetY('${b.id}', -2)" class="px-1.5 h-5 rounded-md bg-sky-500/20 hover:bg-sky-400 hover:text-black text-sky-200 border border-sky-400/30 font-black text-[9px] flex items-center justify-center transition-all active:scale-90 cursor-pointer" title="Geser Ke Atas">▲ Atas</button>
+                            <span id="admin-card-border-offsety-${b.id}" class="text-[9px] font-mono font-black text-sky-300 min-w-[32px] text-center">${Profile.formatCardBorderOffsetYLabel(bOffsetY)}</span>
+                            <button type="button" onclick="Profile.adjustExistingBorderOffsetY('${b.id}', 2)" class="px-1.5 h-5 rounded-md bg-sky-500/20 hover:bg-sky-400 hover:text-black text-sky-200 border border-sky-400/30 font-black text-[9px] flex items-center justify-center transition-all active:scale-90 cursor-pointer" title="Geser Ke Bawah">▼ Bawah</button>
+                            <button type="button" onclick="Profile.adjustExistingBorderOffsetY('${b.id}', 0)" class="px-1.5 h-5 rounded-md bg-white/5 hover:bg-white/15 text-white/60 hover:text-white font-bold text-[8px] flex items-center justify-center transition-all cursor-pointer" title="Reset Posisi Tengah (0%)">Reset</button>
+                        </div>
+                    </div>
+
+                    <!-- Kontrol Atur Posisi Ke Kiri / Ke Kanan pada Kartu -->
+                    <div class="flex items-center justify-between gap-1.5 bg-black/40 border border-white/10 rounded-xl px-2 py-1">
+                        <span class="text-[9px] font-bold text-white/60 flex items-center gap-1">
+                            <i data-lucide="move-horizontal" class="w-2.5 h-2.5 text-emerald-400"></i> Kiri/Kanan:
+                        </span>
+                        <div class="flex items-center gap-1">
+                            <button type="button" onclick="Profile.adjustExistingBorderOffsetX('${b.id}', -2)" class="px-1.5 h-5 rounded-md bg-emerald-500/20 hover:bg-emerald-400 hover:text-black text-emerald-200 border border-emerald-400/30 font-black text-[9px] flex items-center justify-center transition-all active:scale-90 cursor-pointer" title="Geser Ke Kiri">◄ Kiri</button>
+                            <span id="admin-card-border-offsetx-${b.id}" class="text-[9px] font-mono font-black text-emerald-300 min-w-[32px] text-center">${Profile.formatCardBorderOffsetXLabel(bOffsetX)}</span>
+                            <button type="button" onclick="Profile.adjustExistingBorderOffsetX('${b.id}', 2)" class="px-1.5 h-5 rounded-md bg-emerald-500/20 hover:bg-emerald-400 hover:text-black text-emerald-200 border border-emerald-400/30 font-black text-[9px] flex items-center justify-center transition-all active:scale-90 cursor-pointer" title="Geser Ke Kanan">► Kanan</button>
+                            <button type="button" onclick="Profile.adjustExistingBorderOffsetX('${b.id}', 0)" class="px-1.5 h-5 rounded-md bg-white/5 hover:bg-white/15 text-white/60 hover:text-white font-bold text-[8px] flex items-center justify-center transition-all cursor-pointer" title="Reset Posisi Tengah (0%)">Reset</button>
                         </div>
                     </div>
 
@@ -11242,21 +11414,25 @@ var Profile = {
 
             if (data && data.status && Array.isArray(data.borders)) {
                 var cleanBorders = Profile.deduplicateBordersArray(data.borders);
-                if (Profile._pendingBorderScales) {
+                if (Profile._pendingBorderScales || Profile._pendingBorderOffsetsY || Profile._pendingBorderOffsetsX) {
                     cleanBorders.forEach(function(b) {
-                        if (Profile._pendingBorderScales[b.id] !== undefined) {
-                            var pScale = Profile._pendingBorderScales[b.id];
+                        var hasPendingScale = Profile._pendingBorderScales && Profile._pendingBorderScales[b.id] !== undefined;
+                        var hasPendingOffsetY = Profile._pendingBorderOffsetsY && Profile._pendingBorderOffsetsY[b.id] !== undefined;
+                        var hasPendingOffsetX = Profile._pendingBorderOffsetsX && Profile._pendingBorderOffsetsX[b.id] !== undefined;
+                        if (hasPendingScale || hasPendingOffsetY || hasPendingOffsetX) {
+                            var pScale = hasPendingScale ? Profile._pendingBorderScales[b.id] : Profile.getBorderScaleValue(b);
+                            var pOffsetY = hasPendingOffsetY ? Profile._pendingBorderOffsetsY[b.id] : Profile.getBorderOffsetYValue(b);
+                            var pOffsetX = hasPendingOffsetX ? Profile._pendingBorderOffsetsX[b.id] : Profile.getBorderOffsetXValue(b);
                             b.scale = pScale;
+                            b.offsetY = pOffsetY;
+                            b.offsetX = pOffsetX;
                             if (b.url) {
-                                b.url = b.url.replace(/([?&])s=\d+(&|$)/, '$1').replace(/[?&]$/, '');
-                                if (pScale !== 100) {
-                                    b.url += (b.url.indexOf('?') === -1 ? '?' : '&') + 's=' + pScale;
-                                }
+                                b.url = Profile.buildBorderUrlWithParams(b.url, pScale, pOffsetY, pOffsetX);
                             }
                         }
                     });
                 }
-                var sig = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.url || ''); }).join('|');
+                var sig = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0) + ':' + (b.url || ''); }).join('|');
                 Profile.adminBordersData = cleanBorders;
                 if (window.Auth) {
                     Auth.availableBorders = cleanBorders;
@@ -11527,7 +11703,9 @@ var Profile = {
                 imageBase64: Profile.adminBorderFileBase64 || null,
                 imageUrl: url || '',
                 desc: desc,
-                scale: Profile.adminBorderScale || 100
+                scale: Profile.adminBorderScale || 100,
+                offsetY: Profile.adminBorderOffsetY || 0,
+                offsetX: Profile.adminBorderOffsetX || 0
             };
 
             var res = await fetch('/api/borders?action=add_border&t=' + Date.now(), {
@@ -11548,6 +11726,8 @@ var Profile = {
                 // Clear photo and form fields without destroying the form UI
                 Profile.clearSelectedBorderPhoto();
                 Profile.setNewBorderScale(100);
+                Profile.setNewBorderOffsetY(0);
+                Profile.setNewBorderOffsetX(0);
                 var defaultNextName = Profile.adminBorderSelectedCategory ? (Profile.adminBorderSelectedCategory.charAt(0).toUpperCase() + Profile.adminBorderSelectedCategory.slice(1)) : 'Immortal';
                 if (nameInput) nameInput.value = defaultNextName;
                 if (urlInput) urlInput.value = '';
@@ -11559,7 +11739,7 @@ var Profile = {
                 if (Array.isArray(data.borders)) {
                     var cleanBorders = Profile.deduplicateBordersArray(data.borders);
                     Profile.adminBordersData = cleanBorders;
-                    Profile._lastBordersSignature = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100); }).join('|');
+                    Profile._lastBordersSignature = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0); }).join('|');
                     Profile.renderAdminBordersGrid();
                     if (window.Auth) {
                         Auth.availableBorders = cleanBorders;
@@ -11637,9 +11817,11 @@ var Profile = {
         if (!Number.isFinite(num)) num = 100;
         var clamped = Math.max(50, Math.min(180, Math.round(num)));
         Profile.adminBorderScale = clamped;
+        var currentOffsetY = Profile.adminBorderOffsetY || 0;
+        var currentOffsetX = Profile.adminBorderOffsetX || 0;
         var previewFrame = gid('admin-border-live-preview-frame');
         if (previewFrame) {
-            previewFrame.style.transform = 'translate(-50%, -50%) scale(' + (clamped / 100) + ')';
+            previewFrame.style.transform = Profile.buildBorderTransformCss(clamped, currentOffsetY, currentOffsetX);
         }
         var label = gid('admin-border-scale-label');
         if (label) {
@@ -11656,6 +11838,58 @@ var Profile = {
         Profile.setNewBorderScale(current + Number(delta || 0));
     },
 
+    setNewBorderOffsetY(val) {
+        var num = Number(val);
+        if (!Number.isFinite(num)) num = 0;
+        var clamped = Math.max(-45, Math.min(45, Math.round(num)));
+        Profile.adminBorderOffsetY = clamped;
+        var currentScale = Profile.adminBorderScale || 100;
+        var currentOffsetX = Profile.adminBorderOffsetX || 0;
+        var previewFrame = gid('admin-border-live-preview-frame');
+        if (previewFrame) {
+            previewFrame.style.transform = Profile.buildBorderTransformCss(currentScale, clamped, currentOffsetX);
+        }
+        var label = gid('admin-border-offsety-label');
+        if (label) {
+            label.innerText = Profile.formatBorderOffsetYLabel(clamped);
+        }
+        var slider = gid('admin-border-offsety-slider');
+        if (slider && Number(slider.value) !== clamped) {
+            slider.value = clamped;
+        }
+    },
+
+    adjustNewBorderOffsetY(delta) {
+        var current = Number(Profile.adminBorderOffsetY) || 0;
+        Profile.setNewBorderOffsetY(current + Number(delta || 0));
+    },
+
+    setNewBorderOffsetX(val) {
+        var num = Number(val);
+        if (!Number.isFinite(num)) num = 0;
+        var clamped = Math.max(-45, Math.min(45, Math.round(num)));
+        Profile.adminBorderOffsetX = clamped;
+        var currentScale = Profile.adminBorderScale || 100;
+        var currentOffsetY = Profile.adminBorderOffsetY || 0;
+        var previewFrame = gid('admin-border-live-preview-frame');
+        if (previewFrame) {
+            previewFrame.style.transform = Profile.buildBorderTransformCss(currentScale, currentOffsetY, clamped);
+        }
+        var label = gid('admin-border-offsetx-label');
+        if (label) {
+            label.innerText = Profile.formatBorderOffsetXLabel(clamped);
+        }
+        var slider = gid('admin-border-offsetx-slider');
+        if (slider && Number(slider.value) !== clamped) {
+            slider.value = clamped;
+        }
+    },
+
+    adjustNewBorderOffsetX(delta) {
+        var current = Number(Profile.adminBorderOffsetX) || 0;
+        Profile.setNewBorderOffsetX(current + Number(delta || 0));
+    },
+
     async adjustExistingBorderScale(borderId, delta) {
         if (!borderId) return;
         var token = Profile.getAdminToken();
@@ -11664,6 +11898,8 @@ var Profile = {
             return;
         }
         if (!Profile._pendingBorderScales) Profile._pendingBorderScales = {};
+        if (!Profile._pendingBorderOffsetsY) Profile._pendingBorderOffsetsY = {};
+        if (!Profile._pendingBorderOffsetsX) Profile._pendingBorderOffsetsX = {};
         if (!Profile._scaleReqSeq) Profile._scaleReqSeq = {};
 
         var list = Array.isArray(Profile.adminBordersData) ? Profile.adminBordersData : [];
@@ -11673,21 +11909,30 @@ var Profile = {
             : (item ? Profile.getBorderScaleValue(item) : 100);
         if (!Number.isFinite(currentScale) || currentScale < 50 || currentScale > 180) currentScale = 100;
 
+        var currentOffsetY = Profile._pendingBorderOffsetsY[borderId] !== undefined
+            ? Number(Profile._pendingBorderOffsetsY[borderId])
+            : (item ? Profile.getBorderOffsetYValue(item) : 0);
+        if (!Number.isFinite(currentOffsetY)) currentOffsetY = 0;
+
+        var currentOffsetX = Profile._pendingBorderOffsetsX[borderId] !== undefined
+            ? Number(Profile._pendingBorderOffsetsX[borderId])
+            : (item ? Profile.getBorderOffsetXValue(item) : 0);
+        if (!Number.isFinite(currentOffsetX)) currentOffsetX = 0;
+
         var nextScale = (delta === 0) ? 100 : Math.max(50, Math.min(180, currentScale + Number(delta)));
         Profile._pendingBorderScales[borderId] = nextScale;
 
         if (item) {
             item.scale = nextScale;
+            item.offsetY = currentOffsetY;
+            item.offsetX = currentOffsetX;
             if (item.url) {
-                var baseUrl = String(item.url).replace(/([?&])s=\d+(&|$)/, '$1').replace(/[?&]$/, '');
-                item.url = nextScale !== 100
-                    ? (baseUrl + (baseUrl.indexOf('?') === -1 ? '?' : '&') + 's=' + nextScale)
-                    : baseUrl;
+                item.url = Profile.buildBorderUrlWithParams(item.url, nextScale, currentOffsetY, currentOffsetX);
             }
         }
         var imgEl = gid('admin-card-border-img-' + borderId);
         if (imgEl) {
-            imgEl.style.transform = 'translate(-50%, -50%) scale(' + (nextScale / 100) + ')';
+            imgEl.style.transform = Profile.buildBorderTransformCss(nextScale, currentOffsetY, currentOffsetX);
         }
         var lblEl = gid('admin-card-border-scale-' + borderId);
         if (lblEl) {
@@ -11699,6 +11944,8 @@ var Profile = {
             var authItem = Auth.availableBorders.find(function(b) { return b && b.id === borderId; });
             if (authItem) {
                 authItem.scale = nextScale;
+                authItem.offsetY = currentOffsetY;
+                authItem.offsetX = currentOffsetX;
                 if (item && item.url) authItem.url = item.url;
             }
             if (Auth.currentUser && Auth.currentUser.border === borderId && item && item.url) {
@@ -11708,7 +11955,7 @@ var Profile = {
             }
         }
 
-        Profile._lastBordersSignature = list.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.url || ''); }).join('|');
+        Profile._lastBordersSignature = list.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0) + ':' + (b.url || ''); }).join('|');
 
         var seq = (Profile._scaleReqSeq[borderId] || 0) + 1;
         Profile._scaleReqSeq[borderId] = seq;
@@ -11716,6 +11963,8 @@ var Profile = {
         clearTimeout(Profile['_scaleSaveTimer_' + borderId]);
         Profile['_scaleSaveTimer_' + borderId] = setTimeout(async function() {
             var targetScale = Profile._pendingBorderScales[borderId] !== undefined ? Profile._pendingBorderScales[borderId] : nextScale;
+            var targetOffsetY = Profile._pendingBorderOffsetsY[borderId] !== undefined ? Profile._pendingBorderOffsetsY[borderId] : currentOffsetY;
+            var targetOffsetX = Profile._pendingBorderOffsetsX[borderId] !== undefined ? Profile._pendingBorderOffsetsX[borderId] : currentOffsetX;
             try {
                 var res = await fetch('/api/borders?action=update_scale&t=' + Date.now(), {
                     method: 'POST',
@@ -11728,23 +11977,32 @@ var Profile = {
                     body: JSON.stringify({
                         action: 'update_scale',
                         borderId: borderId,
-                        scale: targetScale
+                        scale: targetScale,
+                        offsetY: targetOffsetY,
+                        offsetX: targetOffsetX
                     })
                 });
                 var data = await res.json();
                 if (Profile._scaleReqSeq[borderId] !== seq) return;
                 delete Profile._pendingBorderScales[borderId];
+                delete Profile._pendingBorderOffsetsY[borderId];
+                delete Profile._pendingBorderOffsetsX[borderId];
                 if (data && data.status) {
                     if (Array.isArray(data.borders)) {
                         var cleanBorders = Profile.deduplicateBordersArray(data.borders);
-                        // Preserve any other border's pending scale
                         cleanBorders.forEach(function(b) {
                             if (Profile._pendingBorderScales && Profile._pendingBorderScales[b.id] !== undefined) {
                                 b.scale = Profile._pendingBorderScales[b.id];
                             }
+                            if (Profile._pendingBorderOffsetsY && Profile._pendingBorderOffsetsY[b.id] !== undefined) {
+                                b.offsetY = Profile._pendingBorderOffsetsY[b.id];
+                            }
+                            if (Profile._pendingBorderOffsetsX && Profile._pendingBorderOffsetsX[b.id] !== undefined) {
+                                b.offsetX = Profile._pendingBorderOffsetsX[b.id];
+                            }
                         });
                         Profile.adminBordersData = cleanBorders;
-                        Profile._lastBordersSignature = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.url || ''); }).join('|');
+                        Profile._lastBordersSignature = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0) + ':' + (b.url || ''); }).join('|');
                         if (window.Auth) {
                             Auth.availableBorders = cleanBorders;
                             if (Auth.currentUser && Auth.currentUser.border === borderId) {
@@ -11758,6 +12016,268 @@ var Profile = {
                         }
                     }
                     if (typeof showToast === 'function') showToast('Ukuran border disimpan (' + targetScale + '%)');
+                }
+            } catch (e) {}
+        }, 300);
+    },
+
+    async adjustExistingBorderOffsetY(borderId, delta) {
+        if (!borderId) return;
+        var token = Profile.getAdminToken();
+        if (!token) {
+            if (typeof showToast === 'function') showToast('Sesi admin tidak valid');
+            return;
+        }
+        if (!Profile._pendingBorderScales) Profile._pendingBorderScales = {};
+        if (!Profile._pendingBorderOffsetsY) Profile._pendingBorderOffsetsY = {};
+        if (!Profile._pendingBorderOffsetsX) Profile._pendingBorderOffsetsX = {};
+        if (!Profile._scaleReqSeq) Profile._scaleReqSeq = {};
+
+        var list = Array.isArray(Profile.adminBordersData) ? Profile.adminBordersData : [];
+        var item = list.find(function(b) { return b.id === borderId; });
+        var currentScale = Profile._pendingBorderScales[borderId] !== undefined
+            ? Number(Profile._pendingBorderScales[borderId])
+            : (item ? Profile.getBorderScaleValue(item) : 100);
+        if (!Number.isFinite(currentScale) || currentScale < 50 || currentScale > 180) currentScale = 100;
+
+        var currentOffsetY = Profile._pendingBorderOffsetsY[borderId] !== undefined
+            ? Number(Profile._pendingBorderOffsetsY[borderId])
+            : (item ? Profile.getBorderOffsetYValue(item) : 0);
+        if (!Number.isFinite(currentOffsetY)) currentOffsetY = 0;
+
+        var currentOffsetX = Profile._pendingBorderOffsetsX[borderId] !== undefined
+            ? Number(Profile._pendingBorderOffsetsX[borderId])
+            : (item ? Profile.getBorderOffsetXValue(item) : 0);
+        if (!Number.isFinite(currentOffsetX)) currentOffsetX = 0;
+
+        var nextOffsetY = (delta === 0) ? 0 : Math.max(-45, Math.min(45, currentOffsetY + Number(delta)));
+        Profile._pendingBorderOffsetsY[borderId] = nextOffsetY;
+
+        if (item) {
+            item.scale = currentScale;
+            item.offsetY = nextOffsetY;
+            item.offsetX = currentOffsetX;
+            if (item.url) {
+                item.url = Profile.buildBorderUrlWithParams(item.url, currentScale, nextOffsetY, currentOffsetX);
+            }
+        }
+        var imgEl = gid('admin-card-border-img-' + borderId);
+        if (imgEl) {
+            imgEl.style.transform = Profile.buildBorderTransformCss(currentScale, nextOffsetY, currentOffsetX);
+        }
+        var lblEl = gid('admin-card-border-offsety-' + borderId);
+        if (lblEl) {
+            lblEl.innerText = Profile.formatCardBorderOffsetYLabel(nextOffsetY);
+        }
+
+        // Update Auth.availableBorders immediately for instant live position across views
+        if (window.Auth && Array.isArray(Auth.availableBorders)) {
+            var authItem = Auth.availableBorders.find(function(b) { return b && b.id === borderId; });
+            if (authItem) {
+                authItem.scale = currentScale;
+                authItem.offsetY = nextOffsetY;
+                authItem.offsetX = currentOffsetX;
+                if (item && item.url) authItem.url = item.url;
+            }
+            if (Auth.currentUser && Auth.currentUser.border === borderId && item && item.url) {
+                Auth.currentUser.borderUrl = item.url;
+                Auth.saveUser(Auth.currentUser);
+                if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+            }
+        }
+
+        Profile._lastBordersSignature = list.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0) + ':' + (b.url || ''); }).join('|');
+
+        var seq = (Profile._scaleReqSeq[borderId] || 0) + 1;
+        Profile._scaleReqSeq[borderId] = seq;
+
+        clearTimeout(Profile['_scaleSaveTimer_' + borderId]);
+        Profile['_scaleSaveTimer_' + borderId] = setTimeout(async function() {
+            var targetScale = Profile._pendingBorderScales[borderId] !== undefined ? Profile._pendingBorderScales[borderId] : currentScale;
+            var targetOffsetY = Profile._pendingBorderOffsetsY[borderId] !== undefined ? Profile._pendingBorderOffsetsY[borderId] : nextOffsetY;
+            var targetOffsetX = Profile._pendingBorderOffsetsX[borderId] !== undefined ? Profile._pendingBorderOffsetsX[borderId] : currentOffsetX;
+            try {
+                var res = await fetch('/api/borders?action=update_scale&t=' + Date.now(), {
+                    method: 'POST',
+                    cache: 'no-store',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'x-admin-token': token
+                    },
+                    body: JSON.stringify({
+                        action: 'update_scale',
+                        borderId: borderId,
+                        scale: targetScale,
+                        offsetY: targetOffsetY,
+                        offsetX: targetOffsetX
+                    })
+                });
+                var data = await res.json();
+                if (Profile._scaleReqSeq[borderId] !== seq) return;
+                delete Profile._pendingBorderScales[borderId];
+                delete Profile._pendingBorderOffsetsY[borderId];
+                delete Profile._pendingBorderOffsetsX[borderId];
+                if (data && data.status) {
+                    if (Array.isArray(data.borders)) {
+                        var cleanBorders = Profile.deduplicateBordersArray(data.borders);
+                        cleanBorders.forEach(function(b) {
+                            if (Profile._pendingBorderScales && Profile._pendingBorderScales[b.id] !== undefined) {
+                                b.scale = Profile._pendingBorderScales[b.id];
+                            }
+                            if (Profile._pendingBorderOffsetsY && Profile._pendingBorderOffsetsY[b.id] !== undefined) {
+                                b.offsetY = Profile._pendingBorderOffsetsY[b.id];
+                            }
+                            if (Profile._pendingBorderOffsetsX && Profile._pendingBorderOffsetsX[b.id] !== undefined) {
+                                b.offsetX = Profile._pendingBorderOffsetsX[b.id];
+                            }
+                        });
+                        Profile.adminBordersData = cleanBorders;
+                        Profile._lastBordersSignature = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0) + ':' + (b.url || ''); }).join('|');
+                        if (window.Auth) {
+                            Auth.availableBorders = cleanBorders;
+                            if (Auth.currentUser && Auth.currentUser.border === borderId) {
+                                var updatedBorder = cleanBorders.find(function(x) { return x.id === borderId; });
+                                if (updatedBorder && updatedBorder.url) {
+                                    Auth.currentUser.borderUrl = updatedBorder.url;
+                                    Auth.saveUser(Auth.currentUser);
+                                    if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+                                }
+                            }
+                        }
+                    }
+                    if (typeof showToast === 'function') showToast('Posisi border disimpan (' + Profile.formatBorderOffsetYLabel(targetOffsetY) + ')');
+                }
+            } catch (e) {}
+        }, 300);
+    },
+
+    async adjustExistingBorderOffsetX(borderId, delta) {
+        if (!borderId) return;
+        var token = Profile.getAdminToken();
+        if (!token) {
+            if (typeof showToast === 'function') showToast('Sesi admin tidak valid');
+            return;
+        }
+        if (!Profile._pendingBorderScales) Profile._pendingBorderScales = {};
+        if (!Profile._pendingBorderOffsetsY) Profile._pendingBorderOffsetsY = {};
+        if (!Profile._pendingBorderOffsetsX) Profile._pendingBorderOffsetsX = {};
+        if (!Profile._scaleReqSeq) Profile._scaleReqSeq = {};
+
+        var list = Array.isArray(Profile.adminBordersData) ? Profile.adminBordersData : [];
+        var item = list.find(function(b) { return b.id === borderId; });
+        var currentScale = Profile._pendingBorderScales[borderId] !== undefined
+            ? Number(Profile._pendingBorderScales[borderId])
+            : (item ? Profile.getBorderScaleValue(item) : 100);
+        if (!Number.isFinite(currentScale) || currentScale < 50 || currentScale > 180) currentScale = 100;
+
+        var currentOffsetY = Profile._pendingBorderOffsetsY[borderId] !== undefined
+            ? Number(Profile._pendingBorderOffsetsY[borderId])
+            : (item ? Profile.getBorderOffsetYValue(item) : 0);
+        if (!Number.isFinite(currentOffsetY)) currentOffsetY = 0;
+
+        var currentOffsetX = Profile._pendingBorderOffsetsX[borderId] !== undefined
+            ? Number(Profile._pendingBorderOffsetsX[borderId])
+            : (item ? Profile.getBorderOffsetXValue(item) : 0);
+        if (!Number.isFinite(currentOffsetX)) currentOffsetX = 0;
+
+        var nextOffsetX = (delta === 0) ? 0 : Math.max(-45, Math.min(45, currentOffsetX + Number(delta)));
+        Profile._pendingBorderOffsetsX[borderId] = nextOffsetX;
+
+        if (item) {
+            item.scale = currentScale;
+            item.offsetY = currentOffsetY;
+            item.offsetX = nextOffsetX;
+            if (item.url) {
+                item.url = Profile.buildBorderUrlWithParams(item.url, currentScale, currentOffsetY, nextOffsetX);
+            }
+        }
+        var imgEl = gid('admin-card-border-img-' + borderId);
+        if (imgEl) {
+            imgEl.style.transform = Profile.buildBorderTransformCss(currentScale, currentOffsetY, nextOffsetX);
+        }
+        var lblEl = gid('admin-card-border-offsetx-' + borderId);
+        if (lblEl) {
+            lblEl.innerText = Profile.formatCardBorderOffsetXLabel(nextOffsetX);
+        }
+
+        // Update Auth.availableBorders immediately for instant live position across views
+        if (window.Auth && Array.isArray(Auth.availableBorders)) {
+            var authItem = Auth.availableBorders.find(function(b) { return b && b.id === borderId; });
+            if (authItem) {
+                authItem.scale = currentScale;
+                authItem.offsetY = currentOffsetY;
+                authItem.offsetX = nextOffsetX;
+                if (item && item.url) authItem.url = item.url;
+            }
+            if (Auth.currentUser && Auth.currentUser.border === borderId && item && item.url) {
+                Auth.currentUser.borderUrl = item.url;
+                Auth.saveUser(Auth.currentUser);
+                if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+            }
+        }
+
+        Profile._lastBordersSignature = list.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0) + ':' + (b.url || ''); }).join('|');
+
+        var seq = (Profile._scaleReqSeq[borderId] || 0) + 1;
+        Profile._scaleReqSeq[borderId] = seq;
+
+        clearTimeout(Profile['_scaleSaveTimer_' + borderId]);
+        Profile['_scaleSaveTimer_' + borderId] = setTimeout(async function() {
+            var targetScale = Profile._pendingBorderScales[borderId] !== undefined ? Profile._pendingBorderScales[borderId] : currentScale;
+            var targetOffsetY = Profile._pendingBorderOffsetsY[borderId] !== undefined ? Profile._pendingBorderOffsetsY[borderId] : currentOffsetY;
+            var targetOffsetX = Profile._pendingBorderOffsetsX[borderId] !== undefined ? Profile._pendingBorderOffsetsX[borderId] : nextOffsetX;
+            try {
+                var res = await fetch('/api/borders?action=update_scale&t=' + Date.now(), {
+                    method: 'POST',
+                    cache: 'no-store',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'x-admin-token': token
+                    },
+                    body: JSON.stringify({
+                        action: 'update_scale',
+                        borderId: borderId,
+                        scale: targetScale,
+                        offsetY: targetOffsetY,
+                        offsetX: targetOffsetX
+                    })
+                });
+                var data = await res.json();
+                if (Profile._scaleReqSeq[borderId] !== seq) return;
+                delete Profile._pendingBorderScales[borderId];
+                delete Profile._pendingBorderOffsetsY[borderId];
+                delete Profile._pendingBorderOffsetsX[borderId];
+                if (data && data.status) {
+                    if (Array.isArray(data.borders)) {
+                        var cleanBorders = Profile.deduplicateBordersArray(data.borders);
+                        cleanBorders.forEach(function(b) {
+                            if (Profile._pendingBorderScales && Profile._pendingBorderScales[b.id] !== undefined) {
+                                b.scale = Profile._pendingBorderScales[b.id];
+                            }
+                            if (Profile._pendingBorderOffsetsY && Profile._pendingBorderOffsetsY[b.id] !== undefined) {
+                                b.offsetY = Profile._pendingBorderOffsetsY[b.id];
+                            }
+                            if (Profile._pendingBorderOffsetsX && Profile._pendingBorderOffsetsX[b.id] !== undefined) {
+                                b.offsetX = Profile._pendingBorderOffsetsX[b.id];
+                            }
+                        });
+                        Profile.adminBordersData = cleanBorders;
+                        Profile._lastBordersSignature = cleanBorders.map(function(b) { return b.id + ':' + b.name + ':' + b.requiredTier + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0) + ':' + (b.url || ''); }).join('|');
+                        if (window.Auth) {
+                            Auth.availableBorders = cleanBorders;
+                            if (Auth.currentUser && Auth.currentUser.border === borderId) {
+                                var updatedBorder = cleanBorders.find(function(x) { return x.id === borderId; });
+                                if (updatedBorder && updatedBorder.url) {
+                                    Auth.currentUser.borderUrl = updatedBorder.url;
+                                    Auth.saveUser(Auth.currentUser);
+                                    if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+                                }
+                            }
+                        }
+                    }
+                    if (typeof showToast === 'function') showToast('Posisi border disimpan (' + Profile.formatBorderOffsetXLabel(targetOffsetX) + ')');
                 }
             } catch (e) {}
         }, 300);
