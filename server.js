@@ -231,8 +231,9 @@ app.all('/api/security', Security.securityHandler);
 
 // Proxy audio needs to stream in node, bypassing edge function
 app.get('/api/proxy-audio', (req, res) => {
-    const targetUrl = req.query.url;
+    let targetUrl = req.query.url;
     if (!targetUrl) return res.status(400).send('Missing url parameter');
+    targetUrl = String(targetUrl).replace(/\.savetube\.vip\/file\//i, '.savetube.vip/media/');
     
     let parsed;
     try {
