@@ -127,10 +127,64 @@ var Auth = {
         return 100;
     },
 
+    getBorderOffsetYValue(borderOrUrl) {
+        if (!borderOrUrl) return 0;
+        if (typeof borderOrUrl === 'object') {
+            var num = Number(borderOrUrl.offsetY);
+            if (Number.isFinite(num) && num >= -45 && num <= 45) return Math.round(num);
+            borderOrUrl = borderOrUrl.url || '';
+        }
+        var str = String(borderOrUrl || '');
+        var m = str.match(/[?&]y=(-?\d+)/);
+        if (m && m[1] !== undefined) {
+            var parsed = parseInt(m[1], 10);
+            if (Number.isFinite(parsed) && parsed >= -45 && parsed <= 45) return parsed;
+        }
+        if (Array.isArray(Auth.availableBorders)) {
+            var cleanPath = str.split('?')[0];
+            var found = Auth.availableBorders.find(function(b) {
+                return b && b.url && String(b.url).split('?')[0] === cleanPath;
+            });
+            if (found && Number.isFinite(Number(found.offsetY))) {
+                return Math.max(-45, Math.min(45, Math.round(Number(found.offsetY))));
+            }
+        }
+        return 0;
+    },
+
+    getBorderOffsetXValue(borderOrUrl) {
+        if (!borderOrUrl) return 0;
+        if (typeof borderOrUrl === 'object') {
+            var num = Number(borderOrUrl.offsetX);
+            if (Number.isFinite(num) && num >= -45 && num <= 45) return Math.round(num);
+            borderOrUrl = borderOrUrl.url || '';
+        }
+        var str = String(borderOrUrl || '');
+        var m = str.match(/[?&]x=(-?\d+)/);
+        if (m && m[1] !== undefined) {
+            var parsed = parseInt(m[1], 10);
+            if (Number.isFinite(parsed) && parsed >= -45 && parsed <= 45) return parsed;
+        }
+        if (Array.isArray(Auth.availableBorders)) {
+            var cleanPath = str.split('?')[0];
+            var found = Auth.availableBorders.find(function(b) {
+                return b && b.url && String(b.url).split('?')[0] === cleanPath;
+            });
+            if (found && Number.isFinite(Number(found.offsetX))) {
+                return Math.max(-45, Math.min(45, Math.round(Number(found.offsetX))));
+            }
+        }
+        return 0;
+    },
+
     getBorderScaleStyle(borderOrUrl) {
         var scaleVal = Auth.getBorderScaleValue(borderOrUrl);
-        if (scaleVal !== 100) {
-            return 'transform: translate(-50%, -50%) scale(' + (scaleVal / 100) + ');';
+        var offsetY = Auth.getBorderOffsetYValue(borderOrUrl);
+        var offsetX = Auth.getBorderOffsetXValue(borderOrUrl);
+        if (scaleVal !== 100 || offsetY !== 0 || offsetX !== 0) {
+            var xExpr = offsetX !== 0 ? ('calc(-50% + ' + offsetX + '%)') : '-50%';
+            var yExpr = offsetY !== 0 ? ('calc(-50% + ' + offsetY + '%)') : '-50%';
+            return 'transform: translate(' + xExpr + ', ' + yExpr + ') scale(' + (scaleVal / 100) + ');';
         }
         return '';
     },
@@ -141,14 +195,18 @@ var Auth = {
         if (el.id && el.id.indexOf('admin-card-border-img-') === 0) return;
         var src = el.getAttribute('src') || el.src || '';
         if (!src) return;
-        var isBorderImg = src.indexOf('/borders/') !== -1 || src.indexOf('action=image') !== -1 || /[?&]s=\d+/.test(src);
+        var isBorderImg = src.indexOf('/borders/') !== -1 || src.indexOf('action=image') !== -1 || /[?&](s=\d+|y=-?\d+|x=-?\d+)/.test(src);
         if (!isBorderImg) return;
         var cls = String(el.className || '');
         if (cls.indexOf('-translate-x-1/2') !== -1 && cls.indexOf('-translate-y-1/2') !== -1) {
             var scaleVal = Auth.getBorderScaleValue(src);
-            if (scaleVal !== 100) {
-                el.style.transform = 'translate(-50%, -50%) scale(' + (scaleVal / 100) + ')';
-            } else if (el.style.transform && el.style.transform.indexOf('scale(') !== -1) {
+            var offsetY = Auth.getBorderOffsetYValue(src);
+            var offsetX = Auth.getBorderOffsetXValue(src);
+            var xExpr = offsetX !== 0 ? ('calc(-50% + ' + offsetX + '%)') : '-50%';
+            var yExpr = offsetY !== 0 ? ('calc(-50% + ' + offsetY + '%)') : '-50%';
+            if (scaleVal !== 100 || offsetY !== 0 || offsetX !== 0) {
+                el.style.transform = 'translate(' + xExpr + ', ' + yExpr + ') scale(' + (scaleVal / 100) + ')';
+            } else if (el.style.transform && (el.style.transform.indexOf('scale(') !== -1 || el.style.transform.indexOf('calc(') !== -1)) {
                 el.style.transform = 'translate(-50%, -50%) scale(1)';
             }
         }
@@ -1942,6 +2000,30 @@ var Auth = {
                 }
             })
             .catch(function(){});
+
+        // Async sync real listeningSeconds from GlobalStats so Rank Badge Customisation shows accurate hours
+        fetch('/api/global-stats?timeframe=all')
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if (d && d.status && Array.isArray(d.topListeners) && Auth.currentUser) {
+                    var myUname = String(Auth.currentUser.username || '').toLowerCase().trim();
+                    var foundListener = d.topListeners.find(function(item) {
+                        return String(item.username || '').toLowerCase().trim() === myUname;
+                    });
+                    if (foundListener && Number(foundListener.totalSeconds) > 0) {
+                        var secs = Number(foundListener.totalSeconds);
+                        Auth.currentUser.listeningSeconds = secs;
+                        var elTime = gid('prof-rank-listening-time-text');
+                        if (elTime) {
+                            var days = Math.floor(secs / 86400);
+                            var hours = Math.floor(secs / 3600);
+                            var mins = Math.floor(secs / 60);
+                            elTime.innerText = days >= 1 ? (days + ' Hari Mendengarkan') : (hours >= 1 ? (hours + ' Jam Mendengarkan') : (mins + ' Menit Mendengarkan'));
+                        }
+                    }
+                }
+            })
+            .catch(function(){});
     },
 
     closeUserProfileModal() {
@@ -2201,11 +2283,20 @@ var Auth = {
     avatarSubFilter: 'all',     // 'all' | 'cowo' | 'cewe'
 
     async openAvatarPickerModal() {
-        var existing = gid('avatar-picker-modal');
-        if (existing) existing.remove();
+        document.querySelectorAll('#avatar-picker-modal').forEach(function(el) { el.remove(); });
 
         Auth.avatarActiveTab = 'gratis'; // Default ke tab Avatar Gratis
         Auth.avatarSubFilter = 'all';    // 'all' | 'cewe' | 'cowo'
+
+        if (!Array.isArray(Auth.cachedAvatarsList) || Auth.cachedAvatarsList.length === 0) {
+            try {
+                var cachedRaw = localStorage.getItem('musifystar_avatars_cache_v1');
+                if (cachedRaw) {
+                    var parsed = JSON.parse(cachedRaw);
+                    if (Array.isArray(parsed)) Auth.cachedAvatarsList = parsed;
+                }
+            } catch (e) {}
+        }
 
         var modal = document.createElement('div');
         modal.id = 'avatar-picker-modal';
@@ -2214,7 +2305,7 @@ var Auth = {
             <!-- Header Bar -->
             <div class="pt-6 sm:pt-7 pb-3.5 px-4 shrink-0 border-b border-white/10 shadow-2xl transition-all flex items-center justify-between bg-[#0d0f16]">
                 <div class="flex items-center gap-3">
-                    <button onclick="gid('avatar-picker-modal')?.remove()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
+                    <button onclick="document.querySelectorAll('#avatar-picker-modal').forEach(function(el){el.remove();})" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
                         <i data-lucide="arrow-left" class="w-5 h-5"></i>
                     </button>
                     <div class="flex items-center gap-2.5">
@@ -2227,7 +2318,7 @@ var Auth = {
                         </div>
                     </div>
                 </div>
-                <button onclick="gid('avatar-picker-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer">
+                <button onclick="document.querySelectorAll('#avatar-picker-modal').forEach(function(el){el.remove();})" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
@@ -2290,7 +2381,7 @@ var Auth = {
                         <p class="text-white font-bold">Foto Kustom Sendiri</p>
                         <p class="text-white/40 text-[11px] mt-0.5">Unggah gambar langsung dari galeri HP atau komputer</p>
                     </div>
-                    <button type="button" onclick="gid('avatar-picker-modal')?.remove(); Auth.triggerGalleryUpload();" class="px-4 py-2 rounded-xl bg-[#ccff00] text-black font-extrabold hover:bg-[#b8e600] active:scale-95 transition-all cursor-pointer shadow-md shrink-0">
+                    <button type="button" onclick="document.querySelectorAll('#avatar-picker-modal').forEach(function(el){el.remove();}); Auth.triggerGalleryUpload();" class="px-4 py-2 rounded-xl bg-[#ccff00] text-black font-extrabold hover:bg-[#b8e600] active:scale-95 transition-all cursor-pointer shadow-md shrink-0">
                         Upload Sendiri
                     </button>
                 </div>
@@ -2299,6 +2390,9 @@ var Auth = {
         document.body.appendChild(modal);
         if (typeof DynamicIsland !== 'undefined' && typeof DynamicIsland.updateState === 'function') {
             DynamicIsland.updateState();
+        }
+        if (Array.isArray(Auth.cachedAvatarsList) && Auth.cachedAvatarsList.length > 0) {
+            Auth.renderFilteredAvatarGrid();
         }
         if (window.lucide) lucide.createIcons();
 
@@ -2310,17 +2404,25 @@ var Auth = {
         if (!grid) return;
 
         try {
-            var res = await fetch('/api/avatars');
+            var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            var tId = ctrl ? setTimeout(function() { ctrl.abort(); }, 6000) : null;
+            var res = await fetch('/api/avatars', { signal: ctrl ? ctrl.signal : undefined });
+            if (tId) clearTimeout(tId);
             var data = await res.json();
 
             if (data && data.status && Array.isArray(data.avatars)) {
                 Auth.cachedAvatarsList = data.avatars;
+                try { localStorage.setItem('musifystar_avatars_cache_v1', JSON.stringify(data.avatars)); } catch (e) {}
                 Auth.renderFilteredAvatarGrid();
-            } else {
+            } else if (!Array.isArray(Auth.cachedAvatarsList) || Auth.cachedAvatarsList.length === 0) {
                 grid.innerHTML = '<div class="col-span-3 text-center py-6 text-white/40 text-xs">Belum ada koleksi avatar.</div>';
             }
         } catch(e) {
-            if (grid) grid.innerHTML = '<div class="col-span-3 text-center py-6 text-red-400 text-xs">Gagal memuat katalog avatar.</div>';
+            if (Array.isArray(Auth.cachedAvatarsList) && Auth.cachedAvatarsList.length > 0) {
+                Auth.renderFilteredAvatarGrid();
+            } else if (grid) {
+                grid.innerHTML = '<div class="col-span-3 text-center py-6 text-red-400 text-xs">Gagal memuat katalog avatar.</div>';
+            }
         }
     },
 
@@ -2555,10 +2657,10 @@ var Auth = {
         var avatarUrl = u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.username || 'user')}`;
         var currentBorder = u.border || 'none';
 
-        var existing = gid('border-picker-modal');
-        if (existing) existing.remove();
+        // Remove any existing modal instances immediately (prevents duplicate DOM IDs!)
+        document.querySelectorAll('#border-picker-modal').forEach(function(el) { el.remove(); });
 
-        var borders = [
+        var defaultBorders = [
             {
                 id: 'none',
                 name: 'Tanpa Border',
@@ -2616,31 +2718,22 @@ var Auth = {
             }
         ];
 
-        // Fetch dynamic list of borders (default + newly added custom borders by Admin)
-        try {
-            var res = await fetch('/api/borders?action=list_all&t=' + Date.now(), {
-                cache: 'no-store',
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache'
+        var borders = (Array.isArray(Auth.availableBorders) && Auth.availableBorders.length > 0)
+            ? Auth.availableBorders
+            : defaultBorders;
+
+        if (borders === defaultBorders) {
+            try {
+                var cachedRaw = localStorage.getItem('musifystar_borders_cache_v1');
+                if (cachedRaw) {
+                    var parsed = JSON.parse(cachedRaw);
+                    if (Array.isArray(parsed) && parsed.length > 0) borders = parsed;
                 }
-            });
-            var data = await res.json();
-            if (data && data.status && Array.isArray(data.borders) && data.borders.length > 0) {
-                var seenIds = new Set();
-                borders = data.borders.filter(function(item) {
-                    if (!item || !item.id || seenIds.has(item.id)) return false;
-                    seenIds.add(item.id);
-                    return true;
-                });
-            }
-        } catch(e) {}
+            } catch (e) {}
+        }
         Auth.availableBorders = borders;
 
         var selectedBorderObj = borders.find(function(b){ return b.id === currentBorder; }) || borders[0];
-
-        var tierRankMap = { 'none': 0, '1month': 1, '2months': 2, '5months': 3, 'permanent': 4, 'lifetime': 4, 'sultan': 4 };
-        var userRank = isMasterAdmin ? 4 : (tierRankMap[userVipTier] !== undefined ? tierRankMap[userVipTier] : (isUserVip ? 4 : 0));
 
         // Default tab: if user requested specific tab, or if user VIP is active and opened via VIP shortcut, or 'unlocked' / 'all'
         var initialTab = defaultTab || (isUserVip ? 'unlocked' : 'all');
@@ -2653,7 +2746,7 @@ var Auth = {
             <!-- Header Bar -->
             <div class="pt-6 sm:pt-7 pb-3.5 px-4 shrink-0 border-b border-white/10 shadow-2xl transition-all flex items-center justify-between bg-[#0d0f16]">
                 <div class="flex items-center gap-3">
-                    <button onclick="gid('border-picker-modal')?.remove()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
+                    <button onclick="document.querySelectorAll('#border-picker-modal').forEach(function(el){el.remove();})" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
                         <i data-lucide="arrow-left" class="w-5 h-5"></i>
                     </button>
                     <div class="flex items-center gap-2.5">
@@ -2671,7 +2764,7 @@ var Auth = {
                         </div>
                     </div>
                 </div>
-                <button onclick="gid('border-picker-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer">
+                <button onclick="document.querySelectorAll('#border-picker-modal').forEach(function(el){el.remove();})" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
@@ -2696,7 +2789,7 @@ var Auth = {
                     </div>
                 </div>
 
-                <!-- TAB PILIHAN: Border VIP Kebuka, Platinum, Master, Legend, Immortal, Semua -->
+                <!-- TAB PILIHAN: Border VIP Kebuka, Semua, Platinum, Master, Legend, Immortal, Permanen -->
                 <div class="p-3 bg-[#13151f] border border-white/10 rounded-2xl shadow-xl">
                     <div class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
                         ${isUserVip ? `
@@ -2731,6 +2824,11 @@ var Auth = {
                             <span class="w-1.5 h-1.5 rounded-full bg-pink-400"></span>
                             <span>Immortal</span>
                         </button>
+
+                        <button type="button" onclick="Auth.switchBorderCategoryTab('permanent')" id="border-cat-tab-permanent" class="px-2.5 py-1.5 rounded-xl font-bold text-[11px] whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${Auth.borderActiveFilterTab === 'permanent' ? 'bg-purple-400 text-black font-extrabold' : 'bg-purple-400/10 text-purple-300 hover:bg-purple-400/20 border border-purple-400/20'}">
+                            <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                            <span>Permanen</span>
+                        </button>
                     </div>
                 </div>
 
@@ -2747,7 +2845,7 @@ var Auth = {
                         </span>
                         <span class="text-[10px] text-white/50 block truncate mt-0.5">1 Bln: Platinum & Master • 2 Bln: + Legend • 5 Bln: + Immortal • Permanen: Bebas Semua</span>
                     </div>
-                    <button type="button" onclick="gid('border-picker-modal')?.remove(); if (typeof Profile !== 'undefined') Profile.openVipPackagesModal();" class="shrink-0 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-500 hover:to-yellow-500 text-black font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                    <button type="button" onclick="document.querySelectorAll('#border-picker-modal').forEach(function(el){el.remove();}); if (typeof Profile !== 'undefined') Profile.openVipPackagesModal();" class="shrink-0 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-500 hover:to-yellow-500 text-black font-extrabold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.4)]">
                         <i data-lucide="${isUserVip ? 'sparkles' : 'crown'}" class="w-3.5 h-3.5 fill-black"></i>
                         <span>${isUserVip ? 'Kelola VIP' : 'Beli VIP'}</span>
                     </button>
@@ -2760,20 +2858,52 @@ var Auth = {
         }
         Auth.renderBorderCardsList();
         if (window.lucide) lucide.createIcons();
+
+        // Fetch dynamic list of borders in background and update modal seamlessly
+        try {
+            var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            var tId = ctrl ? setTimeout(function() { ctrl.abort(); }, 6000) : null;
+            var res = await fetch('/api/borders?action=list_all&t=' + Date.now(), {
+                cache: 'no-store',
+                signal: ctrl ? ctrl.signal : undefined,
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            });
+            if (tId) clearTimeout(tId);
+            var data = await res.json();
+            if (data && data.status && Array.isArray(data.borders) && data.borders.length > 0) {
+                var seenIds = new Set();
+                var freshBorders = data.borders.filter(function(item) {
+                    if (!item || !item.id || seenIds.has(item.id)) return false;
+                    seenIds.add(item.id);
+                    return true;
+                });
+                Auth.availableBorders = freshBorders;
+                try { localStorage.setItem('musifystar_borders_cache_v1', JSON.stringify(freshBorders)); } catch (e) {}
+
+                if (gid('border-picker-modal')) {
+                    var freshSelected = freshBorders.find(function(b) { return b.id === (Auth.currentUser?.border || currentBorder); }) || freshBorders[0];
+                    var liveFrame = gid('border-picker-live-frame');
+                    if (liveFrame && freshSelected) {
+                        if (freshSelected.url) {
+                            liveFrame.src = freshSelected.url;
+                            liveFrame.style.transform = `translate(-50%, -50%) scale(${Auth.getBorderScaleValue(freshSelected) / 100})`;
+                            liveFrame.classList.remove('hidden');
+                        } else {
+                            liveFrame.classList.add('hidden');
+                        }
+                    }
+                    Auth.renderBorderCardsList();
+                }
+            }
+        } catch(e) {}
     },
 
     switchBorderCategoryTab(tab) {
         Auth.borderActiveFilterTab = tab;
-        var u = Auth.currentUser || {};
-        var adminTok = (typeof Profile !== 'undefined' && Profile.getAdminToken) ? Profile.getAdminToken() : (sessionStorage.getItem('musifystar_admin_token') || localStorage.getItem('musifystar_admin_token') || '');
-        var myEmail = String(u.email || u.rawEmail || '').toLowerCase().trim();
-        var myUsername = String(u.username || '').toLowerCase().trim();
-        var isMasterAdmin = (myEmail === 'jrnabil570@gmail.com');
-        var isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
-        var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
-        var isUserVip = isMasterAdmin || ((Boolean(u.isPremium || u.is_premium || isTierActive)) && u.vipTier !== 'none' && !isVipExpired);
-
-        var allTabs = ['unlocked', 'all', 'platinum', 'master', 'legend', 'immortal'];
+        var allTabs = ['unlocked', 'all', 'platinum', 'master', 'legend', 'immortal', 'permanent'];
         allTabs.forEach(function(t) {
             var btn = gid('border-cat-tab-' + t);
             if (!btn) return;
@@ -2794,6 +2924,8 @@ var Auth = {
                 btn.className = `px-2.5 py-1.5 rounded-xl font-bold text-[11px] whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${isCurrent ? 'bg-yellow-400 text-black font-extrabold' : 'bg-yellow-400/10 text-yellow-300 hover:bg-yellow-400/20 border border-yellow-400/20'}`;
             } else if (t === 'immortal') {
                 btn.className = `px-2.5 py-1.5 rounded-xl font-bold text-[11px] whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${isCurrent ? 'bg-pink-400 text-black font-extrabold' : 'bg-pink-400/10 text-pink-300 hover:bg-pink-400/20 border border-pink-400/20'}`;
+            } else if (t === 'permanent') {
+                btn.className = `px-2.5 py-1.5 rounded-xl font-bold text-[11px] whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${isCurrent ? 'bg-purple-400 text-black font-extrabold' : 'bg-purple-400/10 text-purple-300 hover:bg-purple-400/20 border border-purple-400/20'}`;
             }
         });
 
@@ -2801,23 +2933,19 @@ var Auth = {
     },
 
     renderBorderCardsList() {
-        var container = gid('border-picker-cards-container');
+        var modals = document.querySelectorAll('#border-picker-modal');
+        var activeModal = modals.length > 0 ? modals[modals.length - 1] : null;
+        var container = (activeModal && activeModal.querySelector('#border-picker-cards-container')) || gid('border-picker-cards-container');
         if (!container) return;
 
         var u = Auth.currentUser || {};
-        var adminTok = (typeof Profile !== 'undefined' && Profile.getAdminToken) ? Profile.getAdminToken() : (sessionStorage.getItem('musifystar_admin_token') || localStorage.getItem('musifystar_admin_token') || '');
         var myEmail = String(u.email || u.rawEmail || '').toLowerCase().trim();
-        var myUsername = String(u.username || '').toLowerCase().trim();
         var isMasterAdmin = (myEmail === 'jrnabil570@gmail.com');
         var isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
         var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
         var isUserVip = isMasterAdmin || ((Boolean(u.isPremium || u.is_premium || isTierActive)) && u.vipTier !== 'none' && !isVipExpired);
-        var userVipTier = isMasterAdmin ? 'permanent' : (isUserVip ? (u.vipTier || 'permanent') : 'none');
         var avatarUrl = u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.username || 'user')}`;
         var currentBorder = u.border || 'none';
-
-        var tierRankMap = { 'none': 0, '1month': 1, '2months': 2, '5months': 3, 'permanent': 4, 'lifetime': 4, 'sultan': 4 };
-        var userRank = isMasterAdmin ? 4 : (tierRankMap[userVipTier] !== undefined ? tierRankMap[userVipTier] : (isUserVip ? 4 : 0));
 
         var borders = Auth.availableBorders || [];
         var tab = Auth.borderActiveFilterTab || (isUserVip ? 'unlocked' : 'all');
@@ -2829,7 +2957,7 @@ var Auth = {
 
         // Update count badge for unlocked borders
         var unlockedCount = borders.filter(function(b) { return b.isVip && isBorderUnlocked(b); }).length;
-        var unlockedBadge = gid('badge-count-unlocked');
+        var unlockedBadge = (activeModal && activeModal.querySelector('#badge-count-unlocked')) || gid('badge-count-unlocked');
         if (unlockedBadge) unlockedBadge.innerText = unlockedCount;
 
         // Filter borders based on active tab
@@ -2837,29 +2965,23 @@ var Auth = {
             if (tab === 'unlocked') {
                 return isBorderUnlocked(b);
             }
+            var bName = String(b.name || '').toLowerCase();
+            var bId = String(b.id || '').toLowerCase();
+            var bCat = String(b.category || '').toLowerCase();
             if (tab === 'platinum') {
-                var bName = String(b.name || '').toLowerCase();
-                var bId = String(b.id || '').toLowerCase();
-                var bCat = String(b.category || '').toLowerCase();
                 return bCat === 'platinum' || bId.includes('platinum') || bName.includes('platinum');
             }
             if (tab === 'master') {
-                var bName = String(b.name || '').toLowerCase();
-                var bId = String(b.id || '').toLowerCase();
-                var bCat = String(b.category || '').toLowerCase();
                 return bCat === 'master' || bId.includes('master') || bName.includes('master');
             }
             if (tab === 'legend') {
-                var bName = String(b.name || '').toLowerCase();
-                var bId = String(b.id || '').toLowerCase();
-                var bCat = String(b.category || '').toLowerCase();
                 return bCat === 'legend' || bId.includes('legend') || bName.includes('legend') || b.requiredTier === '2months';
             }
             if (tab === 'immortal') {
-                var bName = String(b.name || '').toLowerCase();
-                var bId = String(b.id || '').toLowerCase();
-                var bCat = String(b.category || '').toLowerCase();
                 return bCat === 'immortal' || bId.includes('immortal') || bId.includes('imortal') || bName.includes('immortal') || b.requiredTier === '5months';
+            }
+            if (tab === 'permanent') {
+                return bCat === 'permanent' || bId.includes('permanent') || bName.includes('permanen') || b.requiredTier === 'permanent';
             }
             return true; // 'all'
         });
@@ -3175,86 +3297,35 @@ var Auth = {
             return;
         }
 
-        var existing = gid('customid-picker-modal');
-        if (existing) existing.remove();
+        document.querySelectorAll('#customid-picker-modal').forEach(function(el) { el.remove(); });
 
-        var token = localStorage.getItem('musifystar_auth_token') || sessionStorage.getItem('musifystar_auth_token') || '';
-        var data = null;
-        try {
-            var res = await fetch('/api/user-auth?action=get_custom_ids', {
-                headers: { 'Authorization': 'Bearer ' + token }
+        var renderModalBodyHtml = function(dataObj, isLoading) {
+            var customIds = (dataObj && dataObj.status && Array.isArray(dataObj.customIds)) ? dataObj.customIds : [];
+            var currentCustomId = dataObj ? dataObj.currentUserCustomId : (u.customId || null);
+            var currentOriginalId = dataObj ? dataObj.currentUserOriginalId : (u.originalId || u.id);
+            var expiresAt = dataObj ? dataObj.currentUserCustomIdExpiresAt : (u.customIdExpiresAt || null);
+
+            var publicIds = customIds.filter(function(item) {
+                return !item.targetUsername || item.targetUsername.trim() === '';
             });
-            data = await res.json();
-        } catch(e) {}
 
-        var customIds = (data && data.status && Array.isArray(data.customIds)) ? data.customIds : [];
-        var currentCustomId = data ? data.currentUserCustomId : (u.customId || null);
-        var currentOriginalId = data ? data.currentUserOriginalId : (u.originalId || u.id);
-        var expiresAt = data ? data.currentUserCustomIdExpiresAt : (u.customIdExpiresAt || null);
-
-        // Update local state if server returned user
-        if (data && data.user) {
-            u.id = data.user.id;
-            u.customId = data.user.customId;
-            u.originalId = data.user.originalId;
-            u.customIdExpiresAt = data.user.customIdExpiresAt;
-            u.isCustomIdTrial = data.user.isCustomIdTrial;
-            try { localStorage.setItem('musifystar_auth_user', JSON.stringify(u)); } catch(e){}
-        }
-
-        // Only public IDs (without targetUsername)
-        var publicIds = customIds.filter(function(item) {
-            return !item.targetUsername || item.targetUsername.trim() === '';
-        });
-
-        var timeRemainingText = '';
-        var isTrialActive = false;
-        if (currentCustomId && expiresAt && expiresAt > Date.now()) {
-            isTrialActive = true;
-            var diffMs = expiresAt - Date.now();
-            var diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-            var diffDays = Math.floor(diffHours / 24);
-            if (diffDays >= 1) {
-                timeRemainingText = `${diffDays} Hari ${diffHours % 24} Jam`;
-            } else {
-                timeRemainingText = `${diffHours} Jam ${Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))} Menit`;
+            var timeRemainingText = '';
+            var isTrialActive = false;
+            if (currentCustomId && expiresAt && expiresAt > Date.now()) {
+                isTrialActive = true;
+                var diffMs = expiresAt - Date.now();
+                var diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                var diffDays = Math.floor(diffHours / 24);
+                if (diffDays >= 1) {
+                    timeRemainingText = `${diffDays} Hari ${diffHours % 24} Jam`;
+                } else {
+                    timeRemainingText = `${diffHours} Jam ${Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))} Menit`;
+                }
+            } else if (currentCustomId && !expiresAt) {
+                timeRemainingText = 'Permanen (Tanpa Batas Waktu)';
             }
-        } else if (currentCustomId && !expiresAt) {
-            timeRemainingText = 'Permanen (Tanpa Batas Waktu)';
-        }
 
-        var modal = document.createElement('div');
-        modal.id = 'customid-picker-modal';
-        modal.className = 'fixed inset-0 z-[750] bg-[#07090e]/95 backdrop-blur-2xl flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in';
-        modal.innerHTML = `
-            <!-- Header Bar -->
-            <div class="pt-6 sm:pt-7 pb-3.5 px-4 shrink-0 border-b border-amber-400/20 shadow-2xl transition-all flex items-center justify-between bg-[#0d0f16]">
-                <div class="flex items-center gap-3">
-                    <button onclick="gid('customid-picker-modal')?.remove()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
-                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
-                    </button>
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center text-black font-black shadow-md shadow-amber-500/30 shrink-0">
-                            <i data-lucide="fingerprint" class="w-5 h-5"></i>
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h1 class="text-lg sm:text-xl font-black text-white tracking-tight leading-tight">Custom ID VIP</h1>
-                                <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-black flex items-center gap-0.5">
-                                    <i data-lucide="crown" class="w-2.5 h-2.5 fill-black"></i> VIP KHUSUS
-                                </span>
-                            </div>
-                            <p class="text-white/50 text-[11px] leading-tight mt-0.5">Pilih ID keren VIP yang disediakan admin atau pasang trial ID</p>
-                        </div>
-                    </div>
-                </div>
-                <button onclick="gid('customid-picker-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <!-- Scrollable Body -->
-            <div class="flex-1 overflow-y-auto overscroll-contain hide-scrollbar p-4 sm:p-6 max-w-2xl mx-auto w-full pb-32 space-y-4">
+            return `
                 <!-- Status Preview Card -->
                 <div class="p-5 bg-gradient-to-b from-[#181a24] to-[#11131a] border border-amber-400/40 rounded-3xl shadow-xl space-y-3 relative overflow-hidden">
                     <div class="flex items-center justify-between">
@@ -3315,7 +3386,12 @@ var Auth = {
                         <span class="text-[10px] text-white/40">Disediakan Admin</span>
                     </div>
 
-                    ${publicIds.length === 0 ? `
+                    ${isLoading && publicIds.length === 0 ? `
+                        <div class="text-center py-12 px-4 rounded-3xl bg-white/[0.02] border border-white/5 space-y-2">
+                            <i data-lucide="loader-2" class="w-6 h-6 animate-spin text-amber-400 mx-auto"></i>
+                            <p class="text-xs font-bold text-white/70">Memuat daftar Custom ID VIP...</p>
+                        </div>
+                    ` : (publicIds.length === 0 ? `
                         <div class="text-center py-12 px-4 rounded-3xl bg-white/[0.02] border border-white/5 space-y-2">
                             <div class="w-12 h-12 rounded-2xl bg-white/5 mx-auto flex items-center justify-center text-white/40">
                                 <i data-lucide="fingerprint" class="w-6 h-6"></i>
@@ -3389,13 +3465,82 @@ var Auth = {
                                 `;
                             }).join('')}
                         </div>
-                    `}
+                    `)}
+                </div>`;
+        };
+
+        var modal = document.createElement('div');
+        modal.id = 'customid-picker-modal';
+        modal.className = 'fixed inset-0 z-[750] bg-[#07090e]/95 backdrop-blur-2xl flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in';
+        modal.innerHTML = `
+            <!-- Header Bar -->
+            <div class="pt-6 sm:pt-7 pb-3.5 px-4 shrink-0 border-b border-amber-400/20 shadow-2xl transition-all flex items-center justify-between bg-[#0d0f16]">
+                <div class="flex items-center gap-3">
+                    <button onclick="document.querySelectorAll('#customid-picker-modal').forEach(function(el){el.remove();})" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center text-black font-black shadow-md shadow-amber-500/30 shrink-0">
+                            <i data-lucide="fingerprint" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-lg sm:text-xl font-black text-white tracking-tight leading-tight">Custom ID VIP</h1>
+                                <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-black flex items-center gap-0.5">
+                                    <i data-lucide="crown" class="w-2.5 h-2.5 fill-black"></i> VIP KHUSUS
+                                </span>
+                            </div>
+                            <p class="text-white/50 text-[11px] leading-tight mt-0.5">Pilih ID keren VIP yang disediakan admin atau pasang trial ID</p>
+                        </div>
+                    </div>
                 </div>
+                <button onclick="document.querySelectorAll('#customid-picker-modal').forEach(function(el){el.remove();})" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable Body -->
+            <div id="customid-picker-body" class="flex-1 overflow-y-auto overscroll-contain hide-scrollbar p-4 sm:p-6 max-w-2xl mx-auto w-full pb-32 space-y-4">
+                ${renderModalBodyHtml(Auth.cachedCustomIdsData || null, !Auth.cachedCustomIdsData)}
             </div>
         `;
 
         document.body.appendChild(modal);
         if (window.lucide) lucide.createIcons();
+
+        var token = localStorage.getItem('musifystar_auth_token') || sessionStorage.getItem('musifystar_auth_token') || '';
+        try {
+            var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            var tId = ctrl ? setTimeout(function() { ctrl.abort(); }, 6000) : null;
+            var res = await fetch('/api/user-auth?action=get_custom_ids', {
+                headers: { 'Authorization': 'Bearer ' + token },
+                signal: ctrl ? ctrl.signal : undefined
+            });
+            if (tId) clearTimeout(tId);
+            var data = await res.json();
+            if (data && data.status) {
+                Auth.cachedCustomIdsData = data;
+                if (data.user) {
+                    u.id = data.user.id;
+                    u.customId = data.user.customId;
+                    u.originalId = data.user.originalId;
+                    u.customIdExpiresAt = data.user.customIdExpiresAt;
+                    u.isCustomIdTrial = data.user.isCustomIdTrial;
+                    try { localStorage.setItem('musifystar_auth_user', JSON.stringify(u)); } catch(e){}
+                }
+            }
+            var bodyEl = gid('customid-picker-body');
+            if (bodyEl) {
+                bodyEl.innerHTML = renderModalBodyHtml(data || Auth.cachedCustomIdsData || null, false);
+                if (window.lucide) lucide.createIcons();
+            }
+        } catch(e) {
+            var bodyEl2 = gid('customid-picker-body');
+            if (bodyEl2) {
+                bodyEl2.innerHTML = renderModalBodyHtml(Auth.cachedCustomIdsData || null, false);
+                if (window.lucide) lucide.createIcons();
+            }
+        }
     },
 
     // ==============================================================

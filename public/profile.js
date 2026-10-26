@@ -2316,7 +2316,7 @@ var Profile = {
         }
     },
 
-    // Buka dialog Akses Admin
+    // Buka dialog Akses Admin (Synchronous 0ms UI feedback)
     async openAdminModal() {
         var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
         var isMasterAdmin = u && ((u.email || u.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com');
@@ -2329,22 +2329,84 @@ var Profile = {
         }
 
         var token = Profile.getAdminToken();
+        var userTok = (typeof Auth !== 'undefined' && Auth.token) ? Auth.token : (localStorage.getItem('musifystar_auth_token') || sessionStorage.getItem('musifystar_auth_token') || '');
+
+        // Jika sudah punya token admin, langsung buka dashboard secara instan (0ms) dan verifikasi di background
         if (token) {
+            Profile.renderAdminDashboard();
             try {
+                var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                var tId = ctrl ? setTimeout(function() { ctrl.abort(); }, 4000) : null;
+                var headers = { 'x-admin-token': token };
+                if (userTok) headers['Authorization'] = 'Bearer ' + userTok;
                 var res = await fetch('/api/admin-auth', {
-                    headers: { 'x-admin-token': token }
+                    headers: headers,
+                    signal: ctrl ? ctrl.signal : undefined
                 });
+                if (tId) clearTimeout(tId);
                 var data = await res.json();
-                if (data.authenticated) {
-                    Profile.renderAdminDashboard();
-                    return;
+                if (data && data.token) {
+                    Profile.setAdminToken(data.token);
+                } else if (data && data.authenticated === false) {
+                    Profile.setAdminToken(null);
+                    Profile.renderAdminLogin(Boolean(data && !data.hasCredentials));
                 }
             } catch (e) {}
-            Profile.setAdminToken(null);
+            return;
         }
 
-        // Tampilkan layar Login / Verifikasi Kredensial
-        Profile.renderAdminLogin();
+        // Tampilkan layar modal loading secara instan (0ms) sambil cek sesi / kredensial
+        document.querySelectorAll('#musifystar-admin-modal').forEach(function(el) { el.remove(); });
+        var loadingModal = document.createElement('div');
+        loadingModal.id = 'musifystar-admin-modal';
+        loadingModal.className = 'fixed inset-0 z-[700] bg-[#07090e] flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in';
+        loadingModal.innerHTML = `
+        <div class="pt-5 sm:pt-6 pb-3.5 px-4 shrink-0 border-b border-white/10 bg-[#0d0f16]/95 backdrop-blur-md flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="Profile.closeAdminModal()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </button>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-black text-white tracking-tight leading-tight flex items-center gap-2">
+                        <i data-lucide="shield-check" class="w-5 h-5 text-purple-400"></i>
+                        <span>Panel Admin Master</span>
+                    </h1>
+                    <p class="text-white/60 text-xs leading-tight mt-0.5">Memverifikasi akses Owner...</p>
+                </div>
+            </div>
+            <button onclick="Profile.closeAdminModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div class="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-3">
+            <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-purple-400"></i>
+            <p class="text-xs font-bold text-white/70">Membuka Panel Admin Master...</p>
+        </div>`;
+        document.body.appendChild(loadingModal);
+        if (window.lucide) lucide.createIcons();
+
+        try {
+            var ctrl2 = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            var tId2 = ctrl2 ? setTimeout(function() { ctrl2.abort(); }, 3500) : null;
+            var reqHeaders = {};
+            if (userTok) reqHeaders['Authorization'] = 'Bearer ' + userTok;
+            var statusRes = await fetch('/api/admin-auth', {
+                headers: reqHeaders,
+                signal: ctrl2 ? ctrl2.signal : undefined
+            });
+            if (tId2) clearTimeout(tId2);
+            var statusData = await statusRes.json();
+            if (!gid('musifystar-admin-modal')) return; // User closed modal
+            if (statusData && statusData.authenticated) {
+                if (statusData.token) Profile.setAdminToken(statusData.token);
+                Profile.renderAdminDashboard();
+                return;
+            }
+            Profile.renderAdminLogin(Boolean(statusData && !statusData.hasCredentials));
+        } catch (e) {
+            if (!gid('musifystar-admin-modal')) return;
+            Profile.renderAdminLogin(false);
+        }
     },
 
     closeAdminModal() {
@@ -2352,23 +2414,14 @@ var Profile = {
             clearInterval(Profile.adminRefreshInterval);
             Profile.adminRefreshInterval = null;
         }
-        var modal = gid('musifystar-admin-modal');
-        if (modal) modal.remove();
+        document.querySelectorAll('#musifystar-admin-modal').forEach(function(el) { el.remove(); });
     },
 
-    // Tampilan Formulir Login Admin (Username & Password)
-    async renderAdminLogin() {
-        var existing = gid('musifystar-admin-modal');
-        if (existing) existing.remove();
+    // Tampilan Formulir Login Admin (Username & Password) - Synchronous 0ms render
+    async renderAdminLogin(knownIsSetup) {
+        document.querySelectorAll('#musifystar-admin-modal').forEach(function(el) { el.remove(); });
 
-        var isSetup = false;
-        try {
-            var statusRes = await fetch('/api/admin-auth');
-            var statusData = await statusRes.json();
-            if (statusData && !statusData.hasCredentials) {
-                isSetup = true;
-            }
-        } catch (e) {}
+        var isSetup = Boolean(knownIsSetup);
 
         var modal = document.createElement('div');
         modal.id = 'musifystar-admin-modal';
@@ -2385,7 +2438,7 @@ var Profile = {
                         <i data-lucide="shield-check" class="w-5 h-5 text-rose-500"></i>
                         <span>Akses Administrator</span>
                     </h1>
-                    <p class="text-white/60 text-xs leading-tight mt-0.5">${isSetup ? 'Pengaturan Awal: Buat Username & Password admin baru' : 'Masukkan kredensial Anda untuk melanjutkan'}</p>
+                    <p id="admin-login-header-sub" class="text-white/60 text-xs leading-tight mt-0.5">${isSetup ? 'Pengaturan Awal: Buat Username & Password admin baru' : 'Masukkan kredensial Anda untuk melanjutkan'}</p>
                 </div>
             </div>
             <button onclick="Profile.closeAdminModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer">
@@ -2401,7 +2454,7 @@ var Profile = {
                         <i data-lucide="lock" class="w-7 h-7"></i>
                     </div>
                     <h2 class="text-xl font-black text-white tracking-tight">Login Admin MusifyStar</h2>
-                    <p class="text-xs text-white/60 mt-1">${isSetup ? 'Pengaturan Awal: Buat Username & Password admin baru' : 'Masukkan kredensial Anda untuk melanjutkan'}</p>
+                    <p id="admin-login-card-sub" class="text-xs text-white/60 mt-1">${isSetup ? 'Pengaturan Awal: Buat Username & Password admin baru' : 'Masukkan kredensial Anda untuk melanjutkan'}</p>
                 </div>
 
                 <!-- Error Banner -->
@@ -2411,7 +2464,7 @@ var Profile = {
                 </div>
 
                 <!-- Form -->
-                <form onsubmit="Profile.handleAdminAuth(event, ${isSetup})" class="space-y-4">
+                <form id="admin-login-form" onsubmit="Profile.handleAdminAuth(event, ${isSetup})" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-white/70 mb-1.5 uppercase tracking-wider">Username</label>
                         <div class="relative">
@@ -2437,7 +2490,20 @@ var Profile = {
         </div>`;
 
         document.body.appendChild(modal);
-        lucide.createIcons();
+        if (window.lucide) lucide.createIcons();
+
+        if (knownIsSetup === undefined) {
+            fetch('/api/admin-auth').then(function(r) { return r.json(); }).then(function(d) {
+                if (d && !d.hasCredentials) {
+                    var formEl = gid('admin-login-form');
+                    if (formEl) formEl.setAttribute('onsubmit', 'Profile.handleAdminAuth(event, true)');
+                    var sub1 = gid('admin-login-header-sub');
+                    if (sub1) sub1.innerText = 'Pengaturan Awal: Buat Username & Password admin baru';
+                    var sub2 = gid('admin-login-card-sub');
+                    if (sub2) sub2.innerText = 'Pengaturan Awal: Buat Username & Password admin baru';
+                }
+            }).catch(function() {});
+        }
     },
 
     // Handle verifikasi Login / Setup
@@ -2646,8 +2712,7 @@ var Profile = {
 
     // Tampilan Area Admin: User Feedback Inbox & Analytics
     async renderAdminDashboard() {
-        var existing = gid('musifystar-admin-modal');
-        if (existing) existing.remove();
+        document.querySelectorAll('#musifystar-admin-modal').forEach(function(el) { el.remove(); });
 
         var token = Profile.getAdminToken();
 
