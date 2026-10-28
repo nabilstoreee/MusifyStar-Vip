@@ -96,10 +96,30 @@ var Auth = {
 
         // Check ban immediately when switching back to browser tab
         document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) {
+            if (!document.hidden && !window.musifyAuthInProgress) {
                 Auth.checkSession();
             }
         });
+    },
+
+    findBorderInAvailableList(urlStr) {
+        if (!urlStr || !Array.isArray(Auth.availableBorders)) return null;
+        var str = String(urlStr);
+        var idMatch = str.match(/[?&]id=([^&]+)/);
+        if (idMatch && idMatch[1]) {
+            var targetId = decodeURIComponent(idMatch[1]);
+            var byId = Auth.availableBorders.find(function(b) {
+                return b && b.id === targetId;
+            });
+            if (byId) return byId;
+        }
+        var cleanPath = str.split('?')[0];
+        if (cleanPath && cleanPath !== '/api/borders') {
+            return Auth.availableBorders.find(function(b) {
+                return b && b.url && String(b.url).split('?')[0] === cleanPath;
+            }) || null;
+        }
+        return null;
     },
 
     getBorderScaleValue(borderOrUrl) {
@@ -115,14 +135,9 @@ var Auth = {
             var parsed = parseInt(m[1], 10);
             if (Number.isFinite(parsed) && parsed >= 50 && parsed <= 180) return parsed;
         }
-        if (Array.isArray(Auth.availableBorders)) {
-            var cleanPath = str.split('?')[0];
-            var found = Auth.availableBorders.find(function(b) {
-                return b && b.url && String(b.url).split('?')[0] === cleanPath;
-            });
-            if (found && Number.isFinite(Number(found.scale))) {
-                return Math.max(50, Math.min(180, Math.round(Number(found.scale))));
-            }
+        var found = Auth.findBorderInAvailableList(str);
+        if (found && Number.isFinite(Number(found.scale))) {
+            return Math.max(50, Math.min(180, Math.round(Number(found.scale))));
         }
         return 100;
     },
@@ -140,14 +155,9 @@ var Auth = {
             var parsed = parseInt(m[1], 10);
             if (Number.isFinite(parsed) && parsed >= -45 && parsed <= 45) return parsed;
         }
-        if (Array.isArray(Auth.availableBorders)) {
-            var cleanPath = str.split('?')[0];
-            var found = Auth.availableBorders.find(function(b) {
-                return b && b.url && String(b.url).split('?')[0] === cleanPath;
-            });
-            if (found && Number.isFinite(Number(found.offsetY))) {
-                return Math.max(-45, Math.min(45, Math.round(Number(found.offsetY))));
-            }
+        var found = Auth.findBorderInAvailableList(str);
+        if (found && Number.isFinite(Number(found.offsetY))) {
+            return Math.max(-45, Math.min(45, Math.round(Number(found.offsetY))));
         }
         return 0;
     },
@@ -165,14 +175,9 @@ var Auth = {
             var parsed = parseInt(m[1], 10);
             if (Number.isFinite(parsed) && parsed >= -45 && parsed <= 45) return parsed;
         }
-        if (Array.isArray(Auth.availableBorders)) {
-            var cleanPath = str.split('?')[0];
-            var found = Auth.availableBorders.find(function(b) {
-                return b && b.url && String(b.url).split('?')[0] === cleanPath;
-            });
-            if (found && Number.isFinite(Number(found.offsetX))) {
-                return Math.max(-45, Math.min(45, Math.round(Number(found.offsetX))));
-            }
+        var found = Auth.findBorderInAvailableList(str);
+        if (found && Number.isFinite(Number(found.offsetX))) {
+            return Math.max(-45, Math.min(45, Math.round(Number(found.offsetX))));
         }
         return 0;
     },
@@ -250,6 +255,8 @@ var Auth = {
 
     async checkSession() {
         try {
+            if (window.musifyAuthInProgress) return;
+            var sessionCheckStartedAt = Date.now();
             var headers = {};
             var url = '/api/user-auth?action=me';
             if (Auth.token) {
@@ -274,8 +281,6 @@ var Auth = {
                        '&username=' + encodeURIComponent(Auth.activeBannedUser.username || '') +
                        '&email=' + encodeURIComponent(em || '');
             }
-
-
 
             var res = await fetch(url, {
                 headers: headers,
@@ -348,6 +353,12 @@ var Auth = {
                     Security.registerServerUser(data.user);
                 }
                 Auth._failedSessionChecks = 0;
+                // Prevent in-flight session check from overwriting a border equipped within the last 10 seconds
+                if (Auth._lastBorderEquipTime && sessionCheckStartedAt < Auth._lastBorderEquipTime + 10000 && Auth.currentUser) {
+                    data.user.border = Auth.currentUser.border;
+                    data.user.borderUrl = Auth.currentUser.borderUrl;
+                    data.user.borderName = Auth.currentUser.borderName;
+                }
                 Auth.currentUser = data.user;
                 if (data.newToken) {
                     Auth.token = data.newToken;
@@ -418,12 +429,21 @@ var Auth = {
 
     getBorderUrl(u) {
         if (!u) return '';
+        var bId = String(u.border || '').trim();
+        if (bId === 'none' || bId === 'null') return '';
+        if (bId && Array.isArray(Auth.availableBorders)) {
+            var matched = Auth.availableBorders.find(function(item) { return item && item.id === bId; });
+            if (matched && matched.url) return matched.url;
+        }
         var rawUrl = String(u.borderUrl || '').trim();
         if (rawUrl && rawUrl !== 'none' && rawUrl !== 'null' && rawUrl !== 'undefined' && rawUrl !== 'Border') {
             return rawUrl;
         }
-        var b = String(u.border || '').toLowerCase().trim();
-        if (b === 'none' || b === 'null' || !b) return '';
+        if (bId.indexOf('border_custom_') === 0) {
+            return '/api/borders?action=image&id=' + encodeURIComponent(bId) + '&ext=png';
+        }
+        var b = bId.toLowerCase();
+        if (!b) return '';
         if (b === 'border_platinum' || b.includes('platinum')) return '/borders/Platinum.png';
         if (b === 'border_master' || b.includes('master')) return '/borders/Master.png';
         if (b === 'border_legend' || b.includes('legend')) return '/borders/Legend.png';
@@ -433,6 +453,7 @@ var Auth = {
 
     getBorderName(u) {
         if (!u) return '';
+        if (u.border === 'none') return '';
         if (u.borderName) return u.borderName;
         var b = String(u.border || '').toLowerCase().trim();
         if (b === 'none' || b === 'null' || !b) return '';
@@ -520,16 +541,16 @@ var Auth = {
             wrapper.className = 'fixed inset-0 z-[700] flex items-center justify-center p-4 animate-fadeIn pointer-events-auto';
             wrapper.innerHTML = `
                 <!-- Backdrop click to dismiss -->
-                <div onclick="gid('header-auth-dropdown-wrapper')?.remove()" class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"></div>
+                <div onclick="if(!window.musifyAuthInProgress) gid('header-auth-dropdown-wrapper')?.remove()" class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"></div>
 
                 <!-- Floating Close Button at top right of screen -->
-                <button onclick="gid('header-auth-dropdown-wrapper')?.remove()" class="fixed top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition active:scale-95 cursor-pointer z-40" title="">
+                <button onclick="if(!window.musifyAuthInProgress) gid('header-auth-dropdown-wrapper')?.remove()" class="fixed top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-white/70 hover:text-white transition active:scale-95 cursor-pointer z-40" title="">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
 
                 <!-- Centered Hover Expanding Card -->
                 <div class="relative z-10 flex flex-col items-center">
-                    <div id="neon-login-box" class="neon-box-card ${Auth.mode === 'register' ? 'mode-register' : ''}" onclick="Auth.toggleCardExpand(event)">
+                    <div id="neon-login-box" class="neon-box-card ${Auth.mode === 'register' ? 'mode-register expanded' : ''}" onclick="Auth.toggleCardExpand(event)">
                         <!-- Inner dark box -->
                         <div class="neon-box-card-inner">
                             <div id="header-auth-content" class="w-full h-full flex flex-col">
@@ -572,7 +593,12 @@ var Auth = {
     },
 
     toggleCardExpand(e) {
+        if (window.musifyAuthInProgress) {
+            gid('neon-login-box')?.classList.add('expanded');
+            return;
+        }
         if (e && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.closest('input') || e.target.closest('form'))) {
+            gid('neon-login-box')?.classList.add('expanded');
             return;
         }
         var box = gid('neon-login-box');
@@ -2778,7 +2804,7 @@ var Auth = {
                         <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-black/90 flex items-center justify-center shadow-inner z-0">
                             <img src="${avatarUrl}" class="w-full h-full object-cover rounded-full" alt="Preview Foto" onerror="this.src='/logo.png'">
                         </div>
-                        <img id="border-picker-live-frame" src="${selectedBorderObj.url || ''}" style="transform: translate(-50%, -50%) scale(${Auth.getBorderScaleValue(selectedBorderObj) / 100});" class="${selectedBorderObj.url ? '' : 'hidden'} pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] sm:w-[124px] sm:h-[124px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_18px_rgba(245,158,11,0.65)] transition-transform duration-150" alt="Frame">
+                        <img id="border-picker-live-frame" src="${selectedBorderObj.url || ''}" style="${Auth.getBorderScaleStyle(selectedBorderObj)}" class="${selectedBorderObj.url ? '' : 'hidden'} pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] sm:w-[124px] sm:h-[124px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_18px_rgba(245,158,11,0.65)] transition-transform duration-150" alt="Frame" onerror="if(this.dataset.retried!=='1'){this.dataset.retried='1';this.src='/borders/'+(('${selectedBorderObj.file || ''}'||'${selectedBorderObj.id}.png'));}">
                     </div>
                     <div class="text-center mt-1">
                         <p id="border-picker-live-title" class="text-xs font-black text-white flex items-center justify-center gap-1.5">
@@ -2880,22 +2906,48 @@ var Auth = {
                     seenIds.add(item.id);
                     return true;
                 });
+
+                // Prevent accidental downgrade if server returned only 5 default borders while client already cached custom borders
+                if (freshBorders.length <= 5 && Array.isArray(Auth.availableBorders) && Auth.availableBorders.length > 5) {
+                    Auth.availableBorders.forEach(function(existingItem) {
+                        if (existingItem && existingItem.id && !seenIds.has(existingItem.id)) {
+                            seenIds.add(existingItem.id);
+                            freshBorders.push(existingItem);
+                        }
+                    });
+                }
+
+                var prevSig = (Auth.availableBorders || []).map(function(b) {
+                    return b.id + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0) + ':' + (b.url || '');
+                }).join('|');
+                var nextSig = freshBorders.map(function(b) {
+                    return b.id + ':' + (b.scale || 100) + ':' + (b.offsetY || 0) + ':' + (b.offsetX || 0) + ':' + (b.url || '');
+                }).join('|');
+
                 Auth.availableBorders = freshBorders;
                 try { localStorage.setItem('musifystar_borders_cache_v1', JSON.stringify(freshBorders)); } catch (e) {}
 
-                if (gid('border-picker-modal')) {
+                var activeModalEl = gid('border-picker-modal');
+                if (activeModalEl && !Auth._isEquippingBorder) {
                     var freshSelected = freshBorders.find(function(b) { return b.id === (Auth.currentUser?.border || currentBorder); }) || freshBorders[0];
                     var liveFrame = gid('border-picker-live-frame');
                     if (liveFrame && freshSelected) {
                         if (freshSelected.url) {
                             liveFrame.src = freshSelected.url;
-                            liveFrame.style.transform = `translate(-50%, -50%) scale(${Auth.getBorderScaleValue(freshSelected) / 100})`;
+                            liveFrame.setAttribute('style', Auth.getBorderScaleStyle(freshSelected));
                             liveFrame.classList.remove('hidden');
                         } else {
                             liveFrame.classList.add('hidden');
                         }
                     }
-                    Auth.renderBorderCardsList();
+                    if (prevSig !== nextSig) {
+                        var scrollContainer = activeModalEl.querySelector('.overflow-y-auto');
+                        var savedScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+                        Auth.renderBorderCardsList();
+                        if (scrollContainer && savedScrollTop > 0) {
+                            scrollContainer.scrollTop = savedScrollTop;
+                        }
+                    }
                 }
             }
         } catch(e) {}
@@ -3005,6 +3057,8 @@ var Auth = {
             var checkRes = Auth.canUserEquipBorderObj(u, b);
             var isLocked = !checkRes.unlocked;
             var lockBadge = checkRes.lockBadge || b.badge || 'VIP';
+            var fallbackStaticUrl = '/borders/' + (b.file || (b.id + '.png'));
+            var fallbackApiUrl = '/api/borders?action=image&id=' + encodeURIComponent(b.id);
 
             return `
             <div onclick="Auth.previewOrEquipBorder('${b.id}')" 
@@ -3016,7 +3070,7 @@ var Auth = {
                             <img src="${avatarUrl}" class="w-full h-full object-cover ${isLocked ? 'filter grayscale brightness-50' : ''}" onerror="this.src='/logo.png'">
                         </div>
                         ${b.url ? `
-                            <img src="${b.url}" style="transform: translate(-50%, -50%) scale(${Auth.getBorderScaleValue(b) / 100});" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[56px] h-[56px] sm:w-[62px] sm:h-[62px] max-w-none object-contain z-10 select-none ${isLocked ? 'filter grayscale brightness-75' : ''}">
+                            <img src="${b.url}" loading="lazy" style="${Auth.getBorderScaleStyle(b)}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[56px] h-[56px] sm:w-[62px] sm:h-[62px] max-w-none object-contain z-10 select-none ${isLocked ? 'filter grayscale brightness-75' : ''}" onerror="if(!this.dataset.retryStep){this.dataset.retryStep='1';this.src='${fallbackStaticUrl}';}else if(this.dataset.retryStep==='1'){this.dataset.retryStep='2';this.src='${fallbackApiUrl}';}">
                         ` : ''}
                     </div>
                     <div class="min-w-0">
@@ -3057,22 +3111,20 @@ var Auth = {
         var u = Auth.currentUser || {};
         var adminTok = (typeof Profile !== 'undefined' && Profile.getAdminToken) ? Profile.getAdminToken() : (sessionStorage.getItem('musifystar_admin_token') || localStorage.getItem('musifystar_admin_token') || '');
         var myEmail = String(u.email || u.rawEmail || '').toLowerCase().trim();
-        var myUsername = String(u.username || '').toLowerCase().trim();
         var isMasterAdmin = (myEmail === 'jrnabil570@gmail.com');
         var isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
         var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
         var isUserVip = isMasterAdmin || ((Boolean(u.isPremium || u.is_premium || isTierActive)) && u.vipTier !== 'none' && !isVipExpired);
-        var userVipTier = isMasterAdmin ? 'permanent' : (isUserVip ? (u.vipTier || 'permanent') : 'none');
 
         var allBorders = Auth.availableBorders || [];
         var target = allBorders.find(function(b) { return b.id === borderId; });
         if (!target) {
             var bordersDict = {
-                'none': { name: 'Tanpa Border', url: '', isVip: false, requiredTier: 'none', tier: 'Gratis', badge: 'Default', desc: 'Avatar standar polos melingkar' },
-                'border_platinum': { name: 'Platinum', url: '/borders/Platinum.png', isVip: true, requiredTier: '1month', tier: '1 Bulan+', badge: '1 Bulan+', desc: 'Frame Platinum naga api cyber' },
-                'border_master': { name: 'Master', url: '/borders/Master.png', isVip: true, requiredTier: '1month', tier: '1 Bulan+', badge: '1 Bulan+', desc: 'Frame Master mahkota emas membara' },
-                'border_legend': { name: 'Legend', url: '/borders/Legend.png', isVip: true, requiredTier: '2months', tier: '2 Bulan+', badge: '2 Bulan+', desc: 'Sayap emas kemegahan Legenda' },
-                'border_immortal': { name: 'Immortal', url: '/borders/Imortal.png', isVip: true, requiredTier: '5months', tier: '5 Bulan+', badge: '5 Bulan+', desc: 'Kasta tertinggi Immortal Mahkota Dewa' }
+                'none': { id: 'none', name: 'Tanpa Border', url: '', isVip: false, requiredTier: 'none', tier: 'Gratis', badge: 'Default', desc: 'Avatar standar polos melingkar' },
+                'border_platinum': { id: 'border_platinum', name: 'Platinum', url: '/borders/Platinum.png', isVip: true, requiredTier: '1month', tier: '1 Bulan+', badge: '1 Bulan+', desc: 'Frame Platinum naga api cyber' },
+                'border_master': { id: 'border_master', name: 'Master', url: '/borders/Master.png', isVip: true, requiredTier: '1month', tier: '1 Bulan+', badge: '1 Bulan+', desc: 'Frame Master mahkota emas membara' },
+                'border_legend': { id: 'border_legend', name: 'Legend', url: '/borders/Legend.png', isVip: true, requiredTier: '2months', tier: '2 Bulan+', badge: '2 Bulan+', desc: 'Sayap emas kemegahan Legenda' },
+                'border_immortal': { id: 'border_immortal', name: 'Immortal', url: '/borders/Imortal.png', isVip: true, requiredTier: '5months', tier: '5 Bulan+', badge: '5 Bulan+', desc: 'Kasta tertinggi Immortal Mahkota Dewa' }
             };
             target = bordersDict[borderId] || bordersDict['none'];
         }
@@ -3084,7 +3136,7 @@ var Auth = {
         if (liveFrame) {
             if (target.url) {
                 liveFrame.src = target.url;
-                liveFrame.style.transform = 'translate(-50%, -50%) scale(' + (Auth.getBorderScaleValue(target) / 100) + ')';
+                liveFrame.setAttribute('style', Auth.getBorderScaleStyle(target));
                 liveFrame.classList.remove('hidden');
             } else {
                 liveFrame.src = '';
@@ -3107,178 +3159,141 @@ var Auth = {
             }
             if (!isUserVip && typeof Profile !== 'undefined' && Profile.openVipPackagesModal) {
                 setTimeout(function() {
-                    gid('border-picker-modal')?.remove();
+                    document.querySelectorAll('#border-picker-modal').forEach(function(el) { el.remove(); });
                     Profile.openVipPackagesModal();
                 }, 400);
             } else if (isUserVip && !u.referralBorderRestricted && typeof Profile !== 'undefined' && Profile.openVipPackagesModal) {
                 var targetPkg = target.requiredTier === '5months' ? 'pkg_5months' : (target.requiredTier === '2months' ? 'pkg_2months' : 'pkg_permanent');
                 setTimeout(function() {
-                    gid('border-picker-modal')?.remove();
+                    document.querySelectorAll('#border-picker-modal').forEach(function(el) { el.remove(); });
                     Profile.openVipPackagesModal(targetPkg);
                 }, 400);
             }
             return;
         }
 
-        if (typeof showToast === 'function') showToast(`Memasang border ${target.name}...`);
+        // Optimistic Instant Equip (0ms response - no stuck loading!)
+        Auth._isEquippingBorder = true;
+        Auth._lastBorderEquipTime = Date.now();
+        if (!Auth.currentUser) Auth.currentUser = {};
+        Auth.currentUser.border = borderId === 'none' ? '' : borderId;
+        Auth.currentUser.borderUrl = borderId === 'none' ? '' : (target.url || '');
+        Auth.currentUser.borderName = borderId === 'none' ? '' : (target.name || '');
 
-        var success = false;
-        var updatedData = null;
-
-        // Try primary /api/borders?action=equip
-        try {
-            var headers = {
-                'Content-Type': 'application/json'
-            };
-            if (Auth.token) headers['Authorization'] = 'Bearer ' + Auth.token;
-            if (adminTok) headers['x-admin-token'] = adminTok;
-
-            var res = await fetch('/api/borders?action=equip', {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({
-                    borderId: borderId,
-                    userId: u.id,
-                    username: u.username,
-                    email: u.email || u.rawEmail,
-                    adminToken: adminTok
-                })
-            });
-            var data = await res.json();
-            if (data && data.status) {
-                success = true;
-                updatedData = data;
-            }
-        } catch(e) {}
-
-        // Fallback: If not equipped yet, use update_profile
-        if (!success) {
-            try {
-                var res2 = await fetch('/api/user-auth?action=update_profile', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + (Auth.token || '')
-                    },
-                    body: JSON.stringify({ border: borderId })
-                });
-                var data2 = await res2.json();
-                if (data2 && data2.status) {
-                    success = true;
-                    updatedData = data2;
-                }
-            } catch(e) {}
-        }
-
-        // Apply changes
-        if (success) {
-            Auth.currentUser.border = borderId === 'none' ? '' : borderId;
-            Auth.currentUser.borderUrl = target.url || '';
-            Auth.currentUser.borderName = target.name || '';
-            if (typeof Auth.saveUser === 'function') {
-                Auth.saveUser(Auth.currentUser);
-            } else {
-                try {
-                    if (localStorage.getItem('musifystar_auth_token')) {
-                        localStorage.setItem('musifystar_auth_user', JSON.stringify(Auth.currentUser));
-                    } else {
-                        sessionStorage.setItem('musifystar_auth_user', JSON.stringify(Auth.currentUser));
-                    }
-                } catch(e) {}
-            }
-            Auth.updateHeaderUI();
-
-            // Update UI di User Profile Modal secara langsung tanpa scroll reset
-            var borderImg = gid('modal-user-border-img');
-            if (borderImg) {
-                if (target.url) {
-                    borderImg.src = target.url;
-                    borderImg.classList.remove('hidden');
-                } else {
-                    borderImg.src = '';
-                    borderImg.classList.add('hidden');
-                }
-            }
-            var badgeWrapper = gid('modal-current-border-badge');
-            var nameTxt = gid('modal-border-name-text');
-            if (badgeWrapper && nameTxt) {
-                if (target.url) {
-                    nameTxt.innerText = target.name;
-                    badgeWrapper.classList.remove('hidden');
-                } else {
-                    badgeWrapper.classList.add('hidden');
-                }
-            }
-
-            if (typeof showToast === 'function') {
-                showToast(target.id === 'none' ? 'Border profil dilepas, menggunakan avatar standar.' : `Border ${target.name} berhasil dipasang ke profil Anda!`);
-            }
-            gid('border-picker-modal')?.remove();
-
-            // Real-time Event Broadcast: Notify GlobalStats & GlobalChat
-            try {
-                window.dispatchEvent(new CustomEvent('musifystar:user_border_updated', {
-                    detail: {
-                        border: Auth.currentUser.border,
-                        borderUrl: Auth.currentUser.borderUrl,
-                        borderName: Auth.currentUser.borderName,
-                        user: Auth.currentUser
-                    }
-                }));
-            } catch(e) {}
-            if (typeof GlobalStats !== 'undefined' && typeof GlobalStats.onUserBorderChanged === 'function') {
-                GlobalStats.onUserBorderChanged(Auth.currentUser.borderUrl, Auth.currentUser.borderName);
-            }
-            if (typeof GlobalChat !== 'undefined' && typeof GlobalChat.renderMessages === 'function') {
-                GlobalChat.renderMessages();
-            }
+        if (typeof Auth.saveUser === 'function') {
+            Auth.saveUser(Auth.currentUser);
         } else {
-            // Even if offline/network error, for admin enable optimistic equip
-            if (isMasterAdmin) {
-                Auth.currentUser.border = borderId === 'none' ? '' : borderId;
-                Auth.currentUser.borderUrl = target.url || '';
-                Auth.currentUser.borderName = target.name || '';
-                if (typeof Auth.saveUser === 'function') {
-                    Auth.saveUser(Auth.currentUser);
+            try {
+                if (localStorage.getItem('musifystar_auth_token')) {
+                    localStorage.setItem('musifystar_auth_user', JSON.stringify(Auth.currentUser));
                 } else {
-                    try {
-                        if (localStorage.getItem('musifystar_auth_token')) {
-                            localStorage.setItem('musifystar_auth_user', JSON.stringify(Auth.currentUser));
-                        } else {
-                            sessionStorage.setItem('musifystar_auth_user', JSON.stringify(Auth.currentUser));
-                        }
-                    } catch(e) {}
+                    sessionStorage.setItem('musifystar_auth_user', JSON.stringify(Auth.currentUser));
                 }
-                Auth.updateHeaderUI();
-                var borderImg2 = gid('modal-user-border-img');
-                if (borderImg2) {
-                    if (target.url) { borderImg2.src = target.url; borderImg2.classList.remove('hidden'); }
-                    else { borderImg2.src = ''; borderImg2.classList.add('hidden'); }
-                }
-                if (typeof showToast === 'function') showToast(`Border ${target.name} berhasil dipasang (Mode Admin)!`);
-                gid('border-picker-modal')?.remove();
-
-                // Real-time Event Broadcast (Admin Mode)
-                try {
-                    window.dispatchEvent(new CustomEvent('musifystar:user_border_updated', {
-                        detail: {
-                            border: Auth.currentUser.border,
-                            borderUrl: Auth.currentUser.borderUrl,
-                            borderName: Auth.currentUser.borderName,
-                            user: Auth.currentUser
-                        }
-                    }));
-                } catch(e) {}
-                if (typeof GlobalStats !== 'undefined' && typeof GlobalStats.onUserBorderChanged === 'function') {
-                    GlobalStats.onUserBorderChanged(Auth.currentUser.borderUrl, Auth.currentUser.borderName);
-                }
-                if (typeof GlobalChat !== 'undefined' && typeof GlobalChat.renderMessages === 'function') {
-                    GlobalChat.renderMessages();
-                }
-            } else {
-                if (typeof showToast === 'function') showToast('Gagal memasang border. Pastikan Anda sudah login.');
-            }
+            } catch(e) {}
         }
+        Auth.updateHeaderUI();
+
+        // Update all instances of #modal-user-border-img & badges on Profile Page immediately
+        var borderImgs = document.querySelectorAll('#modal-user-border-img');
+        borderImgs.forEach(function(borderImg) {
+            if (target.url && borderId !== 'none') {
+                borderImg.style.display = '';
+                borderImg.setAttribute('style', Auth.getBorderScaleStyle(target));
+                borderImg.src = target.url;
+                borderImg.classList.remove('hidden');
+            } else {
+                borderImg.src = '';
+                borderImg.classList.add('hidden');
+            }
+        });
+
+        var badgeWrappers = document.querySelectorAll('#modal-current-border-badge');
+        var nameTxts = document.querySelectorAll('#modal-border-name-text');
+        nameTxts.forEach(function(nameTxt) {
+            if (target.url && borderId !== 'none') {
+                nameTxt.innerText = target.name;
+            }
+        });
+        badgeWrappers.forEach(function(badgeWrapper) {
+            if (target.url && borderId !== 'none') {
+                badgeWrapper.classList.remove('hidden');
+            } else {
+                badgeWrapper.classList.add('hidden');
+            }
+        });
+
+        if (typeof showToast === 'function') {
+            showToast(borderId === 'none' ? 'Border profil dilepas, menggunakan avatar standar.' : `Border ${target.name} berhasil dipasang ke profil Anda!`);
+        }
+
+        // Remove all border picker modals immediately
+        document.querySelectorAll('#border-picker-modal').forEach(function(el) { el.remove(); });
+        Auth._isEquippingBorder = false;
+
+        // Real-time Event Broadcast: Notify GlobalStats & GlobalChat immediately
+        try {
+            window.dispatchEvent(new CustomEvent('musifystar:user_border_updated', {
+                detail: {
+                    border: Auth.currentUser.border,
+                    borderUrl: Auth.currentUser.borderUrl,
+                    borderName: Auth.currentUser.borderName,
+                    user: Auth.currentUser
+                }
+            }));
+        } catch(e) {}
+        if (typeof GlobalStats !== 'undefined' && typeof GlobalStats.onUserBorderChanged === 'function') {
+            GlobalStats.onUserBorderChanged(Auth.currentUser.borderUrl, Auth.currentUser.borderName);
+        }
+        if (typeof GlobalChat !== 'undefined' && typeof GlobalChat.renderMessages === 'function') {
+            GlobalChat.renderMessages();
+        }
+
+        // Sync to backend asynchronously in background
+        (async function() {
+            var synced = false;
+            try {
+                var headers = { 'Content-Type': 'application/json' };
+                if (Auth.token) headers['Authorization'] = 'Bearer ' + Auth.token;
+                if (adminTok) headers['x-admin-token'] = adminTok;
+
+                var res = await fetch('/api/borders?action=equip', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        borderId: borderId,
+                        borderUrl: target.url || '',
+                        borderName: target.name || '',
+                        requiredTier: target.requiredTier || '1month',
+                        category: target.category || 'platinum',
+                        userId: u.id,
+                        username: u.username,
+                        email: u.email || u.rawEmail,
+                        adminToken: adminTok
+                    })
+                });
+                var data = await res.json();
+                if (data && data.status) {
+                    synced = true;
+                }
+            } catch(e) {}
+
+            if (!synced) {
+                try {
+                    await fetch('/api/user-auth?action=update_profile', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + (Auth.token || '')
+                        },
+                        body: JSON.stringify({
+                            border: borderId,
+                            borderUrl: target.url || '',
+                            borderName: target.name || ''
+                        })
+                    });
+                } catch(e) {}
+            }
+        })();
     },
 
     // ==============================================================
@@ -4306,6 +4321,7 @@ var Auth = {
     async handleGoogleLogin(prefix) {
         prefix = prefix || 'header-';
         window.musifyAuthInProgress = true;
+        gid('neon-login-box')?.classList.add('expanded');
         var btn = gid(prefix + 'auth-google-btn') || gid(prefix + 'auth-google-reg-btn');
         var oldHtml = btn ? btn.innerHTML : '';
         if (btn) {
