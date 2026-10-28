@@ -618,9 +618,6 @@ var Profile = {
                 </button>
             </div>
 
-            <!-- BAGIAN CUSTOM ID VIP & TRIAL INFORMASI -->
-            <div id="vip-custom-id-section-container"></div>
-
             <!-- BAGIAN 2: KEUNTUNGAN MEMBER VIP -->
             <div class="p-4 rounded-2xl bg-[#11131a] border border-white/10 space-y-3">
                 <div class="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -675,11 +672,6 @@ var Profile = {
 
         document.body.appendChild(modal);
         if (window.lucide) lucide.createIcons();
-        setTimeout(function() {
-            if (typeof Profile.loadUserCustomIdSection === 'function') {
-                Profile.loadUserCustomIdSection('vip-custom-id-section-container');
-            }
-        }, 10);
     },
 
     selectVipPackageItem(pkgId) {
@@ -2783,8 +2775,8 @@ var Profile = {
                         <span id="admin-feedback-badge" class="hidden text-[10px] bg-rose-500 text-white px-1.5 py-0.2 rounded-full font-bold">0</span>
                     </button>
                     <button id="admin-tab-btn-security" onclick="Profile.setAdminTab('security')" class="px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-white/5 hover:bg-white/10 text-white/70 hover:text-white whitespace-nowrap">
-                        <i data-lucide="shield-check" class="w-4 h-4"></i>
-                        <span>Keamanan & 2FA</span>
+                        <i data-lucide="mail-check" class="w-4 h-4 text-sky-400"></i>
+                        <span>Email OTP & Keamanan</span>
                     </button>
                     <button id="admin-tab-btn-users" onclick="Profile.setAdminTab('users')" class="px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-white/5 hover:bg-white/10 text-white/70 hover:text-white whitespace-nowrap">
                         <i data-lucide="history" class="w-4 h-4 text-sky-400"></i>
@@ -4962,6 +4954,15 @@ var Profile = {
 
         var token = Profile.getAdminToken();
         var twoFactorEnabled = false;
+        var smtpCfg = {
+            enabled: false,
+            smtpEmail: 'jrnabil570@gmail.com',
+            senderName: 'MusifyStar StudioMusik',
+            hasAppPassword: false,
+            maskedPassword: '',
+            requireOtpOnRegister: true,
+            requireOtpOnReset: true
+        };
 
         try {
             var res = await fetch('/api/admin-auth', {
@@ -4971,8 +4972,94 @@ var Profile = {
             twoFactorEnabled = !!authState.twoFactorEnabled;
         } catch (e) {}
 
+        try {
+            var smtpRes = await fetch('/api/user-auth?action=admin_get_smtp_config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-token': token || ''
+                },
+                body: JSON.stringify({ action: 'admin_get_smtp_config' })
+            });
+            var smtpData = await smtpRes.json();
+            if (smtpData && smtpData.status && smtpData.config) {
+                smtpCfg = Object.assign(smtpCfg, smtpData.config);
+            }
+        } catch (e) {}
+
         container.innerHTML = `
         <div class="max-w-xl mx-auto space-y-5">
+            <!-- 0. REAL-TIME EMAIL OTP (GMAIL APP PASSWORD) CARD -->
+            <div class="p-5 rounded-2xl bg-gradient-to-br from-sky-500/15 via-indigo-500/10 to-transparent border border-sky-400/30 shadow-lg space-y-4">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 border border-sky-400/30">
+                            <i data-lucide="mail-check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="text-base font-bold text-white">Email OTP Real-Time (Gmail SMTP)</h3>
+                                <span class="text-[10px] ${smtpCfg.enabled ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'} font-extrabold px-2 py-0.5 rounded-full uppercase border">
+                                    ${smtpCfg.enabled ? 'Aktif (Real-Time)' : 'Belum Diaktifkan'}
+                                </span>
+                            </div>
+                            <p class="text-xs text-white/60">Kirim kode OTP 6 angka otomatis ke email pengguna saat Daftar Akun & Reset Password</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-black/40 border border-white/10 text-[11px] text-white/75 leading-relaxed space-y-1">
+                    <div class="font-bold text-sky-300 flex items-center gap-1.5">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                        <span>Cara Mengaktifkan dengan 16 Huruf Sandi Aplikasi Google:</span>
+                    </div>
+                    <p>Tempelkan <strong>16 huruf Sandi Aplikasi</strong> yang baru saja Anda salin dari Google ke kolom di bawah ini (boleh dengan spasi atau tanpa spasi), lalu klik <strong>Simpan & Aktifkan Email OTP</strong>.</p>
+                </div>
+
+                <form onsubmit="Profile.saveAdminSmtpConfig(event)" class="space-y-3.5">
+                    <div id="admin-smtp-alert" class="hidden p-3 rounded-xl text-xs font-semibold"></div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-white/85">Email Gmail Pengirim</label>
+                        <input id="admin-smtp-email" type="email" required value="${(smtpCfg.smtpEmail || 'jrnabil570@gmail.com').replace(/"/g, '&quot;')}" placeholder="jrnabil570@gmail.com" class="w-full px-3.5 py-2.5 bg-black/50 border border-white/15 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none focus:border-sky-400 transition-all" />
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-white/85 flex items-center justify-between">
+                            <span>Kode 16 Huruf Sandi Aplikasi (Google App Password)</span>
+                            ${smtpCfg.hasAppPassword ? `<span class="text-[10px] text-emerald-400 font-mono">Tersimpan: ${smtpCfg.maskedPassword}</span>` : `<span class="text-[10px] text-amber-400">Wajib diisi 16 huruf</span>`}
+                        </label>
+                        <div class="relative">
+                            <input id="admin-smtp-pass" type="password" placeholder="${smtpCfg.hasAppPassword ? 'Biarkan kosong jika tidak ingin mengubah kode 16 huruf' : 'Tempel 16 huruf kode Sandi Aplikasi di sini (misal: abcd efgh ijkl mnop)'}" class="w-full px-3.5 py-2.5 pr-10 bg-black/50 border border-sky-400/30 rounded-xl text-xs text-amber-300 font-mono placeholder-white/30 focus:outline-none focus:border-sky-400 transition-all" />
+                            <button type="button" onclick="Profile.togglePassVisibility('admin-smtp-pass', this)" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-all cursor-pointer p-1">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <label class="flex items-center justify-between p-3 rounded-xl bg-sky-500/10 border border-sky-400/30 cursor-pointer">
+                        <div>
+                            <div class="text-xs font-bold text-white">Aktifkan Verifikasi Email OTP Saat Login</div>
+                            <div class="text-[11px] text-white/60">Wajib OTP saat pertama kali Login setelah daftar (atau saat Login di HP/perangkat baru)</div>
+                        </div>
+                        <input id="admin-smtp-enabled" type="checkbox" ${smtpCfg.enabled || !smtpCfg.hasAppPassword ? 'checked' : ''} class="w-5 h-5 accent-emerald-400 rounded cursor-pointer" />
+                    </label>
+                    <input id="admin-smtp-reg" type="hidden" value="true" checked />
+                    <input id="admin-smtp-reset" type="hidden" value="false" />
+
+                    <div class="flex flex-col sm:flex-row gap-2.5 pt-1">
+                        <button type="submit" id="admin-smtp-save-btn" class="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            <span>Simpan & Aktifkan Email OTP</span>
+                        </button>
+                        <button type="button" onclick="Profile.testAdminSmtpEmail()" id="admin-smtp-test-btn" class="py-2.5 px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                            <span>Tes Kirim OTP</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             <!-- 1. TWO-FACTOR AUTHENTICATION (2FA) CARD -->
             <div class="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-500/20 shadow-lg space-y-4">
                 <div class="flex items-center justify-between gap-3">
@@ -5082,6 +5169,126 @@ var Profile = {
         </div>`;
 
         lucide.createIcons();
+    },
+
+    async saveAdminSmtpConfig(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        var token = Profile.getAdminToken();
+        var smtpEmail = (gid('admin-smtp-email')?.value || '').trim();
+        var appPassword = (gid('admin-smtp-pass')?.value || '').trim();
+        var requireOtpOnRegister = Boolean(gid('admin-smtp-reg')?.checked);
+        var requireOtpOnReset = Boolean(gid('admin-smtp-reset')?.checked);
+        var enabled = Boolean(gid('admin-smtp-enabled')?.checked);
+        var btn = gid('admin-smtp-save-btn');
+        var alertEl = gid('admin-smtp-alert');
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Menyimpan...</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        try {
+            var res = await fetch('/api/user-auth?action=admin_save_smtp_config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-token': token || ''
+                },
+                body: JSON.stringify({
+                    action: 'admin_save_smtp_config',
+                    smtpEmail: smtpEmail,
+                    appPassword: appPassword,
+                    requireOtpOnRegister: requireOtpOnRegister,
+                    requireOtpOnReset: requireOtpOnReset,
+                    enabled: enabled
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                if (typeof showToast === 'function') showToast(data.message || 'Konfigurasi Email OTP disimpan!');
+                await Profile.renderAdminSecurityTab();
+            } else {
+                if (alertEl) {
+                    alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                    alertEl.textContent = data?.message || 'Gagal menyimpan konfigurasi Email OTP.';
+                }
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal menyimpan konfigurasi');
+            }
+        } catch (err) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan saat menyimpan');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan & Aktifkan Email OTP</span>';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        }
+    },
+
+    async testAdminSmtpEmail() {
+        var token = Profile.getAdminToken();
+        var smtpEmail = (gid('admin-smtp-email')?.value || '').trim();
+        var appPassword = (gid('admin-smtp-pass')?.value || '').trim();
+        var btn = gid('admin-smtp-test-btn');
+        var alertEl = gid('admin-smtp-alert');
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Mengirim Tes OTP...</span>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        try {
+            // If user typed a new 16-char password and clicked Test directly, save it first automatically
+            if (appPassword) {
+                await fetch('/api/user-auth?action=admin_save_smtp_config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-admin-token': token || ''
+                    },
+                    body: JSON.stringify({
+                        action: 'admin_save_smtp_config',
+                        smtpEmail: smtpEmail,
+                        appPassword: appPassword,
+                        requireOtpOnRegister: Boolean(gid('admin-smtp-reg')?.checked),
+                        requireOtpOnReset: Boolean(gid('admin-smtp-reset')?.checked),
+                        enabled: true
+                    })
+                });
+            }
+
+            var res = await fetch('/api/user-auth?action=admin_test_smtp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-token': token || ''
+                },
+                body: JSON.stringify({
+                    action: 'admin_test_smtp',
+                    testEmail: smtpEmail
+                })
+            });
+            var data = await res.json();
+            if (alertEl) {
+                alertEl.className = data && data.status
+                    ? 'p-3 rounded-xl text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'p-3 rounded-xl text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                alertEl.textContent = data?.message || (data?.status ? 'Email Tes OTP terkirim!' : 'Gagal mengirim email tes');
+            }
+            if (typeof showToast === 'function') {
+                showToast(data?.message || (data?.status ? 'Email Tes OTP terkirim!' : 'Gagal mengirim email tes'));
+            }
+        } catch (err) {
+            if (typeof showToast === 'function') showToast('Gagal mengirim email tes OTP');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Tes Kirim OTP</span>';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        }
     },
 
     async start2FASetup() {
@@ -15243,108 +15450,112 @@ var Profile = {
         }
 
         var innerContentHtml = `
-            <div class="w-full max-w-lg bg-[#11141d] border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <!-- Header -->
-                <div class="px-5 py-3.5 border-b border-white/10 flex items-center justify-between bg-white/[0.02] shrink-0">
+            <!-- Full Page Sticky Header -->
+            <div class="pt-5 sm:pt-6 pb-3.5 px-4 shrink-0 border-b border-white/10 bg-[#0d0f16]/95 backdrop-blur-md flex items-center justify-between shadow-2xl">
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="gid('musifystar-calendar-modal')?.remove()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
                     <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                        <div class="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
                             <i data-lucide="calendar-days" class="w-4 h-4"></i>
                         </div>
                         <div>
-                            <h3 class="text-sm font-bold text-white leading-tight">Riwayat Musik (Kalender)</h3>
-                            <p class="text-[11px] text-white/50">Jelajahi lagu yang didengarkan per tanggal & bulan lalu</p>
+                            <h3 class="text-base sm:text-lg font-black text-white leading-tight">Riwayat Musik (Kalender)</h3>
+                            <p class="text-[11px] text-white/55">Jelajahi lagu yang didengarkan per tanggal & bulan lalu</p>
                         </div>
                     </div>
-                    <button onclick="gid('musifystar-calendar-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
+                </div>
+                <button type="button" onclick="gid('musifystar-calendar-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer" title="Tutup">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Full Page Scrollable Content -->
+            <div id="calendar-modal-scroll-body" class="flex-1 overflow-y-auto overscroll-contain hide-scrollbar p-4 sm:p-6 max-w-3xl mx-auto w-full pb-32 space-y-4">
+                <!-- Quick Month Switcher Buttons (Bulan Lalu vs Bulan Ini) -->
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <div class="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10">
+                        <button type="button" onclick="Profile.switchCalendarMonth('last_month')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${isLastMonth ? 'bg-cyan-500 text-black font-bold shadow-sm' : 'text-white/65 hover:text-white'}">
+                            Bulan Lalu (${monthNames[prevMonthDate.getMonth()].slice(0, 3)})
+                        </button>
+                        <button type="button" onclick="Profile.switchCalendarMonth('this_month')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${isCurrentMonth ? 'bg-cyan-500 text-black font-bold shadow-sm' : 'text-white/65 hover:text-white'}">
+                            Bulan Ini (${monthNames[now.getMonth()].slice(0, 3)})
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="Profile.switchCalendarMonth(-1)" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/80 cursor-pointer active:scale-95" title="Bulan Sebelumnya">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                        </button>
+                        <span class="text-xs font-bold text-white px-2 min-w-[110px] text-center">${monthNames[month]} ${year}</span>
+                        <button type="button" onclick="Profile.switchCalendarMonth(1)" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/80 cursor-pointer active:scale-95" title="Bulan Berikutnya">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Scrollable Content -->
-                <div class="p-4 sm:p-5 overflow-y-auto space-y-4 hide-scrollbar">
-                    <!-- Quick Month Switcher Buttons (Bulan Lalu vs Bulan Ini) -->
+                <!-- Monthly Summary Metrics -->
+                <div class="grid grid-cols-3 gap-2.5">
+                    <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+                        <span class="text-[10px] text-white/50 block">Total Diputar</span>
+                        <span class="text-sm sm:text-base font-black font-mono text-cyan-300 mt-0.5 block">${totalSongsInMonth} Lagu</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+                        <span class="text-[10px] text-white/50 block">Hari Aktif</span>
+                        <span class="text-sm sm:text-base font-black font-mono text-white mt-0.5 block">${activeDaysInMonth} Hari</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+                        <span class="text-[10px] text-white/50 block">Durasi Bulan Ini</span>
+                        <span class="text-sm sm:text-base font-black font-mono text-emerald-300 mt-0.5 block">${totalMinutesInMonth} Mnt</span>
+                    </div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="p-3.5 sm:p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2">
+                    <div class="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold text-white/40 uppercase tracking-wider pb-1">
+                        <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Min</div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1.5">
+                        ${cellsHtml}
+                    </div>
+                </div>
+
+                <!-- Selected Date Songs List -->
+                <div class="space-y-2.5 pt-1">
                     <div class="flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10">
-                            <button type="button" onclick="Profile.switchCalendarMonth('last_month')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${isLastMonth ? 'bg-cyan-500 text-black font-bold shadow-sm' : 'text-white/65 hover:text-white'}">
-                                Bulan Lalu (${monthNames[prevMonthDate.getMonth()].slice(0, 3)})
-                            </button>
-                            <button type="button" onclick="Profile.switchCalendarMonth('this_month')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${isCurrentMonth ? 'bg-cyan-500 text-black font-bold shadow-sm' : 'text-white/65 hover:text-white'}">
-                                Bulan Ini (${monthNames[now.getMonth()].slice(0, 3)})
-                            </button>
+                        <div>
+                            <h4 class="text-xs sm:text-sm font-bold text-white">${selDateLabel}</h4>
+                            <p class="text-[11px] text-white/50">${selectedSongs.length} lagu tercatat pada tanggal ini</p>
                         </div>
-
-                        <div class="flex items-center gap-1">
-                            <button type="button" onclick="Profile.switchCalendarMonth(-1)" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/80 cursor-pointer active:scale-95" title="Bulan Sebelumnya">
-                                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                        ${selectedSongs.length > 0 ? `
+                            <button type="button" onclick="Profile.playAllSongsFromDate('${selKey}')" class="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm">
+                                <i data-lucide="play" class="w-3.5 h-3.5 fill-black"></i>
+                                <span>Putar Semua</span>
                             </button>
-                            <span class="text-xs font-bold text-white px-2 min-w-[110px] text-center">${monthNames[month]} ${year}</span>
-                            <button type="button" onclick="Profile.switchCalendarMonth(1)" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/80 cursor-pointer active:scale-95" title="Bulan Berikutnya">
-                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                            </button>
-                        </div>
+                        ` : ''}
                     </div>
-
-                    <!-- Monthly Summary Metrics -->
-                    <div class="grid grid-cols-3 gap-2.5">
-                        <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                            <span class="text-[10px] text-white/50 block">Total Diputar</span>
-                            <span class="text-sm font-black font-mono text-cyan-300 mt-0.5 block">${totalSongsInMonth} Lagu</span>
-                        </div>
-                        <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                            <span class="text-[10px] text-white/50 block">Hari Aktif</span>
-                            <span class="text-sm font-black font-mono text-white mt-0.5 block">${activeDaysInMonth} Hari</span>
-                        </div>
-                        <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                            <span class="text-[10px] text-white/50 block">Durasi Bulan Ini</span>
-                            <span class="text-sm font-black font-mono text-emerald-300 mt-0.5 block">${totalMinutesInMonth} Mnt</span>
-                        </div>
-                    </div>
-
-                    <!-- Calendar Grid -->
-                    <div class="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2">
-                        <div class="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold text-white/40 uppercase tracking-wider pb-1">
-                            <div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div><div>Min</div>
-                        </div>
-                        <div class="grid grid-cols-7 gap-1.5">
-                            ${cellsHtml}
-                        </div>
-                    </div>
-
-                    <!-- Selected Date Songs List -->
-                    <div class="space-y-2.5 pt-1">
-                        <div class="flex items-center justify-between gap-2">
-                            <div>
-                                <h4 class="text-xs font-bold text-white">${selDateLabel}</h4>
-                                <p class="text-[11px] text-white/50">${selectedSongs.length} lagu tercatat pada tanggal ini</p>
-                            </div>
-                            ${selectedSongs.length > 0 ? `
-                                <button type="button" onclick="Profile.playAllSongsFromDate('${selKey}')" class="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm">
-                                    <i data-lucide="play" class="w-3.5 h-3.5 fill-black"></i>
-                                    <span>Putar Semua</span>
-                                </button>
-                            ` : ''}
-                        </div>
-                        <div class="space-y-2">
-                            ${songsListHtml}
-                        </div>
+                    <div class="space-y-2">
+                        ${songsListHtml}
                     </div>
                 </div>
             </div>
         `;
 
         if (existing && isUpdateOnly) {
+            var prevScrollEl = gid('calendar-modal-scroll-body');
+            var savedTop = prevScrollEl ? prevScrollEl.scrollTop : 0;
             existing.innerHTML = innerContentHtml;
+            var nextScrollEl = gid('calendar-modal-scroll-body');
+            if (nextScrollEl) nextScrollEl.scrollTop = savedTop;
             if (typeof lucide !== 'undefined') lucide.createIcons();
             return;
         }
 
         var modal = document.createElement('div');
         modal.id = 'musifystar-calendar-modal';
-        modal.className = 'fixed inset-0 z-[10050] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fade-in';
+        modal.className = 'fixed inset-0 z-[10050] bg-[#07090e] flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in';
         modal.innerHTML = innerContentHtml;
-        modal.onclick = function(e) {
-            if (e.target === modal) modal.remove();
-        };
         document.body.appendChild(modal);
         if (typeof lucide !== 'undefined') lucide.createIcons();
     },
@@ -15366,34 +15577,36 @@ var Profile = {
 
         var modal = document.createElement('div');
         modal.id = 'musifystar-referral-modal';
-        modal.className = 'fixed inset-0 z-[10050] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fade-in select-none';
+        modal.className = 'fixed inset-0 z-[10050] bg-[#07090e] flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in';
         modal.innerHTML = `
-            <div class="w-full max-w-lg bg-[#11141d] border border-amber-400/25 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="px-5 py-3.5 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-transparent shrink-0">
+            <!-- Full Page Sticky Header -->
+            <div class="pt-5 sm:pt-6 pb-3.5 px-4 shrink-0 border-b border-white/10 bg-[#0d0f16]/95 backdrop-blur-md flex items-center justify-between shadow-2xl">
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="gid('musifystar-referral-modal')?.remove()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
                     <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
+                        <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
                             <i data-lucide="gift" class="w-4 h-4"></i>
                         </div>
                         <div>
-                            <h3 class="text-sm font-black text-white leading-tight">Sistem Referral Undang Teman</h3>
-                            <p class="text-[11px] text-white/50">Ajak teman mendaftar & dapatkan VIP / Perpanjangan VIP otomatis</p>
+                            <h3 class="text-base sm:text-lg font-black text-white leading-tight">Sistem Referral Undang Teman</h3>
+                            <p class="text-[11px] text-white/55">Ajak teman mendaftar & dapatkan VIP / Perpanjangan VIP otomatis</p>
                         </div>
                     </div>
-                    <button onclick="gid('musifystar-referral-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
                 </div>
-                <div id="referral-modal-body" class="p-4 sm:p-5 overflow-y-auto space-y-4 hide-scrollbar">
-                    <div class="text-center py-10 text-white/50 space-y-2">
-                        <i data-lucide="loader-2" class="w-7 h-7 animate-spin mx-auto text-amber-400"></i>
-                        <p class="text-xs">Memuat data referral & hadiah VIP...</p>
-                    </div>
+                <button type="button" onclick="gid('musifystar-referral-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer" title="Tutup">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <!-- Full Page Scrollable Body -->
+            <div id="referral-modal-body" class="flex-1 overflow-y-auto overscroll-contain hide-scrollbar p-4 sm:p-6 max-w-3xl mx-auto w-full pb-32 space-y-4">
+                <div class="text-center py-12 text-white/50 space-y-2">
+                    <i data-lucide="loader-2" class="w-7 h-7 animate-spin mx-auto text-amber-400"></i>
+                    <p class="text-xs">Memuat data referral & hadiah VIP...</p>
                 </div>
             </div>
         `;
-        modal.onclick = function(e) {
-            if (e.target === modal) modal.remove();
-        };
         document.body.appendChild(modal);
         if (typeof lucide !== 'undefined') lucide.createIcons();
 
@@ -15636,34 +15849,36 @@ var Profile = {
 
         var modal = document.createElement('div');
         modal.id = 'musifystar-supporter-modal';
-        modal.className = 'fixed inset-0 z-[10050] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fade-in select-none';
+        modal.className = 'fixed inset-0 z-[10050] bg-[#07090e] flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in';
         modal.innerHTML = `
-            <div class="w-full max-w-lg bg-[#11141d] border border-pink-500/25 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="px-5 py-3.5 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-pink-500/10 via-amber-500/10 to-transparent shrink-0">
+            <!-- Full Page Sticky Header -->
+            <div class="pt-5 sm:pt-6 pb-3.5 px-4 shrink-0 border-b border-white/10 bg-[#0d0f16]/95 backdrop-blur-md flex items-center justify-between shadow-2xl">
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="gid('musifystar-supporter-modal')?.remove()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
                     <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 rounded-xl bg-pink-500/20 border border-pink-400/40 flex items-center justify-center text-pink-300">
+                        <div class="w-9 h-9 rounded-xl bg-pink-500/20 border border-pink-400/40 flex items-center justify-center text-pink-300 shrink-0">
                             <i data-lucide="award" class="w-4 h-4"></i>
                         </div>
                         <div>
-                            <h3 class="text-sm font-black text-white leading-tight">Badge Khusus Donatur & Top Supporter</h3>
-                            <p class="text-[11px] text-white/50">Lencana kehormatan spesial untuk pendukung setia MusifyStar</p>
+                            <h3 class="text-base sm:text-lg font-black text-white leading-tight">Badge Khusus Donatur & Top Supporter</h3>
+                            <p class="text-[11px] text-white/55">Lencana kehormatan spesial untuk pendukung setia MusifyStar</p>
                         </div>
                     </div>
-                    <button onclick="gid('musifystar-supporter-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
                 </div>
-                <div id="supporter-modal-body" class="p-4 sm:p-5 overflow-y-auto space-y-4 hide-scrollbar">
-                    <div class="text-center py-10 text-white/50 space-y-2">
-                        <i data-lucide="loader-2" class="w-7 h-7 animate-spin mx-auto text-pink-400"></i>
-                        <p class="text-xs">Memuat data Donatur & Top Supporter...</p>
-                    </div>
+                <button type="button" onclick="gid('musifystar-supporter-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer" title="Tutup">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <!-- Full Page Scrollable Body -->
+            <div id="supporter-modal-body" class="flex-1 overflow-y-auto overscroll-contain hide-scrollbar p-4 sm:p-6 max-w-3xl mx-auto w-full pb-32 space-y-4">
+                <div class="text-center py-12 text-white/50 space-y-2">
+                    <i data-lucide="loader-2" class="w-7 h-7 animate-spin mx-auto text-pink-400"></i>
+                    <p class="text-xs">Memuat data Donatur & Top Supporter...</p>
                 </div>
             </div>
         `;
-        modal.onclick = function(e) {
-            if (e.target === modal) modal.remove();
-        };
         document.body.appendChild(modal);
         if (typeof lucide !== 'undefined') lucide.createIcons();
 

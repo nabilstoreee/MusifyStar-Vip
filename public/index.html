@@ -61,8 +61,8 @@
             try {
                 caches.keys().then(function(keys) {
                     keys.forEach(function(k) {
-                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v102') ||
-                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v102')) {
+                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v113') ||
+                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v113')) {
                             caches.delete(k);
                         }
                     });
@@ -696,7 +696,14 @@
         .neon-box-card.mode-register:hover,
         .neon-box-card.mode-register.expanded,
         .neon-box-card.mode-register:focus-within {
-            height: 405px;
+            height: 445px;
+        }
+
+        /* In dedicated OTP verification mode when expanded */
+        .neon-box-card.mode-otp:hover,
+        .neon-box-card.mode-otp.expanded,
+        .neon-box-card.mode-otp:focus-within {
+            height: 365px;
         }
 
         /* 4-segment conic gradient on rotating square (Transcribed exactly from video) */
@@ -1724,7 +1731,7 @@
     <audio id="audio-player" preload="auto" style="display:none;"></audio>
 
     <script src="/player.js?v=101"></script>
-    <script src="/auth.js?v=101"></script>
+    <script src="/auth.js?v=102"></script>
     <script src="/home.js?v=101"></script>
     <script src="/search.js?v=101"></script>
     <script src="/liked.js?v=101"></script>

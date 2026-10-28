@@ -550,7 +550,7 @@ var Auth = {
 
                 <!-- Centered Hover Expanding Card -->
                 <div class="relative z-10 flex flex-col items-center">
-                    <div id="neon-login-box" class="neon-box-card ${Auth.mode === 'register' ? 'mode-register expanded' : ''}" onclick="Auth.toggleCardExpand(event)">
+                    <div id="neon-login-box" class="neon-box-card ${Auth.mode === 'register' ? 'mode-register expanded' : (Auth.mode === 'verify_login_otp' ? 'mode-otp expanded' : (Auth.mode === 'forgot' ? 'mode-forgot expanded' : ''))}" onclick="Auth.toggleCardExpand(event)">
                         <!-- Inner dark box -->
                         <div class="neon-box-card-inner">
                             <div id="header-auth-content" class="w-full h-full flex flex-col">
@@ -590,6 +590,9 @@ var Auth = {
         if (window.lucide && typeof window.lucide.createIcons === 'function') {
             try { window.lucide.createIcons(); } catch(e){}
         }
+        if (!Auth.currentUser && Auth.mode === 'verify_login_otp') {
+            Auth.resumeOtpCountdown('header-');
+        }
     },
 
     toggleCardExpand(e) {
@@ -618,17 +621,141 @@ var Auth = {
         Auth.toggleTopDropdown();
     },
 
+    getDeviceId() {
+        var devId = '';
+        try {
+            devId = localStorage.getItem('musifystar_device_id') || '';
+            if (!devId || devId.length < 8) {
+                devId = 'msdev_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now().toString(36);
+                localStorage.setItem('musifystar_device_id', devId);
+            }
+        } catch (e) {
+            devId = 'msdev_fallback';
+        }
+        return devId;
+    },
+
+    _otpCountdownTimer: null,
+    _otpExpiresAt: 0,
+
+    showOtpError(prefix, msg) {
+        var p = prefix || 'header-';
+        var errEl = gid(p + 'auth-login-otp-error');
+        if (!errEl) return;
+        if (!msg) {
+            errEl.classList.add('hidden');
+            errEl.textContent = '';
+        } else {
+            errEl.textContent = msg;
+            errEl.classList.remove('hidden');
+        }
+    },
+
+    tickOtpCountdown(prefix) {
+        var p = prefix || 'header-';
+        var exp = Auth._otpExpiresAt || 0;
+        if (!exp) {
+            try { exp = Number(localStorage.getItem('musifystar_otp_expires_at') || 0); } catch(e){}
+            if (exp) Auth._otpExpiresAt = exp;
+        }
+        var diffMs = exp ? (exp - Date.now()) : 0;
+        var remaining = diffMs > 0 ? Math.min(59, Math.max(1, Math.floor(diffMs / 1000))) : 0;
+
+        var labelEl = gid(p + 'auth-login-otp-label');
+        var timerEl = gid(p + 'auth-login-otp-timer');
+        var resendBtn = gid(p + 'auth-login-resend-btn');
+
+        if (remaining > 0) {
+            var mins = String(Math.floor(remaining / 60)).padStart(2, '0');
+            var secs = String(remaining % 60).padStart(2, '0');
+            if (labelEl) {
+                labelEl.innerHTML = 'Belum menerima kode?';
+                labelEl.className = 'text-white/60';
+            }
+            if (timerEl) {
+                timerEl.classList.remove('hidden');
+                timerEl.innerHTML = 'Tunggu <span class="font-mono font-extrabold text-[#35eaff]">' + mins + ':' + secs + '</span>';
+            }
+            if (resendBtn) {
+                resendBtn.classList.add('hidden');
+            }
+        } else {
+            if (Auth._otpCountdownTimer) {
+                clearInterval(Auth._otpCountdownTimer);
+                Auth._otpCountdownTimer = null;
+            }
+            if (labelEl) {
+                labelEl.innerHTML = 'Waktu habis (Kadaluarsa)';
+                labelEl.className = 'text-rose-400 font-bold';
+            }
+            if (timerEl) {
+                timerEl.classList.add('hidden');
+            }
+            if (resendBtn) {
+                resendBtn.classList.remove('hidden');
+            }
+        }
+    },
+
+    startOtpCountdown(prefix, seconds, expiresAtMs) {
+        var p = prefix || 'header-';
+        var durSec = typeof seconds === 'number' && seconds > 0 ? seconds : 60;
+        var exp = (typeof expiresAtMs === 'number' && expiresAtMs > Date.now())
+            ? expiresAtMs
+            : (Date.now() + durSec * 1000);
+        Auth._otpExpiresAt = exp;
+        try { localStorage.setItem('musifystar_otp_expires_at', String(exp)); } catch(e){}
+
+        if (Auth._otpCountdownTimer) {
+            clearInterval(Auth._otpCountdownTimer);
+            Auth._otpCountdownTimer = null;
+        }
+        Auth.showOtpError(p, '');
+        Auth.tickOtpCountdown(p);
+        Auth._otpCountdownTimer = setInterval(function() {
+            Auth.tickOtpCountdown(p);
+        }, 250);
+    },
+
+    resumeOtpCountdown(prefix) {
+        var p = prefix || 'header-';
+        var exp = Auth._otpExpiresAt || 0;
+        if (!exp) {
+            try { exp = Number(localStorage.getItem('musifystar_otp_expires_at') || 0); } catch(e){}
+        }
+        if (!exp) {
+            exp = Date.now() + 60000;
+        }
+        Auth._otpExpiresAt = exp;
+        if (Auth._otpCountdownTimer) {
+            clearInterval(Auth._otpCountdownTimer);
+            Auth._otpCountdownTimer = null;
+        }
+        Auth.tickOtpCountdown(p);
+        if (exp > Date.now()) {
+            Auth._otpCountdownTimer = setInterval(function() {
+                Auth.tickOtpCountdown(p);
+            }, 250);
+        }
+    },
+
     setMode(mode, prefix) {
         Auth.mode = mode;
         Auth.isPasswordVisible = false;
         var p = prefix || 'header-';
+        if (mode !== 'verify_login_otp' && Auth._otpCountdownTimer) {
+            clearInterval(Auth._otpCountdownTimer);
+            Auth._otpCountdownTimer = null;
+        }
         var box = gid('neon-login-box');
         if (box) {
-            box.classList.remove('mode-register', 'mode-forgot');
+            box.classList.remove('mode-register', 'mode-forgot', 'mode-otp');
             if (mode === 'register') {
                 box.classList.add('mode-register');
             } else if (mode === 'forgot') {
                 box.classList.add('mode-forgot');
+            } else if (mode === 'verify_login_otp') {
+                box.classList.add('mode-otp');
             }
             box.classList.add('expanded');
         }
@@ -637,6 +764,10 @@ var Auth = {
             container.innerHTML = Auth.getFormHTML(p);
             if (window.lucide && typeof window.lucide.createIcons === 'function') {
                 try { window.lucide.createIcons(); } catch(e){}
+            }
+            if (mode === 'verify_login_otp') {
+                Auth.resumeOtpCountdown(p);
+                setTimeout(function() { gid(p + 'auth-login-otp')?.focus(); }, 60);
             }
         }
     },
@@ -659,7 +790,62 @@ var Auth = {
 
     getFormHTML(prefix) {
         prefix = prefix || 'header-';
+        if (Auth.mode === 'verify_login_otp') {
+            var loginDraft = Auth._pendingLoginDraft || {};
+            var safeEmail = String(loginDraft.email || loginDraft.username || '').replace(/"/g, '&quot;');
+            return `
+            <!-- Header -->
+            <div class="neon-header-row select-none justify-center gap-2">
+                <span class="text-[#35eaff] flex items-center shrink-0">
+                    <i data-lucide="mail-check" class="w-4 h-4"></i>
+                </span>
+                <span class="font-black text-sm tracking-widest text-white uppercase">VERIFIKASI KODE OTP</span>
+            </div>
+
+            <!-- Dedicated OTP Verification Body -->
+            <div class="neon-body-content">
+                <form onsubmit="Auth.handleLogin(event, '${prefix}')" class="w-full space-y-2.5 pt-1">
+                    <div class="text-center space-y-1.5">
+                        <p class="text-[11px] text-white/70">Kode OTP 6 digit telah dikirim ke email:</p>
+                        <div class="px-3 py-1.5 rounded-xl bg-[#35eaff]/10 border border-[#35eaff]/30 text-xs font-extrabold text-[#35eaff] truncate">
+                            ${safeEmail || 'Email Akun Anda'}
+                        </div>
+                    </div>
+
+                    <div>
+                        <input type="text" id="${prefix}auth-login-otp" oninput="Auth.showOtpError('${prefix}', '')" maxlength="6" inputmode="numeric" pattern="[0-9]*" required placeholder="• • • • • •" autocomplete="one-time-code" class="neon-v-input text-center font-mono text-xl font-black tracking-[0.45em] text-[#35eaff] py-2.5 border-[#35eaff]/50 focus:border-[#35eaff]">
+                    </div>
+
+                    <div id="${prefix}auth-login-otp-error" class="hidden px-2.5 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-[11px] font-bold text-rose-300 text-center"></div>
+
+                    <div class="pt-0.5">
+                        <button type="submit" id="${prefix}auth-login-btn" class="neon-v-btn">
+                            <span>VERIFIKASI & LOGIN AKUN</span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs px-1 pt-0.5 select-none">
+                        <span id="${prefix}auth-login-otp-label" class="text-white/60">Belum menerima kode?</span>
+                        <span id="${prefix}auth-login-otp-timer" class="text-white/70 font-medium">
+                            Tunggu <span class="font-mono font-extrabold text-[#35eaff]">00:59</span>
+                        </span>
+                        <button type="button" onclick="Auth.resendLoginOtp('${prefix}')" id="${prefix}auth-login-resend-btn" class="hidden text-amber-300 hover:text-amber-200 font-bold cursor-pointer transition">
+                            Kirim Ulang OTP
+                        </button>
+                    </div>
+
+                    <div class="text-center pt-0.5 select-none">
+                        <button type="button" onclick="Auth.setMode('login', '${prefix}')" class="text-[11px] text-white/50 hover:text-white cursor-pointer transition">
+                            &laquo; Kembali ke Login
+                        </button>
+                    </div>
+                </form>
+            </div>
+            `;
+        }
+
         if (Auth.mode === 'forgot') {
+            var fDraft = Auth._pendingForgotDraft || {};
             return `
             <!-- Header (Visible in compact pill, centered) -->
             <div class="neon-header-row select-none justify-center gap-2" title="Klik untuk buka / tutup">
@@ -677,12 +863,12 @@ var Auth = {
                     </div>
                     <!-- Identifier field -->
                     <div>
-                        <input type="text" id="${prefix}auth-forgot-identifier" required placeholder="Email atau Username Anda" autocomplete="username" class="neon-v-input">
+                        <input type="text" id="${prefix}auth-forgot-identifier" value="${String(fDraft.identifier || '').replace(/"/g, '&quot;')}" required placeholder="Email atau Username Anda" autocomplete="username" class="neon-v-input">
                     </div>
 
                     <!-- New Password field with eye toggle -->
                     <div class="relative flex items-center">
-                        <input type="password" id="${prefix}auth-forgot-password" minlength="6" required placeholder="Password Baru (min 6 karakter)" autocomplete="new-password" class="neon-v-input pr-10">
+                        <input type="password" id="${prefix}auth-forgot-password" value="${String(fDraft.newPassword || '').replace(/"/g, '&quot;')}" minlength="6" required placeholder="Password Baru (min 6 karakter)" autocomplete="new-password" class="neon-v-input pr-10">
                         <button type="button" onclick="Auth.togglePassword('${prefix}auth-forgot-password', '${prefix}auth-forgot-eye-icon')" class="absolute right-3.5 text-white/40 hover:text-amber-400 active:scale-95 transition cursor-pointer" title="Lihat/Sembunyikan Password">
                             <i id="${prefix}auth-forgot-eye-icon" data-lucide="eye" class="w-4 h-4"></i>
                         </button>
@@ -708,6 +894,7 @@ var Auth = {
         }
 
         if (Auth.mode === 'login') {
+            var lDraft = Auth._pendingLoginDraft || {};
             return `
             <!-- Header (Visible in compact pill, centered) -->
             <div class="neon-header-row select-none justify-center gap-2" title="Klik untuk buka / tutup">
@@ -722,12 +909,12 @@ var Auth = {
                 <form onsubmit="Auth.handleLogin(event, '${prefix}')" class="w-full space-y-2.5 pt-1">
                     <!-- Username field -->
                     <div>
-                        <input type="text" id="${prefix}auth-login-username" required placeholder="Username atau Email" autocomplete="username" class="neon-v-input">
+                        <input type="text" id="${prefix}auth-login-username" value="${String(lDraft.username || '').replace(/"/g, '&quot;')}" required placeholder="Username atau Email" autocomplete="username" class="neon-v-input">
                     </div>
 
                     <!-- Password field with eye toggle -->
                     <div class="relative flex items-center">
-                        <input type="password" id="${prefix}auth-login-password" minlength="6" required placeholder="Password" autocomplete="current-password" class="neon-v-input pr-10">
+                        <input type="password" id="${prefix}auth-login-password" value="${String(lDraft.password || '').replace(/"/g, '&quot;')}" minlength="6" required placeholder="Password" autocomplete="current-password" class="neon-v-input pr-10">
                         <button type="button" onclick="Auth.togglePassword('${prefix}auth-login-password', '${prefix}auth-login-eye-icon')" class="absolute right-3.5 text-white/40 hover:text-[#35eaff] active:scale-95 transition cursor-pointer" title="Lihat/Sembunyikan Password">
                             <i id="${prefix}auth-login-eye-icon" data-lucide="eye" class="w-4 h-4"></i>
                         </button>
@@ -777,6 +964,8 @@ var Auth = {
             </div>
             `;
         } else {
+            var rDraft = Auth._pendingRegisterDraft || {};
+            var defaultRef = rDraft.referral !== undefined ? rDraft.referral : (localStorage.getItem('musifystar_pending_ref') || '');
             return `
             <!-- Header (Visible in compact pill, centered) -->
             <div class="neon-header-row select-none" title="Klik untuk buka / tutup">
@@ -794,17 +983,17 @@ var Auth = {
                 <form onsubmit="Auth.handleRegister(event, '${prefix}')" class="w-full space-y-2.5 pt-1">
                     <!-- Username field -->
                     <div>
-                        <input type="text" id="${prefix}auth-reg-username" required placeholder="Username" autocomplete="username" class="neon-v-input">
+                        <input type="text" id="${prefix}auth-reg-username" value="${String(rDraft.username || '').replace(/"/g, '&quot;')}" required placeholder="Username" autocomplete="username" class="neon-v-input">
                     </div>
 
                     <!-- Email field -->
                     <div>
-                        <input type="email" id="${prefix}auth-reg-email" required placeholder="Email Address" autocomplete="email" class="neon-v-input">
+                        <input type="email" id="${prefix}auth-reg-email" value="${String(rDraft.email || '').replace(/"/g, '&quot;')}" required placeholder="Email Address" autocomplete="email" class="neon-v-input">
                     </div>
 
                     <!-- Password field with eye toggle -->
                     <div class="relative flex items-center">
-                        <input type="password" id="${prefix}auth-reg-password" minlength="6" required placeholder="Password" autocomplete="new-password" class="neon-v-input pr-10">
+                        <input type="password" id="${prefix}auth-reg-password" value="${String(rDraft.password || '').replace(/"/g, '&quot;')}" minlength="6" required placeholder="Password" autocomplete="new-password" class="neon-v-input pr-10">
                         <button type="button" onclick="Auth.togglePassword('${prefix}auth-reg-password', '${prefix}auth-reg-eye-icon')" class="absolute right-3.5 text-white/40 hover:text-[#ff10de] active:scale-95 transition cursor-pointer" title="Lihat/Sembunyikan Password">
                             <i id="${prefix}auth-reg-eye-icon" data-lucide="eye" class="w-4 h-4"></i>
                         </button>
@@ -812,7 +1001,7 @@ var Auth = {
 
                     <!-- Referral Code field (Optional) -->
                     <div class="relative flex items-center">
-                        <input type="text" id="${prefix}auth-reg-referral" value="${(localStorage.getItem('musifystar_pending_ref') || '').replace(/"/g, '&quot;')}" placeholder="Kode Referral Teman (Opsional, misal: MS-XXXX)" autocomplete="off" class="neon-v-input uppercase tracking-wider text-xs border-amber-400/30 focus:border-amber-400">
+                        <input type="text" id="${prefix}auth-reg-referral" value="${String(defaultRef || '').replace(/"/g, '&quot;')}" placeholder="Kode Referral Teman (Opsional, misal: MS-XXXX)" autocomplete="off" class="neon-v-input uppercase tracking-wider text-xs border-amber-400/30 focus:border-amber-400">
                     </div>
 
                     <!-- Sign up Button (Vivid Magenta pill button) -->
@@ -4033,22 +4222,78 @@ var Auth = {
         }
     },
 
+    async resendLoginOtp(prefix) {
+        prefix = prefix || 'header-';
+        var draft = Auth._pendingLoginDraft || {};
+        var identifier = (gid(prefix + 'auth-login-username')?.value || draft.email || draft.username || '').trim();
+        if (!identifier) {
+            showToast('Masukkan Username atau Email terlebih dahulu');
+            return;
+        }
+        var btn = gid(prefix + 'auth-login-resend-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Mengirim...';
+        }
+        try {
+            var res = await fetch('/api/user-auth?action=send_login_otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: identifier, email: identifier })
+            });
+            var data = await res.json();
+            showToast(data?.message || (data?.status ? 'Kode OTP dikirim ulang ke email Anda!' : 'Gagal mengirim ulang OTP'));
+            if (data && data.status) {
+                var otpInput = gid(prefix + 'auth-login-otp');
+                if (otpInput) {
+                    otpInput.value = '';
+                    otpInput.focus();
+                }
+                Auth.startOtpCountdown(prefix, data.ttlSeconds || 60, data.expiresAt);
+            }
+        } catch (err) {
+            showToast('Gagal mengirim ulang OTP');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Kirim Ulang OTP';
+            }
+        }
+    },
+
     async handleLogin(e, prefix) {
         if (e && e.preventDefault) e.preventDefault();
         prefix = prefix || 'header-';
-        var userInput = (gid(prefix + 'auth-login-username')?.value || '').trim();
-        var email = (gid(prefix + 'auth-login-email')?.value || '').trim();
+        var draft = Auth._pendingLoginDraft || {};
+        var userInput = (gid(prefix + 'auth-login-username')?.value || draft.username || '').trim();
+        var email = (gid(prefix + 'auth-login-email')?.value || draft.email || '').trim();
         var username = userInput;
         if (!email && userInput.includes('@')) {
             email = userInput;
         }
-        var password = (gid(prefix + 'auth-login-password')?.value || '').trim();
+        var password = (gid(prefix + 'auth-login-password')?.value || draft.password || '').trim();
+        var otpCode = (gid(prefix + 'auth-login-otp')?.value || '').trim();
+        var deviceId = Auth.getDeviceId();
         var remember = true;
+
+        // If on OTP verification screen, check if the 1-minute countdown has already expired
+        if (Auth.mode === 'verify_login_otp' && otpCode) {
+            var expCheck = Auth._otpExpiresAt || 0;
+            if (!expCheck) {
+                try { expCheck = Number(localStorage.getItem('musifystar_otp_expires_at') || 0); } catch(err){}
+            }
+            if (expCheck && Date.now() > expCheck) {
+                Auth.showOtpError(prefix, 'Kode sudah kadaluarsa, silahkan coba lagi!');
+                showToast('Kode sudah kadaluarsa, silahkan coba lagi!');
+                Auth.tickOtpCountdown(prefix);
+                return;
+            }
+        }
 
         var btn = gid(prefix + 'auth-login-btn');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Signing in...</span>';
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Memproses...</span>';
             if (window.lucide && typeof window.lucide.createIcons === 'function') try{ window.lucide.createIcons(); }catch(err){}
         }
 
@@ -4056,12 +4301,37 @@ var Auth = {
             var res = await fetch('/api/user-auth?action=login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: username, email: email, password: password, rememberMe: remember })
+                body: JSON.stringify({ username: username, email: email, password: password, otpCode: otpCode, deviceId: deviceId, rememberMe: remember })
             });
             var data = {};
             try {
                 data = await res.json();
             } catch(e) {}
+
+            if (data && data.otpRequired) {
+                Auth._pendingLoginDraft = {
+                    username: username,
+                    email: data.email || email || username,
+                    password: password
+                };
+                showToast(data.message || 'Kode OTP 6 digit telah dikirim ke email Anda!');
+                if (Auth.mode !== 'verify_login_otp') {
+                    var newExp = data.expiresAt || (Date.now() + 60000);
+                    Auth._otpExpiresAt = newExp;
+                    try { localStorage.setItem('musifystar_otp_expires_at', String(newExp)); } catch(e){}
+                    Auth.setMode('verify_login_otp', prefix);
+                    Auth.startOtpCountdown(prefix, data.ttlSeconds || 60, newExp);
+                } else {
+                    if (data.status === false) {
+                        Auth.showOtpError(prefix, data.message || 'Kode sudah kadaluarsa, silahkan coba lagi!');
+                    }
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span>VERIFIKASI & LOGIN AKUN</span>';
+                    }
+                }
+                return;
+            }
 
             if (data && (data.banned || (data.ban && data.ban.isBanned))) {
                 var canonicalUsername = data.user?.username || username;
@@ -4078,6 +4348,13 @@ var Auth = {
                 gid('header-auth-dropdown-wrapper')?.remove();
                 Auth.showBanModal(data.ban);
             } else if (data && data.status && data.token) {
+                if (Auth._otpCountdownTimer) {
+                    clearInterval(Auth._otpCountdownTimer);
+                    Auth._otpCountdownTimer = null;
+                }
+                Auth._otpExpiresAt = 0;
+                try { localStorage.removeItem('musifystar_otp_expires_at'); } catch(e){}
+                Auth._pendingLoginDraft = null;
                 try { localStorage.removeItem('musifystar_active_ban'); } catch(e) {}
                 Auth.token = data.token;
                 Auth.currentUser = data.user;
@@ -4106,9 +4383,12 @@ var Auth = {
         } catch (err) {
             showToast('Terjadi kesalahan jaringan');
         } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<span>Sign in</span>';
+            var currentBtn = gid(prefix + 'auth-login-btn');
+            if (currentBtn) {
+                currentBtn.disabled = false;
+                currentBtn.innerHTML = Auth.mode === 'verify_login_otp'
+                    ? '<span>VERIFIKASI & LOGIN AKUN</span>'
+                    : '<span>LOGIN AKUN</span>';
                 if (window.lucide && typeof window.lucide.createIcons === 'function') try{ window.lucide.createIcons(); }catch(err){}
             }
         }
@@ -4144,14 +4424,10 @@ var Auth = {
             });
             var data = await res.json();
             if (data && data.status) {
+                Auth._pendingForgotDraft = null;
                 showToast(data.message || 'Password berhasil direset!');
+                Auth._pendingLoginDraft = { username: identifier, password: newPassword };
                 Auth.setMode('login', prefix);
-                setTimeout(function() {
-                    var uField = gid(prefix + 'auth-login-username');
-                    var pField = gid(prefix + 'auth-login-password');
-                    if (uField) uField.value = identifier;
-                    if (pField) pField.value = newPassword;
-                }, 100);
             } else {
                 showToast(data?.message || 'Gagal mereset password');
                 if (btn) {
@@ -4246,7 +4522,7 @@ var Auth = {
         var username = (gid(prefix + 'auth-reg-username')?.value || '').trim();
         var email = (gid(prefix + 'auth-reg-email')?.value || '').trim();
         var password = (gid(prefix + 'auth-reg-password')?.value || '').trim();
-        var referralInput = (gid(prefix + 'auth-reg-referral')?.value || '').trim() || localStorage.getItem('musifystar_pending_ref') || '';
+        var referralInput = (gid(prefix + 'auth-reg-referral')?.value || localStorage.getItem('musifystar_pending_ref') || '').trim();
 
         if (password.length < 6) {
             showToast('Password minimal 6 karakter/huruf');
@@ -4256,7 +4532,7 @@ var Auth = {
         var btn = gid(prefix + 'auth-reg-btn');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Signing up...</span>';
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Mendaftarkan...</span>';
             if (window.lucide && typeof window.lucide.createIcons === 'function') try{ window.lucide.createIcons(); }catch(err){}
         }
 
@@ -4269,7 +4545,20 @@ var Auth = {
                 body: JSON.stringify({ username: username, email: email, password: password, referralCode: referralInput, settings: currentSettings })
             });
             var data = await res.json();
+            if (data && data.status && data.redirectToLogin) {
+                Auth._pendingRegisterDraft = null;
+                try { localStorage.removeItem('musifystar_pending_ref'); } catch(e) {}
+                Auth._pendingLoginDraft = {
+                    username: data.username || username,
+                    email: data.email || email,
+                    password: password
+                };
+                showToast(data.message || 'Pendaftaran berhasil! Silakan masuk (Login) dengan akun Anda.');
+                Auth.setMode('login', prefix);
+                return;
+            }
             if (data && data.status && data.token) {
+                Auth._pendingRegisterDraft = null;
                 try { localStorage.removeItem('musifystar_pending_ref'); } catch(e) {}
                 Auth.token = data.token;
                 Auth.currentUser = data.user;
@@ -4289,9 +4578,10 @@ var Auth = {
         } catch (err) {
             showToast('Terjadi kesalahan koneksi');
         } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<span>DAFTARKAN AKUN</span>';
+            var currentBtn = gid(prefix + 'auth-reg-btn');
+            if (currentBtn) {
+                currentBtn.disabled = false;
+                currentBtn.innerHTML = '<span>DAFTARKAN AKUN</span>';
                 if (window.lucide && typeof window.lucide.createIcons === 'function') try{ window.lucide.createIcons(); }catch(err){}
             }
         }
