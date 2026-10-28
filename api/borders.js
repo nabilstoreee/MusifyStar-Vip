@@ -189,19 +189,62 @@ async function getBorderOffsetsXMapAsync() {
     }
 }
 
+// In-memory binary image cache for instant 0ms custom border image serving
+const borderImageBufferCache = new Map();
+let lastKnownCustomBorders = [];
+
+function decodeBase64Image(rawBase64) {
+    if (!rawBase64 || typeof rawBase64 !== 'string') return null;
+    try {
+        let cleanBase64 = rawBase64.trim();
+        let mimeType = 'image/png';
+        let ext = 'png';
+        if (cleanBase64.includes('base64,')) {
+            const parts = cleanBase64.split('base64,');
+            const header = parts[0].toLowerCase();
+            cleanBase64 = parts[1].trim();
+            if (header.includes('jpeg') || header.includes('jpg')) { mimeType = 'image/jpeg'; ext = 'jpg'; }
+            else if (header.includes('webp')) { mimeType = 'image/webp'; ext = 'webp'; }
+            else if (header.includes('gif')) { mimeType = 'image/gif'; ext = 'gif'; }
+            else if (header.includes('svg')) { mimeType = 'image/svg+xml'; ext = 'svg'; }
+        }
+        const buffer = Buffer.from(cleanBase64, 'base64');
+        if (buffer.length > 0) {
+            return { buffer, mimeType, ext };
+        }
+    } catch (e) {}
+    return null;
+}
+
 function deduplicateAndNormalizeCustomBorders(rawList, deletedIdsSet = new Set(), scalesMap = {}, offsetsMap = {}, offsetsXMap = {}) {
     if (!Array.isArray(rawList)) return [];
-    const seen = new Set();
+    const seenMap = new Map();
     const result = [];
     for (const item of rawList) {
-        if (!item || !item.id || seen.has(item.id) || deletedIdsSet.has(item.id)) continue;
-        seen.add(item.id);
+        if (!item || !item.id || deletedIdsSet.has(item.id)) continue;
+        if (seenMap.has(item.id)) {
+            const existing = seenMap.get(item.id);
+            if (!existing.imageBase64 && item.imageBase64) {
+                existing.imageBase64 = item.imageBase64;
+            }
+            continue;
+        }
         const resolvedScale = normalizeScaleValue(scalesMap[item.id] !== undefined ? scalesMap[item.id] : item.scale);
         const resolvedOffsetY = normalizeOffsetYValue(offsetsMap[item.id] !== undefined ? offsetsMap[item.id] : item.offsetY);
         const resolvedOffsetX = normalizeOffsetXValue(offsetsXMap[item.id] !== undefined ? offsetsXMap[item.id] : item.offsetX);
+
+        // Cache decoded image in RAM buffer cache for 0ms serving
+        if (item.imageBase64 && typeof item.imageBase64 === 'string' && !borderImageBufferCache.has(item.id)) {
+            const decoded = decodeBase64Image(item.imageBase64);
+            if (decoded) {
+                borderImageBufferCache.set(item.id, { buffer: decoded.buffer, mimeType: decoded.mimeType });
+            }
+        }
+
         // Normalize custom border URL so it works across both Vercel serverless and local containers
         let normalizedUrl = item.url || '';
-        if (item.isCustom && item.imageBase64 && (!normalizedUrl || normalizedUrl.startsWith('/borders/border_'))) {
+        const isCustomItem = Boolean(item.isCustom || String(item.id).startsWith('border_custom_'));
+        if (isCustomItem && (!normalizedUrl || normalizedUrl.startsWith('/borders/border_'))) {
             let ext = 'png';
             if (item.file && item.file.includes('.')) {
                 ext = item.file.split('.').pop().toLowerCase() || 'png';
@@ -209,37 +252,47 @@ function deduplicateAndNormalizeCustomBorders(rawList, deletedIdsSet = new Set()
             normalizedUrl = `/api/borders?action=image&id=${item.id}&ext=${ext}`;
         }
         normalizedUrl = attachScaleParamToUrl(normalizedUrl, resolvedScale, resolvedOffsetY, resolvedOffsetX);
-        result.push({
+        const normalizedObj = {
             ...item,
             scale: resolvedScale,
             offsetY: resolvedOffsetY,
             offsetX: resolvedOffsetX,
             url: normalizedUrl,
+            hasStoredImage: true,
             isCustom: true
-        });
+        };
+        seenMap.set(item.id, normalizedObj);
+        result.push(normalizedObj);
     }
     return result;
 }
 
 function getCustomBorders() {
     try {
-        const custom = storage.readData('custom_borders.json', []);
+        const custom = storage.readData('custom_borders.json', null);
         const deleted = storage.readData('deleted_borders.json', []);
         const scalesMap = getBorderScalesMap();
         const offsetsMap = getBorderOffsetsMap();
         const offsetsXMap = getBorderOffsetsXMap();
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
-        return deduplicateAndNormalizeCustomBorders(custom, deletedSet, scalesMap, offsetsMap, offsetsXMap);
+        const sourceList = (Array.isArray(custom) && custom.length > 0) ? custom : lastKnownCustomBorders;
+        const normalized = deduplicateAndNormalizeCustomBorders(sourceList, deletedSet, scalesMap, offsetsMap, offsetsXMap);
+        if (normalized.length > 0) {
+            lastKnownCustomBorders = normalized;
+        }
+        return normalized;
     } catch (e) {
-        return [];
+        return lastKnownCustomBorders;
     }
 }
 
 async function getCustomBordersAsync(forceFresh = false) {
     try {
-        const memCustom = storage.readData('custom_borders.json', []);
+        const memCustom = storage.readData('custom_borders.json', null);
         const [deleted, scalesMap, offsetsMap, offsetsXMap, dbCustom] = await Promise.all([
-            storage.readDataAsync('deleted_borders.json', []),
+            (forceFresh && typeof storage.fetchFromPostgres === 'function')
+                ? storage.fetchFromPostgres('deleted_borders.json').then(r => Array.isArray(r) ? r : storage.readDataAsync('deleted_borders.json', []))
+                : storage.readDataAsync('deleted_borders.json', []),
             getBorderScalesMapAsync(),
             getBorderOffsetsMapAsync(),
             getBorderOffsetsXMapAsync(),
@@ -249,12 +302,15 @@ async function getCustomBordersAsync(forceFresh = false) {
         ]);
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
 
-        // Merge in-memory items first so recently updated scales or borders are never overwritten by stale DB reads
-        const combined = [
-            ...(Array.isArray(memCustom) ? memCustom : []),
-            ...(Array.isArray(dbCustom) ? dbCustom : [])
-        ];
-        return deduplicateAndNormalizeCustomBorders(combined, deletedSet, scalesMap, offsetsMap, offsetsXMap);
+        // Prioritize dbCustom when available so cross-instance updates & imageBase64 are authoritative
+        const combined = (Array.isArray(dbCustom) && dbCustom.length > 0)
+            ? [...dbCustom, ...(Array.isArray(memCustom) ? memCustom : [])]
+            : [...(Array.isArray(memCustom) ? memCustom : []), ...lastKnownCustomBorders];
+        const normalized = deduplicateAndNormalizeCustomBorders(combined, deletedSet, scalesMap, offsetsMap, offsetsXMap);
+        if (normalized.length > 0 || (Array.isArray(dbCustom) && dbCustom.length === 0 && lastKnownCustomBorders.length === 0)) {
+            lastKnownCustomBorders = normalized;
+        }
+        return normalized;
     } catch (e) {
         return getCustomBorders();
     }
@@ -270,6 +326,7 @@ async function saveCustomBordersAsync(list) {
         ]);
         const deletedSet = new Set(Array.isArray(deleted) ? deleted : []);
         const cleanList = deduplicateAndNormalizeCustomBorders(list, deletedSet, scalesMap, offsetsMap, offsetsXMap);
+        lastKnownCustomBorders = cleanList;
         await storage.writeDataAsync('custom_borders.json', cleanList);
         return true;
     } catch (e) {
@@ -401,52 +458,88 @@ module.exports = async function handler(req, res) {
             const borderId = String(req.query.id || req.query.borderId || '').trim();
             const fileName = String(req.query.file || '').trim();
 
-            // 1. Check in-memory borders first (0ms latency for immutable custom border IDs)
-            let found = getAllBorders().find(b => (borderId && b.id === borderId) || (fileName && b.file === fileName));
+            // 1. Check dedicated in-memory binary buffer cache first (0.01ms latency)
+            if (borderId && borderImageBufferCache.has(borderId)) {
+                const cached = borderImageBufferCache.get(borderId);
+                res.setHeader('Content-Type', cached.mimeType || 'image/png');
+                res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+                return res.status(200).send(cached.buffer);
+            }
 
-            // 2. If not found in RAM (e.g. added on another serverless instance), fetch fresh from PostgreSQL
-            if (!found || (!found.imageBase64 && found.isCustom)) {
+            // 2. Check static files in /public/borders/ on disk directly (0.1ms latency)
+            const bordersDir = path.join(__dirname, '..', 'public', 'borders');
+            const diskCandidates = [];
+            if (borderId) {
+                diskCandidates.push(path.join(bordersDir, `${borderId}.png`));
+                diskCandidates.push(path.join(bordersDir, `${borderId}.webp`));
+                diskCandidates.push(path.join(bordersDir, `${borderId}.jpg`));
+                diskCandidates.push(path.join(bordersDir, `${borderId}.gif`));
+            }
+            if (fileName) {
+                diskCandidates.push(path.join(bordersDir, path.basename(fileName)));
+            }
+            let found = getAllBorders().find(b => (borderId && b.id === borderId) || (fileName && b.file === fileName));
+            if (found && found.file) {
+                diskCandidates.push(path.join(bordersDir, path.basename(found.file)));
+            }
+            for (const candidatePath of diskCandidates) {
+                if (fs.existsSync(candidatePath)) {
+                    const ext = path.extname(candidatePath).toLowerCase().replace('.', '') || 'png';
+                    const mimeType = ext === 'jpg' ? 'image/jpeg' : (ext === 'svg' ? 'image/svg+xml' : `image/${ext}`);
+                    const buffer = fs.readFileSync(candidatePath);
+                    if (borderId) borderImageBufferCache.set(borderId, { buffer, mimeType });
+                    res.setHeader('Content-Type', mimeType);
+                    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+                    return res.status(200).send(buffer);
+                }
+            }
+
+            // 3. Fetch individual border_img_<borderId> row from PostgreSQL (~300KB single image instead of full list)
+            if (borderId) {
+                const imgRow = await storage.readDataAsync(`border_img_${borderId}`, null);
+                if (imgRow && imgRow.imageBase64) {
+                    const decoded = decodeBase64Image(imgRow.imageBase64);
+                    if (decoded) {
+                        borderImageBufferCache.set(borderId, { buffer: decoded.buffer, mimeType: decoded.mimeType });
+                        try {
+                            if (!fs.existsSync(bordersDir)) fs.mkdirSync(bordersDir, { recursive: true });
+                            fs.writeFileSync(path.join(bordersDir, `${borderId}.${decoded.ext}`), decoded.buffer);
+                            if (imgRow.file) fs.writeFileSync(path.join(bordersDir, path.basename(imgRow.file)), decoded.buffer);
+                        } catch (e) {}
+                        res.setHeader('Content-Type', decoded.mimeType);
+                        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+                        return res.status(200).send(decoded.buffer);
+                    }
+                }
+            }
+
+            // 4. Fallback: check full borders list if not yet found
+            if (!found) {
                 const all = await getAllBordersAsync(true);
                 found = all.find(b => (borderId && b.id === borderId) || (fileName && b.file === fileName));
             }
 
             if (found) {
                 if (found.imageBase64) {
-                    let cleanBase64 = found.imageBase64;
-                    let mimeType = 'image/png';
-                    if (cleanBase64.includes('base64,')) {
-                        const parts = cleanBase64.split('base64,');
-                        const header = parts[0].toLowerCase();
-                        cleanBase64 = parts[1].trim();
-                        if (header.includes('jpeg') || header.includes('jpg')) mimeType = 'image/jpeg';
-                        else if (header.includes('webp')) mimeType = 'image/webp';
-                        else if (header.includes('gif')) mimeType = 'image/gif';
-                        else if (header.includes('svg')) mimeType = 'image/svg+xml';
+                    const decoded = decodeBase64Image(found.imageBase64);
+                    if (decoded) {
+                        if (borderId) borderImageBufferCache.set(borderId, { buffer: decoded.buffer, mimeType: decoded.mimeType });
+                        res.setHeader('Content-Type', decoded.mimeType);
+                        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+                        return res.status(200).send(decoded.buffer);
                     }
-                    const buffer = Buffer.from(cleanBase64, 'base64');
-                    res.setHeader('Content-Type', mimeType);
-                    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-                    return res.status(200).send(buffer);
                 }
-
-                // Check static file on disk if exists
                 if (found.file) {
-                    const localPath = path.join(__dirname, '..', 'public', 'borders', found.file);
+                    const localPath = path.join(bordersDir, path.basename(found.file));
                     if (fs.existsSync(localPath)) {
                         const ext = path.extname(found.file).toLowerCase().replace('.', '') || 'png';
                         const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+                        const buffer = fs.readFileSync(localPath);
+                        if (borderId) borderImageBufferCache.set(borderId, { buffer, mimeType: mime });
                         res.setHeader('Content-Type', mime);
                         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-                        return res.status(200).send(fs.readFileSync(localPath));
+                        return res.status(200).send(buffer);
                     }
-                }
-
-                if (found.url && found.url.startsWith('data:image')) {
-                    const parts = found.url.split('base64,');
-                    const buffer = Buffer.from(parts[1], 'base64');
-                    res.setHeader('Content-Type', 'image/png');
-                    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-                    return res.status(200).send(buffer);
                 }
             }
         } catch (imgErr) {
@@ -467,7 +560,7 @@ module.exports = async function handler(req, res) {
         try {
             all = await Promise.race([
                 getAllBordersAsync(false),
-                new Promise(resolve => setTimeout(() => resolve(getAllBorders()), 1800))
+                new Promise(resolve => setTimeout(() => resolve(getAllBorders()), 3000))
             ]);
         } catch (e) {
             all = getAllBorders();
@@ -597,6 +690,10 @@ module.exports = async function handler(req, res) {
             const safeName = (name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase().substring(0, 20)) || 'custom';
             fileName = `border_${safeName}_${Date.now()}.${ext}`;
 
+            const imgBuffer = Buffer.from(base64Data, 'base64');
+            const mimeType = ext === 'jpg' ? 'image/jpeg' : (ext === 'svg' ? 'image/svg+xml' : `image/${ext}`);
+            borderImageBufferCache.set(borderId, { buffer: imgBuffer, mimeType });
+
             // Also save to local disk if writable as backup
             try {
                 ensureBordersOnDisk();
@@ -604,9 +701,16 @@ module.exports = async function handler(req, res) {
                 if (!fs.existsSync(bordersDir)) {
                     try { fs.mkdirSync(bordersDir, { recursive: true }); } catch (e) {}
                 }
-                const destPath = path.join(bordersDir, fileName);
-                fs.writeFileSync(destPath, Buffer.from(base64Data, 'base64'));
+                fs.writeFileSync(path.join(bordersDir, fileName), imgBuffer);
+                fs.writeFileSync(path.join(bordersDir, `${borderId}.${ext}`), imgBuffer);
             } catch (fsErr) {}
+
+            // Persist individual border image row in PostgreSQL so custom_borders.json stays ultra-lightweight (~2KB)
+            await storage.writeDataAsync(`border_img_${borderId}`, {
+                id: borderId,
+                file: fileName,
+                imageBase64: imageBase64Saved
+            });
 
             // Always use universal API image endpoint so custom borders work on both Vercel serverless & local containers
             borderUrl = `/api/borders?action=image&id=${borderId}&ext=${ext}`;
@@ -630,7 +734,7 @@ module.exports = async function handler(req, res) {
             scale: borderScale,
             offsetY: borderOffsetY,
             offsetX: borderOffsetX,
-            imageBase64: imageBase64Saved,
+            hasStoredImage: Boolean(imageBase64Saved),
             isVip: true,
             tier: tierMeta.label,
             requiredTier: chosenTier,
@@ -735,6 +839,7 @@ module.exports = async function handler(req, res) {
                 customList[cIdx].offsetY = newOffsetY;
                 customList[cIdx].offsetX = newOffsetX;
                 customList[cIdx].url = attachScaleParamToUrl(customList[cIdx].url, newScale, newOffsetY, newOffsetX);
+                lastKnownCustomBorders = customList;
                 storage.writeData('custom_borders.json', customList);
             }
 
@@ -788,13 +893,18 @@ module.exports = async function handler(req, res) {
             return res.status(404).json({ status: false, message: 'Border kustom tidak ditemukan atau merupakan border bawaan sistem.' });
         }
 
+        borderImageBufferCache.delete(borderId);
+
         // Clean up file if local
-        if (target.file) {
-            try {
-                const targetPath = path.join(__dirname, '..', 'public', 'borders', target.file);
+        try {
+            const bordersDir = path.join(__dirname, '..', 'public', 'borders');
+            if (target.file) {
+                const targetPath = path.join(bordersDir, path.basename(target.file));
                 if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath);
-            } catch (e) {}
-        }
+            }
+            const idPath = path.join(bordersDir, `${borderId}.png`);
+            if (fs.existsSync(idPath)) fs.unlinkSync(idPath);
+        } catch (e) {}
 
         // Record deleted border ID so no warm serverless instance can ever resurrect it
         try {
@@ -807,6 +917,7 @@ module.exports = async function handler(req, res) {
         } catch (e) {}
 
         customList = customList.filter(b => b.id !== borderId);
+        lastKnownCustomBorders = customList;
         await saveCustomBordersAsync(customList);
 
         const updatedAll = [...BORDERS_LIST, ...customList];
@@ -827,7 +938,23 @@ module.exports = async function handler(req, res) {
 
         const borderId = String(req.body?.borderId || '').trim();
         const allBorders = await getAllBordersAsync();
-        const found = allBorders.find(b => b.id === borderId);
+        let found = allBorders.find(b => b.id === borderId);
+
+        // Fallback if custom border was passed with client metadata before DB sync
+        if (!found && borderId && (borderId.startsWith('border_custom_') || req.body?.borderUrl)) {
+            found = {
+                id: borderId,
+                name: String(req.body?.borderName || 'VIP Border').trim(),
+                url: String(req.body?.borderUrl || `/api/borders?action=image&id=${borderId}&ext=png`).trim(),
+                isVip: true,
+                requiredTier: String(req.body?.requiredTier || '1month').trim(),
+                category: String(req.body?.category || 'platinum').trim(),
+                tier: String(req.body?.tier || 'VIP').trim(),
+                badge: String(req.body?.badge || 'VIP').trim(),
+                isCustom: true
+            };
+        }
+
         if (!found) {
             return res.status(400).json({ status: false, message: 'Border profil tidak valid' });
         }
@@ -917,7 +1044,7 @@ module.exports = async function handler(req, res) {
             });
             await storage.writeDataAsync('users.json', db);
 
-            // Sync ke userStats di analytics_data.json untuk konsistensi instan
+            // Sync ke userStats di analytics_data.json di background
             try {
                 const analyticsData = storage.readData('analytics_data.json', {});
                 if (analyticsData && analyticsData.userStats) {
@@ -926,7 +1053,7 @@ module.exports = async function handler(req, res) {
                         analyticsData.userStats[uKey].border = user.border;
                         analyticsData.userStats[uKey].borderUrl = user.borderUrl;
                         analyticsData.userStats[uKey].borderName = user.borderName;
-                        await storage.writeDataAsync('analytics_data.json', analyticsData);
+                        storage.writeData('analytics_data.json', analyticsData);
                     }
                 }
             } catch (e) {}

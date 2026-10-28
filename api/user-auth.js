@@ -338,13 +338,32 @@ function getUserBanStatus(user, banRegistry) {
     return { isBanned: false, isWarning: false, banType: 'none', banReason: '', banExpiresAt: null, banDurationText: '' };
 }
 
+let lastKnownValidUsersDb = null;
+
 // Direct Database Async Fetcher (Neon PostgreSQL Primary)
 async function readDbAsync(banRegistry) {
     try {
-        const data = await storage.readDataAsync('users.json', { users: [], sessions: {} });
+        let data = await storage.readDataAsync('users.json', null);
+        if ((!data || !Array.isArray(data.users) || data.users.length === 0) && typeof storage.fetchFromPostgres === 'function') {
+            const freshPg = await storage.fetchFromPostgres('users.json');
+            if (freshPg && Array.isArray(freshPg.users) && freshPg.users.length > 0) {
+                data = freshPg;
+            }
+        }
+        if ((!data || !Array.isArray(data.users) || data.users.length === 0) && lastKnownValidUsersDb && Array.isArray(lastKnownValidUsersDb.users) && lastKnownValidUsersDb.users.length > 0) {
+            data = JSON.parse(JSON.stringify(lastKnownValidUsersDb));
+        }
+
+        const isFallbackEmpty = !data || !Array.isArray(data.users) || data.users.length === 0;
         const result = (data && typeof data === 'object') ? data : { users: [], sessions: {} };
         if (!Array.isArray(result.users)) result.users = [];
         if (!result.sessions || typeof result.sessions !== 'object') result.sessions = {};
+        if (isFallbackEmpty) {
+            result._isFallbackEmpty = true;
+        } else {
+            delete result._isFallbackEmpty;
+            lastKnownValidUsersDb = JSON.parse(JSON.stringify(result));
+        }
 
         // Anti-Tamper Ban Registry Verification & Auto 10-Digit ID Migration
         const regMap = banRegistry || await readBanRegistryAsync();
@@ -416,20 +435,27 @@ async function readDbAsync(banRegistry) {
                 }
             });
         }
-        if (dbModified) {
+        if (dbModified && !result._isFallbackEmpty) {
             await writeDbAsync(result);
         }
         return result;
     } catch (e) {
         console.error('readDbAsync error:', e.message);
-        return { users: [], sessions: {} };
+        if (lastKnownValidUsersDb) return JSON.parse(JSON.stringify(lastKnownValidUsersDb));
+        return { users: [], sessions: {}, _isFallbackEmpty: true };
     }
 }
 
 // Direct Database Async Saver (Neon PostgreSQL Primary)
 async function writeDbAsync(data) {
     try {
-        await storage.writeDataAsync('users.json', data || { users: [], sessions: {} });
+        if (!data || (data._isFallbackEmpty && (!Array.isArray(data.users) || data.users.length <= 1) && lastKnownValidUsersDb && lastKnownValidUsersDb.users.length > 1)) {
+            console.warn('[user-auth] Prevented overwriting users.json with fallback empty DB state');
+            return;
+        }
+        const cleanData = { users: data.users || [], sessions: data.sessions || {} };
+        lastKnownValidUsersDb = JSON.parse(JSON.stringify(cleanData));
+        await storage.writeDataAsync('users.json', cleanData);
     } catch (e) {
         console.error('writeDbAsync error:', e.message);
     }
@@ -1528,6 +1554,10 @@ module.exports = async (req, res) => {
                 ban: banStatus,
                 user: {
                     id: user.id,
+                    originalId: user.originalId || user.id,
+                    customId: user.customId || null,
+                    customIdExpiresAt: user.customIdExpiresAt || null,
+                    isCustomIdTrial: Boolean(user.isCustomIdTrial),
                     username: user.username,
                     email: user.rawEmail || user.email,
                     rawEmail: user.rawEmail || user.email,
@@ -1535,6 +1565,10 @@ module.exports = async (req, res) => {
                     border: user.border || '',
                     borderUrl: user.borderUrl || '',
                     borderName: user.borderName || '',
+                    equippedBadge: user.equippedBadge || '',
+                    equippedBadgeTitle: user.equippedBadgeTitle || '',
+                    equippedBadgeIcon: user.equippedBadgeIcon || '',
+                    equippedBadgeColor: user.equippedBadgeColor || '',
                     isPremium: isMasterAdmin || vipInfo.isPremium,
                     vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
                     vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
@@ -1567,19 +1601,39 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ status: false, message: 'Email akun Google tidak valid' });
             }
 
-            // Find existing user by email
+            if (db._isFallbackEmpty && typeof storage.fetchFromPostgres === 'function') {
+                const retryDb = await storage.fetchFromPostgres('users.json');
+                if (retryDb && Array.isArray(retryDb.users) && retryDb.users.length > 0) {
+                    db.users = retryDb.users;
+                    db.sessions = retryDb.sessions || {};
+                    delete db._isFallbackEmpty;
+                }
+            }
+
+            const isMasterAdmin = (email === 'jrnabil570@gmail.com');
+
+            // Find existing user by email or master admin ID/username
             let user = db.users.find(u => {
-                if (u.rawEmail && u.rawEmail.toLowerCase() === email) return true;
-                if (u.email && u.email.toLowerCase() === email) return true;
-                if (u.email && u.email.toLowerCase() === maskEmail(email).toLowerCase()) return true;
+                if (!u) return false;
+                if (u.rawEmail && u.rawEmail.toLowerCase().trim() === email) return true;
+                if (u.email && u.email.toLowerCase().trim() === email) return true;
+                if (u.email && u.email.toLowerCase().trim() === maskEmail(email).toLowerCase()) return true;
+                if (isMasterAdmin && (u.originalId === '8589478687' || u.id === '8589478687' || u.id === '12345678910' || (u.username && u.username.toLowerCase() === 'musifystar'))) return true;
                 return false;
             });
+
+            if (!user && db._isFallbackEmpty) {
+                return res.status(503).json({
+                    status: false,
+                    message: 'Server sedang menyinkronkan database. Silakan klik Lanjutkan dengan Google sekali lagi.'
+                });
+            }
 
             const nowIso = new Date().toISOString();
             const maskedClientIp = maskIp(clientIp);
 
             if (user) {
-                // User already exists, update info if needed
+                // User already exists, preserve their custom username, avatar, border, badges & customId!
                 if (!user.rawEmail) user.rawEmail = email;
                 if (photoUrl && (!user.avatar || user.avatar.includes('dicebear'))) {
                     user.avatar = photoUrl;
@@ -1600,17 +1654,17 @@ module.exports = async (req, res) => {
 
                 let uniqueUsername = baseUsername;
                 let counter = 1;
-                while (db.users.some(u => u.username.toLowerCase() === uniqueUsername.toLowerCase())) {
+                while (db.users.some(u => u && u.username && u.username.toLowerCase() === uniqueUsername.toLowerCase())) {
                     uniqueUsername = `${baseUsername.slice(0, 15)}_${counter++}`;
                 }
 
                 // If email is jrnabil570@gmail.com, ensure proper role/username
-                const isMasterAdmin = (email === 'jrnabil570@gmail.com');
-                const finalUsername = isMasterAdmin ? 'MusifyStar Official' : uniqueUsername;
+                const finalUsername = isMasterAdmin ? 'MusifyStar' : uniqueUsername;
                 const userId = isMasterAdmin ? '8589478687' : generate10DigitUserId(db.users);
 
                 user = {
                     id: userId,
+                    originalId: userId,
                     username: finalUsername,
                     email: isMasterAdmin ? 'jrnabil570@gmail.com' : maskEmail(email),
                     rawEmail: email,
@@ -1683,6 +1737,10 @@ module.exports = async (req, res) => {
                 ban: banStatus,
                 user: {
                     id: user.id,
+                    originalId: user.originalId || user.id,
+                    customId: user.customId || null,
+                    customIdExpiresAt: user.customIdExpiresAt || null,
+                    isCustomIdTrial: Boolean(user.isCustomIdTrial),
                     username: user.username,
                     email: user.rawEmail || user.email,
                     rawEmail: user.rawEmail || user.email,
@@ -1690,6 +1748,10 @@ module.exports = async (req, res) => {
                     border: user.border || '',
                     borderUrl: user.borderUrl || '',
                     borderName: user.borderName || '',
+                    equippedBadge: user.equippedBadge || '',
+                    equippedBadgeTitle: user.equippedBadgeTitle || '',
+                    equippedBadgeIcon: user.equippedBadgeIcon || '',
+                    equippedBadgeColor: user.equippedBadgeColor || '',
                     isPremium: isGoogleMasterAdmin || vipInfo.isPremium,
                     vipTier: isGoogleMasterAdmin ? 'permanent' : vipInfo.vipTier,
                     vipExpiresAt: isGoogleMasterAdmin ? null : vipInfo.vipExpiresAt,
@@ -1776,13 +1838,13 @@ module.exports = async (req, res) => {
                 };
 
                 try {
-                    const customBorders = storage.readData('custom_borders.json', []);
+                    const customBorders = await storage.readDataAsync('custom_borders.json', []);
                     if (Array.isArray(customBorders)) {
                         customBorders.forEach(cb => {
                             if (cb && cb.id) {
                                 borderMap[cb.id] = {
                                     name: cb.name,
-                                    url: cb.url,
+                                    url: cb.url || `/api/borders?action=image&id=${cb.id}&ext=png`,
                                     reqTier: cb.requiredTier || '1month',
                                     badge: cb.badge || cb.tier || 'VIP'
                                 };
@@ -1791,7 +1853,20 @@ module.exports = async (req, res) => {
                     }
                 } catch(e) {}
 
-                if (borderMap[borderId]) {
+                if (!borderMap[borderId] && borderId && borderId !== 'none' && (borderId.startsWith('border_custom_') || body.borderUrl)) {
+                    borderMap[borderId] = {
+                        name: String(body.borderName || 'VIP Border').trim(),
+                        url: String(body.borderUrl || `/api/borders?action=image&id=${borderId}&ext=png`).trim(),
+                        reqTier: String(body.requiredTier || '1month').trim(),
+                        badge: String(body.badge || 'VIP').trim()
+                    };
+                }
+
+                if (borderId === 'none' || borderId === '') {
+                    user.border = '';
+                    user.borderUrl = '';
+                    user.borderName = '';
+                } else if (borderMap[borderId]) {
                     if (!isUserVip) {
                         return res.status(403).json({ status: false, message: 'Border profil khusus pengguna VIP!' });
                     }
@@ -1823,10 +1898,6 @@ module.exports = async (req, res) => {
                     user.border = borderId;
                     user.borderUrl = borderMap[borderId].url;
                     user.borderName = borderMap[borderId].name;
-                } else {
-                    user.border = '';
-                    user.borderUrl = '';
-                    user.borderName = '';
                 }
             }
 

@@ -7,13 +7,13 @@ const VERSION_FILE = '.app_version.json';
 const SW_FILE_PATH = path.join(__dirname, '..', 'public', 'sw.js');
 
 const DEFAULT_CONFIG = {
-    version: 'v2.1.0',
+    version: 'v10.0.2',
     releaseName: 'MusifyStar Official',
     description: 'Nikmati Streaming Musik Dengan Lirik',
     releaseNotes: 'Pembaruan stabilitas dan peningkatan performa.',
-    forceReload: true,
-    buildTimestamp: Date.now(),
-    updatedAt: new Date().toISOString()
+    forceReload: false,
+    buildTimestamp: 0,
+    updatedAt: '2026-10-22T18:32:36.603Z'
 };
 
 function parseVersionNumbers(v) {
@@ -39,20 +39,28 @@ function computeBumpedVersion(currentVersion, bumpType) {
     return `v${major}.${minor}.${patch + 1}`;
 }
 
+let lastKnownVersionConfig = null;
+
 async function getStoredVersionAsync() {
-    const parsed = await storage.readDataAsync(VERSION_FILE, DEFAULT_CONFIG);
+    const parsed = await storage.readDataAsync(VERSION_FILE, null);
     if (parsed && parsed.version) {
-        return {
+        const cfg = {
             version: String(parsed.version).trim(),
             releaseName: parsed.releaseName || 'MusifyStar Official',
             description: parsed.description || 'Nikmati Streaming Musik Dengan Lirik',
             releaseNotes: parsed.releaseNotes || 'Pembaruan stabilitas dan performa pemutar.',
             forceReload: !!parsed.forceReload,
-            buildTimestamp: parsed.buildTimestamp || Date.now(),
-            updatedAt: parsed.updatedAt || new Date().toISOString()
+            buildTimestamp: parsed.buildTimestamp || 0,
+            updatedAt: parsed.updatedAt || '2026-10-22T18:32:36.603Z',
+            isFallback: false
         };
+        lastKnownVersionConfig = cfg;
+        return cfg;
     }
-    return DEFAULT_CONFIG;
+    if (lastKnownVersionConfig) {
+        return lastKnownVersionConfig;
+    }
+    return { ...DEFAULT_CONFIG, isFallback: true };
 }
 
 function updateServiceWorkerCacheVersion(versionString) {
