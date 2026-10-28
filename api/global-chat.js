@@ -269,6 +269,61 @@ module.exports = async function (req, res) {
                         matchedUser.id = originalIdVal;
                     }
                     storage.writeDataAsync('users.json', dbData).catch(() => {});
+                } else if (!matchedUser && !isTargetAdmin && displayUsername && displayUsername.toLowerCase() !== 'musisi') {
+                    // Auto-heal user into users.json if they sent messages in global_chat_messages
+                    try {
+                        const deletedMap = await storage.readDataAsync('.deleted_users.json', {});
+                        const dNameLow = displayUsername.toLowerCase().trim();
+                        if (!deletedMap[dNameLow] && !deletedMap[originalIdVal]) {
+                            let chatEmail = '';
+                            let chatAvatar = lbEntry?.avatar || '';
+                            let chatIp = '127.0.0.1';
+                            if (pool) {
+                                const cRes = await pool.query(
+                                    'SELECT email, avatar_url, ip_address FROM global_chat_messages WHERE LOWER(username) = $1 ORDER BY created_at DESC LIMIT 1',
+                                    [dNameLow]
+                                );
+                                if (cRes.rows && cRes.rows[0]) {
+                                    chatEmail = String(cRes.rows[0].email || '').toLowerCase().trim();
+                                    chatAvatar = cRes.rows[0].avatar_url || chatAvatar;
+                                    chatIp = cRes.rows[0].ip_address || chatIp;
+                                }
+                            }
+                            const nowIso = new Date().toISOString();
+                            const healedUser = {
+                                id: originalIdVal,
+                                originalId: originalIdVal,
+                                username: displayUsername,
+                                email: chatEmail || `${dNameLow}@musifystar.user`,
+                                rawEmail: chatEmail || `${dNameLow}@musifystar.user`,
+                                provider: 'manual',
+                                maskedPassword: '••••••••',
+                                avatar: chatAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(displayUsername)}`,
+                                role: 'member',
+                                isPremium: false,
+                                vipTier: 'none',
+                                vipExpiresAt: null,
+                                createdAt: nowIso,
+                                lastLoginAt: nowIso,
+                                lastIp: chatIp,
+                                rawLastIp: chatIp,
+                                banType: 'none',
+                                banReason: '',
+                                banExpiresAt: null,
+                                loginLogs: [{
+                                    ip: chatIp,
+                                    rawIp: chatIp,
+                                    timestamp: nowIso,
+                                    userAgent: 'MusifyStar Web App'
+                                }],
+                                settings: {}
+                            };
+                            referralsApi.generateReferralCodeForUser(healedUser, usersList);
+                            usersList.push(healedUser);
+                            matchedUser = healedUser;
+                            storage.writeDataAsync('users.json', dbData).catch(() => {});
+                        }
+                    } catch (e) {}
                 }
 
                 const customIdVal = matchedUser?.customId || ((rawMatchedId && !rawMatchedId.startsWith('u_') && rawMatchedId !== originalIdVal) ? rawMatchedId : '');
@@ -701,14 +756,64 @@ module.exports = async function (req, res) {
                         };
                     } else if (effectiveUid || effectiveUsername || headerEmail) {
                         const isGuestAdmin = (headerEmail === 'jrnabil570@gmail.com' || effectiveUid === '8589478687' || effectiveUid === 'u_1790196636099_622dc736');
+                        let resolvedChatUid = String(effectiveUid || '');
+                        if (!/^\d{10}$/.test(resolvedChatUid)) {
+                            const seedClean = String(effectiveUsername || 'musisi').toLowerCase().trim();
+                            let h1 = 2166136261, h2 = 16777619;
+                            for (let i = 0; i < seedClean.length; i++) {
+                                const c = seedClean.charCodeAt(i);
+                                h1 = Math.imul(h1 ^ c, 16777619) >>> 0;
+                                h2 = Math.imul(h2 ^ (c + i * 31), 1103515245) >>> 0;
+                            }
+                            resolvedChatUid = isGuestAdmin ? '8589478687' : (String((h1 % 9) + 1) + String((h1 ^ h2) >>> 0).padStart(9, '0').slice(0, 9));
+                        }
+                        const resolvedChatName = effectiveUsername || (isGuestAdmin ? 'MusifyStar Official' : 'Musisi');
+                        const resolvedChatEmail = headerEmail || (isGuestAdmin ? 'jrnabil570@gmail.com' : `${resolvedChatName.toLowerCase()}@musifystar.user`);
                         currentUser = {
-                            id: String(effectiveUid || 'usr_' + Date.now()),
-                            username: effectiveUsername || (isGuestAdmin ? 'MusifyStar Official' : 'Musisi'),
-                            email: headerEmail || (isGuestAdmin ? 'jrnabil570@gmail.com' : ''),
-                            rawEmail: headerEmail || (isGuestAdmin ? 'jrnabil570@gmail.com' : ''),
+                            id: resolvedChatUid,
+                            username: resolvedChatName,
+                            email: resolvedChatEmail,
+                            rawEmail: resolvedChatEmail,
                             isAdmin: isGuestAdmin,
                             badge: isGuestAdmin ? 'Admin' : 'Member'
                         };
+                        if (!isGuestAdmin && resolvedChatName.toLowerCase() !== 'musisi') {
+                            try {
+                                const nowIso = new Date().toISOString();
+                                const newChatUser = {
+                                    id: resolvedChatUid,
+                                    originalId: resolvedChatUid,
+                                    username: resolvedChatName,
+                                    email: resolvedChatEmail,
+                                    rawEmail: resolvedChatEmail,
+                                    provider: 'manual',
+                                    maskedPassword: '••••••••',
+                                    avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(resolvedChatName)}`,
+                                    role: 'member',
+                                    isPremium: false,
+                                    vipTier: 'none',
+                                    vipExpiresAt: null,
+                                    createdAt: nowIso,
+                                    lastLoginAt: nowIso,
+                                    lastIp: clientIp,
+                                    rawLastIp: clientIp,
+                                    banType: 'none',
+                                    banReason: '',
+                                    banExpiresAt: null,
+                                    loginLogs: [{
+                                        ip: clientIp,
+                                        rawIp: clientIp,
+                                        timestamp: nowIso,
+                                        userAgent: req.headers['user-agent'] || ''
+                                    }],
+                                    settings: {}
+                                };
+                                dbData.users = dbData.users || [];
+                                referralsApi.generateReferralCodeForUser(newChatUser, dbData.users);
+                                dbData.users.push(newChatUser);
+                                await storage.writeDataAsync('users.json', dbData);
+                            } catch (e) {}
+                        }
                     }
                 } catch (e) {}
             }

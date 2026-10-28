@@ -1,5 +1,7 @@
 const path = require('path');
 const crypto = require('crypto');
+let nodemailer = null;
+try { nodemailer = require('nodemailer'); } catch (e) {}
 const adminAuth = require('./admin-auth.js');
 const storage = require('./storage.js');
 const Security = require('./security.js');
@@ -449,16 +451,60 @@ async function readDbAsync(banRegistry) {
 // Direct Database Async Saver (Neon PostgreSQL Primary)
 async function writeDbAsync(data) {
     try {
-        if (!data || (data._isFallbackEmpty && (!Array.isArray(data.users) || data.users.length <= 1) && lastKnownValidUsersDb && lastKnownValidUsersDb.users.length > 1)) {
+        if (!data || (data._isFallbackEmpty && (!Array.isArray(data.users) || data.users.length === 0) && lastKnownValidUsersDb && lastKnownValidUsersDb.users.length > 0)) {
             console.warn('[user-auth] Prevented overwriting users.json with fallback empty DB state');
             return;
         }
-        const cleanData = { users: data.users || [], sessions: data.sessions || {} };
-        lastKnownValidUsersDb = JSON.parse(JSON.stringify(cleanData));
+        const cleanData = {
+            users: data.users || [],
+            sessions: data.sessions || {}
+        };
+        if (Array.isArray(data._deletedUserIds) && data._deletedUserIds.length > 0) {
+            cleanData._deletedUserIds = data._deletedUserIds;
+        }
+        if (Array.isArray(data._deletedTokens) && data._deletedTokens.length > 0) {
+            cleanData._deletedTokens = data._deletedTokens;
+        }
+        lastKnownValidUsersDb = {
+            users: JSON.parse(JSON.stringify(cleanData.users)),
+            sessions: JSON.parse(JSON.stringify(cleanData.sessions))
+        };
         await storage.writeDataAsync('users.json', cleanData);
     } catch (e) {
         console.error('writeDbAsync error:', e.message);
     }
+}
+
+function deriveDeterministic10DigitId(seedName) {
+    const clean = String(seedName || 'musisi').toLowerCase().trim();
+    if (clean === 'musifystar' || clean === 'musifystar official' || clean === 'nabil') return '8589478687';
+    let h1 = 2166136261;
+    let h2 = 16777619;
+    for (let i = 0; i < clean.length; i++) {
+        const c = clean.charCodeAt(i);
+        h1 ^= c;
+        h1 = Math.imul(h1, 16777619) >>> 0;
+        h2 ^= (c + i * 31);
+        h2 = Math.imul(h2, 1103515245) >>> 0;
+    }
+    const firstDigit = (h1 % 9) + 1;
+    const restDigits = String((h1 ^ h2) >>> 0).padStart(9, '0').slice(0, 9);
+    return String(firstDigit) + restDigits;
+}
+
+async function readDeletedUsersAsync() {
+    try {
+        const data = await storage.readDataAsync('.deleted_users.json', {});
+        return (data && typeof data === 'object') ? data : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+async function writeDeletedUsersAsync(map) {
+    try {
+        await storage.writeDataAsync('.deleted_users.json', map || {});
+    } catch (e) {}
 }
 
 function hashPassword(password, salt) {
@@ -522,6 +568,144 @@ function getClientIp(req) {
     return '127.0.0.1';
 }
 
+// ==========================================
+// GMAIL SMTP & REAL-TIME EMAIL OTP SYSTEM
+// ==========================================
+const SMTP_CONFIG_FILE = '.smtp_config.json';
+const OTP_CODES_FILE = '.otp_codes.json';
+
+async function readSmtpConfigAsync() {
+    const envEmail = String(process.env.SMTP_USER || process.env.GMAIL_USER || 'jrnabil570@gmail.com').trim();
+    const envPass = String(process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+    const defaultCfg = {
+        enabled: Boolean(envPass),
+        smtpEmail: envEmail,
+        appPassword: envPass,
+        senderName: 'MusifyStar StudioMusik',
+        requireOtpOnRegister: true,
+        requireOtpOnReset: true,
+        updatedAt: null
+    };
+    try {
+        const saved = await storage.readDataAsync(SMTP_CONFIG_FILE, null);
+        if (saved && typeof saved === 'object') {
+            return {
+                enabled: saved.enabled !== undefined ? Boolean(saved.enabled) : defaultCfg.enabled,
+                smtpEmail: String(saved.smtpEmail || defaultCfg.smtpEmail).trim(),
+                appPassword: String(saved.appPassword || defaultCfg.appPassword).replace(/\s+/g, ''),
+                senderName: String(saved.senderName || defaultCfg.senderName).trim(),
+                requireOtpOnRegister: saved.requireOtpOnRegister !== undefined ? Boolean(saved.requireOtpOnRegister) : true,
+                requireOtpOnReset: saved.requireOtpOnReset !== undefined ? Boolean(saved.requireOtpOnReset) : true,
+                updatedAt: saved.updatedAt || null
+            };
+        }
+    } catch (e) {}
+    return defaultCfg;
+}
+
+async function writeSmtpConfigAsync(cfg) {
+    await storage.writeDataAsync(SMTP_CONFIG_FILE, cfg);
+}
+
+async function readOtpStoreAsync() {
+    try {
+        const store = await storage.readDataAsync(OTP_CODES_FILE, {});
+        if (store && typeof store === 'object' && !Array.isArray(store)) {
+            const now = Date.now();
+            Object.keys(store).forEach(k => {
+                if (!store[k] || !store[k].expiresAt || (store[k].expiresAt + 60 * 60 * 1000) < now) {
+                    delete store[k];
+                }
+            });
+            return store;
+        }
+    } catch (e) {}
+    return {};
+}
+
+async function writeOtpStoreAsync(store) {
+    await storage.writeDataAsync(OTP_CODES_FILE, store || {});
+}
+
+function generate6DigitOtp() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+async function sendEmailOtp(toEmail, otpCode, purpose, username) {
+    if (!nodemailer) {
+        throw new Error('Modul nodemailer belum tersedia di server.');
+    }
+    const cfg = await readSmtpConfigAsync();
+    const smtpEmail = String(cfg.smtpEmail || '').trim();
+    const cleanPass = String(cfg.appPassword || '').replace(/\s+/g, '');
+    const senderName = String(cfg.senderName || 'MusifyStar StudioMusik').trim();
+
+    if (!smtpEmail || !cleanPass) {
+        throw new Error('Sandi Aplikasi Gmail 16 huruf belum diatur di Panel Admin.');
+    }
+
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+            user: smtpEmail,
+            pass: cleanPass
+        }
+    });
+
+    const isReset = purpose === 'reset';
+    const isTest = purpose === 'test';
+    const subjectTitle = isTest
+        ? `[TES OTP] Kode Verifikasi MusifyStar: ${otpCode}`
+        : isReset
+            ? `${otpCode}`
+            : `copy kode otp anda dibawah untuk pendaftaran akun MusifyStar`;
+
+    const purposeHeading = isTest
+        ? 'Tes Pengiriman Email OTP'
+        : isReset
+            ? 'Permintaan Reset Password Akun'
+            : 'Verifikasi Keamanan Login Akun';
+
+    const greetingName = username ? `@${username}` : toEmail;
+
+    const htmlBody = `
+    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0d0f17; color: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.12);">
+        <div style="background: linear-gradient(135deg, #e11d48 0%, #7c3aed 100%); padding: 24px 20px; text-align: center;">
+            <div style="font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #ffffff;">MUSIFYSTAR</div>
+            <div style="font-size: 11px; color: rgba(255,255,255,0.85); text-transform: uppercase; letter-spacing: 2px; margin-top: 4px;">StudioMusik &bull; Sistem Keamanan OTP</div>
+        </div>
+        <div style="padding: 28px 24px; text-align: center;">
+            <div style="font-size: 16px; font-weight: 700; color: #38bdf8; margin-bottom: 8px;">${purposeHeading}</div>
+            <p style="font-size: 13px; color: #cbd5e1; line-height: 1.6; margin: 0 0 20px;">
+                Halo <strong style="color: #ffffff;">${greetingName}</strong>,<br/>
+                Gunakan 6 digit kode OTP di bawah ini untuk melanjutkan proses pendaftaran di<strong>MusifyStar</strong>:
+            </p>
+            <div style="background: #161926; border: 2px dashed #38bdf8; border-radius: 16px; padding: 18px 12px; margin: 0 auto 20px; max-width: 280px;">
+                <div style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #facc15; font-family: monospace;">${otpCode}</div>
+            </div>
+            <p style="font-size: 11px; color: #94a3b8; line-height: 1.5; margin: 0;">
+                Kode ini berlaku selama <strong>1menit 60detik</strong>. Jangan berikan kode ini kepada siapa pun termasuk pihak yang mengaku admin.
+            </p>
+        </div>
+        <div style="background: #090a10; padding: 14px 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06);">
+            <strong>&copy; ${new Date().getFullYear()} ${senderName} &bull; Developer : Nabil Assihidiqi</strong>
+        </div>
+    </div>`;
+
+    await transporter.sendMail({
+        from: `"${senderName}" <${smtpEmail}>`,
+        to: toEmail,
+        subject: subjectTitle,
+        text: `Kode OTP MusifyStar Anda adalah: ${otpCode}. Berlaku selama 5 menit.`,
+        html: htmlBody
+    });
+
+    return true;
+}
+
 module.exports = async (req, res) => {
     // Anti-Cache & CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -560,6 +744,80 @@ module.exports = async (req, res) => {
 
             // GET ALL USERS WITH LOGIN LOGS, IP, PASSWORD SENSOR & BAN STATUS
             if (action === 'admin_get_users' || action === 'admin_list_users') {
+                // Auto-heal any active users from global_chat_messages who were not yet synced into users.json
+                try {
+                    if (storage.pool) {
+                        const deletedMap = await readDeletedUsersAsync();
+                        const chatUsersRes = await storage.pool.query(
+                            `SELECT DISTINCT ON (LOWER(username)) user_id, username, email, avatar_url, border_id, border_url, border_name, is_vip, vip_tier, ip_address, created_at
+                             FROM global_chat_messages
+                             WHERE username IS NOT NULL AND username != ''
+                             ORDER BY LOWER(username), created_at DESC`
+                        );
+                        let healedAny = false;
+                        for (const row of (chatUsersRes.rows || [])) {
+                            const cName = String(row.username || '').trim();
+                            const cNameLow = cName.toLowerCase();
+                            const cEmail = String(row.email || '').trim().toLowerCase();
+                            const cUid = String(row.user_id || '').trim();
+                            if (!cName || cNameLow === 'musisi' || cNameLow === 'musifystar official' || cNameLow === 'musifystar') continue;
+                            if (deletedMap[cNameLow] || (cEmail && deletedMap[cEmail]) || (cUid && deletedMap[cUid.toLowerCase()])) continue;
+
+                            const existsInDb = db.users.some(u => {
+                                if (!u) return false;
+                                if (u.username && u.username.toLowerCase().trim() === cNameLow) return true;
+                                if (cEmail && ((u.rawEmail && u.rawEmail.toLowerCase().trim() === cEmail) || (u.email && u.email.toLowerCase().trim() === cEmail))) return true;
+                                if (cUid && /^\d{10}$/.test(cUid) && (String(u.id) === cUid || String(u.originalId) === cUid)) return true;
+                                return false;
+                            });
+
+                            if (!existsInDb) {
+                                const resolvedId = /^\d{10}$/.test(cUid) ? cUid : deriveDeterministic10DigitId(cName);
+                                const nowIso = row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString();
+                                const rawIp = row.ip_address || '127.0.0.1';
+                                const healedUser = {
+                                    id: resolvedId,
+                                    originalId: resolvedId,
+                                    username: cName,
+                                    email: cEmail || `${cNameLow}@musifystar.user`,
+                                    rawEmail: cEmail || `${cNameLow}@musifystar.user`,
+                                    maskedPassword: '••••••••',
+                                    avatar: row.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cName)}`,
+                                    border: row.border_id || '',
+                                    borderUrl: row.border_url || '',
+                                    borderName: row.border_name || '',
+                                    role: 'member',
+                                    isPremium: Boolean(row.is_vip),
+                                    vipTier: row.is_vip ? (row.vip_tier || '1month') : 'none',
+                                    vipExpiresAt: null,
+                                    createdAt: nowIso,
+                                    lastLoginAt: nowIso,
+                                    lastIp: maskIp(rawIp),
+                                    rawLastIp: rawIp,
+                                    banType: 'none',
+                                    banReason: '',
+                                    banExpiresAt: null,
+                                    loginLogs: [{
+                                        ip: maskIp(rawIp),
+                                        rawIp: rawIp,
+                                        timestamp: nowIso,
+                                        userAgent: 'MusifyStar Web App'
+                                    }],
+                                    settings: {}
+                                };
+                                referralsApi.generateReferralCodeForUser(healedUser, db.users);
+                                db.users.push(healedUser);
+                                healedAny = true;
+                            }
+                        }
+                        if (healedAny) {
+                            await writeDbAsync(db);
+                        }
+                    }
+                } catch (healErr) {
+                    console.warn('[admin_get_users] Chat user heal notice:', healErr.message);
+                }
+
                 const userList = db.users.map(u => {
                     const banStatus = getUserBanStatus(u, banRegistry);
                     const isMaster = (u.rawEmail || u.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com';
@@ -569,8 +827,11 @@ module.exports = async (req, res) => {
                     const userTier = isMaster ? 'permanent' : (isUserPremium ? (u.vipTier || 'permanent') : 'none');
                     return {
                         id: u.id,
+                        originalId: u.originalId || u.id,
+                        customId: u.customId || null,
                         username: u.username,
                         email: u.rawEmail || u.email,
+                        provider: u.provider || (u.googleId ? 'google' : 'manual'),
                         avatar: u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.username)}`,
                         createdAt: u.createdAt,
                         lastLoginAt: u.lastLoginAt || u.createdAt,
@@ -917,11 +1178,19 @@ module.exports = async (req, res) => {
                 }
 
                 let deletedUsername = targetUsername || targetId;
+                const deletedIdentifiers = [targetId, targetUsername, targetEmail].filter(Boolean);
 
                 if (userIndex !== -1) {
                     const deletedUser = db.users[userIndex];
                     deletedUsername = deletedUser.username || deletedUsername;
                     const uId = deletedUser.id;
+                    const uOrigId = deletedUser.originalId;
+                    if (uId) deletedIdentifiers.push(uId);
+                    if (uOrigId) deletedIdentifiers.push(uOrigId);
+                    if (deletedUser.username) deletedIdentifiers.push(deletedUser.username.toLowerCase());
+                    if (deletedUser.email) deletedIdentifiers.push(deletedUser.email.toLowerCase());
+                    if (deletedUser.rawEmail) deletedIdentifiers.push(deletedUser.rawEmail.toLowerCase());
+
                     db.users.splice(userIndex, 1);
 
                     // Clean all sessions
@@ -938,11 +1207,22 @@ module.exports = async (req, res) => {
                     if (deletedUser.rawEmail) delete banRegistry[deletedUser.rawEmail.toLowerCase()];
                 }
 
+                // Record deleted identifiers so auto-heal doesn't resurrect intentionally deleted users
+                try {
+                    const deletedMap = await readDeletedUsersAsync();
+                    deletedIdentifiers.forEach(k => {
+                        const cleanK = String(k || '').toLowerCase().trim();
+                        if (cleanK) deletedMap[cleanK] = Date.now();
+                    });
+                    await writeDeletedUsersAsync(deletedMap);
+                } catch (e) {}
+
                 // Also purge from ban registry directly if was registered under ID / username / email
                 if (targetId) delete banRegistry[targetId];
                 if (targetUsername) delete banRegistry[targetUsername];
                 if (targetEmail) delete banRegistry[targetEmail];
 
+                db._deletedUserIds = deletedIdentifiers;
                 await writeBanRegistryAsync(banRegistry);
                 await writeDbAsync(db);
 
@@ -1004,7 +1284,180 @@ module.exports = async (req, res) => {
                 return res.json({ status: true, bannedIps: bannedIps });
             }
 
+            // GET GMAIL SMTP OTP CONFIG
+            if (action === 'admin_get_smtp_config') {
+                const cfg = await readSmtpConfigAsync();
+                const hasPass = Boolean(cfg.appPassword && cfg.appPassword.length >= 8);
+                const maskedPass = hasPass
+                    ? cfg.appPassword.slice(0, 2) + '••••••••••••' + cfg.appPassword.slice(-2)
+                    : '';
+                return res.json({
+                    status: true,
+                    config: {
+                        enabled: Boolean(cfg.enabled && hasPass),
+                        smtpEmail: cfg.smtpEmail || 'jrnabil570@gmail.com',
+                        senderName: cfg.senderName || 'MusifyStar StudioMusik',
+                        hasAppPassword: hasPass,
+                        maskedPassword: maskedPass,
+                        requireOtpOnRegister: cfg.requireOtpOnRegister !== false,
+                        requireOtpOnReset: cfg.requireOtpOnReset !== false,
+                        updatedAt: cfg.updatedAt || null
+                    }
+                });
+            }
+
+            // SAVE GMAIL SMTP OTP CONFIG
+            if (action === 'admin_save_smtp_config') {
+                const currentCfg = await readSmtpConfigAsync();
+                const smtpEmail = String(body.smtpEmail || currentCfg.smtpEmail || 'jrnabil570@gmail.com').trim().toLowerCase();
+                const rawInputPass = String(body.appPassword !== undefined ? body.appPassword : '').replace(/\s+/g, '');
+                const finalPass = rawInputPass ? rawInputPass : String(currentCfg.appPassword || '').replace(/\s+/g, '');
+                const senderName = String(body.senderName || currentCfg.senderName || 'MusifyStar StudioMusik').trim();
+                const enabled = body.enabled !== undefined ? Boolean(body.enabled) : Boolean(finalPass);
+                const requireOtpOnRegister = body.requireOtpOnRegister !== undefined ? Boolean(body.requireOtpOnRegister) : true;
+                const requireOtpOnReset = body.requireOtpOnReset !== undefined ? Boolean(body.requireOtpOnReset) : true;
+
+                if (!smtpEmail || !smtpEmail.includes('@')) {
+                    return res.status(400).json({ status: false, message: 'Alamat Email Gmail pengirim tidak valid.' });
+                }
+                if (enabled && (!finalPass || finalPass.length < 12)) {
+                    return res.status(400).json({ status: false, message: 'Masukkan 16 huruf Sandi Aplikasi (App Password) Google terlebih dahulu.' });
+                }
+
+                const newCfg = {
+                    enabled: enabled,
+                    smtpEmail: smtpEmail,
+                    appPassword: finalPass,
+                    senderName: senderName,
+                    requireOtpOnRegister: requireOtpOnRegister,
+                    requireOtpOnReset: requireOtpOnReset,
+                    updatedAt: new Date().toISOString()
+                };
+                await writeSmtpConfigAsync(newCfg);
+
+                return res.json({
+                    status: true,
+                    message: enabled
+                        ? 'Konfigurasi Email OTP (Gmail SMTP) berhasil disimpan & diaktifkan!'
+                        : 'Konfigurasi Email OTP disimpan (Status: Nonaktif).',
+                    config: {
+                        enabled: Boolean(newCfg.enabled && newCfg.appPassword),
+                        smtpEmail: newCfg.smtpEmail,
+                        senderName: newCfg.senderName,
+                        hasAppPassword: Boolean(newCfg.appPassword),
+                        maskedPassword: newCfg.appPassword ? (newCfg.appPassword.slice(0, 2) + '••••••••••••' + newCfg.appPassword.slice(-2)) : '',
+                        requireOtpOnRegister: newCfg.requireOtpOnRegister,
+                        requireOtpOnReset: newCfg.requireOtpOnReset,
+                        updatedAt: newCfg.updatedAt
+                    }
+                });
+            }
+
+            // TEST GMAIL SMTP OTP EMAIL
+            if (action === 'admin_test_smtp') {
+                const cfg = await readSmtpConfigAsync();
+                const targetEmail = String(body.testEmail || cfg.smtpEmail || 'jrnabil570@gmail.com').trim().toLowerCase();
+                if (!targetEmail || !targetEmail.includes('@')) {
+                    return res.status(400).json({ status: false, message: 'Masukkan email tujuan tes yang valid.' });
+                }
+                const testOtp = generate6DigitOtp();
+                try {
+                    await sendEmailOtp(targetEmail, testOtp, 'test', 'AdminMusifyStar');
+                    return res.json({
+                        status: true,
+                        message: `Berhasil! Email Tes OTP (${testOtp}) telah dikirim ke ${targetEmail}. Silakan cek kotak masuk!`
+                    });
+                } catch (err) {
+                    return res.status(400).json({
+                        status: false,
+                        message: 'Gagal mengirim email OTP: ' + (err.message || 'Periksa kembali 16 huruf Sandi Aplikasi Google Anda.')
+                    });
+                }
+            }
+
             return res.status(400).json({ status: false, message: 'Action admin tidak dikenal' });
+        }
+
+        // PUBLIC OTP STATUS CHECK
+        if (action === 'get_otp_status') {
+            const cfg = await readSmtpConfigAsync();
+            const active = Boolean(cfg.enabled && cfg.appPassword);
+            return res.json({
+                status: true,
+                otpEnabled: active,
+                requireOtpOnRegister: Boolean(active && cfg.requireOtpOnRegister !== false),
+                requireOtpOnReset: Boolean(active && cfg.requireOtpOnReset !== false)
+            });
+        }
+
+        // SEND LOGIN OTP (RESEND)
+        if (action === 'send_login_otp' || action === 'send_register_otp') {
+            const rawIdentifier = String(body.username || body.email || '').replace(/^@/, '').trim().toLowerCase();
+            if (!rawIdentifier) {
+                return res.status(400).json({ status: false, message: 'Masukkan Username atau Email terlebih dahulu' });
+            }
+
+            let user = (db.users || []).find(u => {
+                if (!u) return false;
+                const uName = String(u.username || '').replace(/^@/, '').trim().toLowerCase();
+                const uEmail = String(u.rawEmail || u.email || '').trim().toLowerCase();
+                const uMasked = String(u.email || '').trim().toLowerCase();
+                return uName === rawIdentifier || uEmail === rawIdentifier || uMasked === rawIdentifier;
+            });
+
+            if (!user && (rawIdentifier === 'musifystar' || rawIdentifier === 'musifystar official')) {
+                user = (db.users || []).find(u => {
+                    if (!u) return false;
+                    const uEmail = String(u.rawEmail || u.email || '').trim().toLowerCase();
+                    return uEmail === 'jrnabil570@gmail.com';
+                });
+            }
+
+            if (!user) {
+                return res.status(404).json({ status: false, message: 'Akun tidak ditemukan' });
+            }
+
+            const targetEmail = String(user.rawEmail || user.email || '').trim().toLowerCase();
+            if (!targetEmail || !targetEmail.includes('@') || targetEmail.includes('***')) {
+                return res.status(400).json({ status: false, message: 'Akun ini tidak memiliki alamat email valid untuk menerima OTP.' });
+            }
+
+            const otpStore = await readOtpStoreAsync();
+            const key = `login_${targetEmail}`;
+            const now = Date.now();
+
+            const otpCode = generate6DigitOtp();
+            try {
+                await sendEmailOtp(targetEmail, otpCode, 'login', user.username);
+            } catch (err) {
+                return res.status(500).json({
+                    status: false,
+                    message: 'Gagal mengirim kode OTP ke email: ' + (err.message || 'Gangguan jaringan SMTP')
+                });
+            }
+
+            const expAt = Date.now() + 60 * 1000;
+            otpStore[key] = {
+                code: otpCode,
+                email: targetEmail,
+                username: user.username,
+                purpose: 'login',
+                lastSentAt: Date.now(),
+                expiresAt: expAt,
+                attempts: 0
+            };
+            await writeOtpStoreAsync(otpStore);
+
+            return res.json({
+                status: true,
+                otpSent: true,
+                otpRequired: true,
+                expiresAt: expAt,
+                ttlSeconds: 60,
+                email: targetEmail,
+                maskedEmail: maskEmail(targetEmail),
+                message: `Kode OTP 6 digit baru telah dikirim ulang ke ${targetEmail}!`
+            });
         }
 
         // ==========================================
@@ -1123,27 +1576,90 @@ module.exports = async (req, res) => {
                           req.query.token ||
                           (req.body && req.body.token);
             const fallbackUserId = String(req.headers['x-user-id'] || req.query.userId || '').trim();
-            const fallbackUsername = String(req.headers['x-user-name'] || req.query.username || '').trim().toLowerCase();
+            const rawFallbackUsername = String(req.headers['x-user-name'] || req.query.username || '').trim();
+            const fallbackUsername = rawFallbackUsername.toLowerCase();
             const fallbackEmail = String(req.headers['x-user-email'] || req.query.email || '').trim().toLowerCase();
 
+            const verifiedTok = verifyUserToken(token);
             let targetUserId = getUserIdFromToken(token, db);
             let user = null;
 
             if (targetUserId) {
-                user = db.users.find(u => u.id === targetUserId || u.originalId === targetUserId);
+                user = db.users.find(u => u && (String(u.id) === String(targetUserId) || String(u.originalId) === String(targetUserId)));
             }
 
             // Fallback claimed user
-            if (!user && (fallbackUserId || fallbackUsername || fallbackEmail)) {
+            if (!user && (fallbackUserId || fallbackUsername || fallbackEmail || (verifiedTok && verifiedTok.u))) {
+                const lookupName = fallbackUsername || (verifiedTok && verifiedTok.u ? String(verifiedTok.u).toLowerCase().trim() : '');
                 user = db.users.find(u => {
-                    if (fallbackUserId && (u.id === fallbackUserId || (u.originalId && u.originalId === fallbackUserId) || u.id.toLowerCase() === fallbackUserId.toLowerCase())) return true;
-                    if (fallbackUsername && u.username && u.username.toLowerCase() === fallbackUsername) return true;
+                    if (!u) return false;
+                    if (fallbackUserId && (String(u.id) === fallbackUserId || (u.originalId && String(u.originalId) === fallbackUserId) || String(u.id).toLowerCase() === fallbackUserId.toLowerCase())) return true;
+                    if (lookupName && u.username && u.username.toLowerCase() === lookupName) return true;
                     if (fallbackEmail && ((u.rawEmail && u.rawEmail.toLowerCase() === fallbackEmail) || (u.email && u.email.toLowerCase() === fallbackEmail))) return true;
                     return false;
                 });
             }
 
+            // Auto-heal manually registered or active session user if missing from users.json
+            if (!user && (verifiedTok || (rawFallbackUsername && fallbackEmail && fallbackEmail.includes('@')))) {
+                try {
+                    const deletedMap = await readDeletedUsersAsync();
+                    const healName = rawFallbackUsername || (verifiedTok && verifiedTok.u ? String(verifiedTok.u).trim() : '');
+                    const healNameLow = healName.toLowerCase();
+                    const healUid = String(fallbackUserId || (verifiedTok && verifiedTok.uid) || '').trim();
+                    const isDeleted = (healNameLow && deletedMap[healNameLow]) ||
+                                      (fallbackEmail && deletedMap[fallbackEmail]) ||
+                                      (healUid && deletedMap[healUid.toLowerCase()]);
+                    if (!isDeleted && healName && healNameLow !== 'guest' && healNameLow !== 'musisi') {
+                        const isMasterHeal = (fallbackEmail === 'jrnabil570@gmail.com');
+                        const resolvedId = isMasterHeal
+                            ? '8589478687'
+                            : (/^\d{10}$/.test(healUid) ? healUid : deriveDeterministic10DigitId(healName));
+                        const nowIso = new Date().toISOString();
+                        const maskedClientIp = maskIp(clientIp);
+                        user = {
+                            id: resolvedId,
+                            originalId: resolvedId,
+                            username: healName,
+                            email: fallbackEmail || `${healNameLow}@musifystar.user`,
+                            rawEmail: fallbackEmail || `${healNameLow}@musifystar.user`,
+                            provider: 'manual',
+                            maskedPassword: '••••••••',
+                            avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(healName)}`,
+                            role: isMasterHeal ? 'admin' : 'member',
+                            isPremium: isMasterHeal,
+                            vipTier: isMasterHeal ? 'permanent' : 'none',
+                            vipExpiresAt: null,
+                            createdAt: nowIso,
+                            lastLoginAt: nowIso,
+                            lastIp: maskedClientIp,
+                            rawLastIp: clientIp,
+                            banType: 'none',
+                            banReason: '',
+                            banExpiresAt: null,
+                            loginLogs: [{
+                                ip: maskedClientIp,
+                                rawIp: clientIp,
+                                timestamp: nowIso,
+                                userAgent: req.headers['user-agent'] || ''
+                            }],
+                            settings: {}
+                        };
+                        referralsApi.generateReferralCodeForUser(user, db.users);
+                        db.users.push(user);
+                        targetUserId = user.id;
+                        delete db._isFallbackEmpty;
+                        await writeDbAsync(db);
+                    }
+                } catch (healErr) {
+                    console.warn('[action=me] Auto-heal user notice:', healErr.message);
+                }
+            }
+
             if (user) {
+                if (!targetUserId && (verifiedTok || token || fallbackUserId || fallbackEmail)) {
+                    targetUserId = user.id;
+                }
                 // Check if user has an expired trial custom ID
                 if (user.customId && user.customIdExpiresAt && Date.now() > user.customIdExpiresAt) {
                     user.id = user.originalId || user.id;
@@ -1186,10 +1702,12 @@ module.exports = async (req, res) => {
                     // the server simply responds with the true database VIP status (vipInfo), syncing the client safely.
 
                     const vipSig = Security.generateVipSignature(user.id, vipInfo.vipTier, vipInfo.vipExpiresAt);
+                    const refreshedToken = !verifiedTok ? createSignedUserToken(user.id, user.username) : undefined;
 
                     return res.json({
                         status: true,
                         authenticated: true,
+                        newToken: refreshedToken,
                         banned: false,
                         ban: banStatus,
                         clientIp: clientIp,
@@ -1292,25 +1810,48 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ status: false, message: 'Password minimal 6 karakter/huruf' });
             }
 
+            if (db._isFallbackEmpty && typeof storage.fetchFromPostgres === 'function') {
+                const retryDb = await storage.fetchFromPostgres('users.json');
+                if (retryDb && Array.isArray(retryDb.users) && retryDb.users.length > 0) {
+                    db.users = retryDb.users;
+                    db.sessions = retryDb.sessions || {};
+                    delete db._isFallbackEmpty;
+                }
+            }
+
             // Check if username or email already exists
-            const existsUser = db.users.find(u => u.username.toLowerCase() === username.toLowerCase());
+            const existsUser = db.users.find(u => u && u.username && u.username.toLowerCase() === username.toLowerCase());
             if (existsUser) {
                 return res.status(400).json({ status: false, message: 'Username sudah digunakan, silakan pilih yang lain' });
             }
-            const existsEmail = db.users.find(u => (u.rawEmail && u.rawEmail.toLowerCase() === email.toLowerCase()) || u.email.toLowerCase() === email.toLowerCase());
+            const existsEmail = db.users.find(u => u && ((u.rawEmail && u.rawEmail.toLowerCase() === email.toLowerCase()) || (u.email && u.email.toLowerCase() === email.toLowerCase())));
             if (existsEmail) {
                 return res.status(400).json({ status: false, message: 'Email sudah terdaftar, silakan login' });
             }
+
+            // Clear from deleted users registry if re-registering
+            try {
+                const deletedMap = await readDeletedUsersAsync();
+                let modDel = false;
+                if (deletedMap[username.toLowerCase()]) { delete deletedMap[username.toLowerCase()]; modDel = true; }
+                if (deletedMap[email.toLowerCase()]) { delete deletedMap[email.toLowerCase()]; modDel = true; }
+                if (modDel) await writeDeletedUsersAsync(deletedMap);
+            } catch (e) {}
 
             const { hash, salt } = hashPassword(password);
             const nowIso = new Date().toISOString();
             const maskedClientIp = maskIp(clientIp);
             const isMasterReg = ((email || '').toLowerCase().trim() === 'jrnabil570@gmail.com');
+            const newGeneratedId = isMasterReg ? '8589478687' : generate10DigitUserId(db.users);
             const newUser = {
-                id: isMasterReg ? '8589478687' : generate10DigitUserId(db.users),
+                id: newGeneratedId,
+                originalId: newGeneratedId,
                 username: username,
                 email: email,
                 rawEmail: email,
+                provider: 'manual',
+                emailVerified: false,
+                trustedDevices: [],
                 passwordHash: hash,
                 passwordSalt: salt,
                 maskedPassword: '••••••••',
@@ -1387,51 +1928,16 @@ module.exports = async (req, res) => {
             }
 
             db.users.push(newUser);
-
-            // Auto login after register
-            const token = createSignedUserToken(newUser.id, newUser.username);
-            db.sessions = db.sessions || {};
-            db.sessions[token] = {
-                userId: newUser.id,
-                createdAt: Date.now(),
-                rememberMe: true
-            };
-
+            delete db._isFallbackEmpty;
             await writeDbAsync(db);
-
-            const regVipInfo = resolveUserVipStatus(newUser);
 
             return res.json({
                 status: true,
-                message: 'Pendaftaran berhasil!' + referralBonusMsg,
-                token: token,
-                ban: getUserBanStatus(newUser, banRegistry),
-                user: {
-                    id: newUser.id,
-                    username: newUser.username,
-                    email: newUser.rawEmail || newUser.email,
-                    rawEmail: newUser.rawEmail || newUser.email,
-                    avatar: newUser.avatar,
-                    border: newUser.border || '',
-                    borderUrl: newUser.borderUrl || '',
-                    borderName: newUser.borderName || '',
-                    role: isMasterReg ? 'admin' : 'member',
-                    isPremium: isMasterReg || regVipInfo.isPremium,
-                    vipTier: isMasterReg ? 'permanent' : regVipInfo.vipTier,
-                    vipExpiresAt: isMasterReg ? null : regVipInfo.vipExpiresAt,
-                    vipSource: newUser.vipSource || 'standard',
-                    referralBorderRestricted: Boolean(newUser.referralBorderRestricted),
-                    referralAllowedBorders: Array.isArray(newUser.referralAllowedBorders) ? newUser.referralAllowedBorders : [],
-                    referralCode: newUser.referralCode,
-                    referralCount: Number(newUser.referralCount) || 0,
-                    referralPoints: Number(newUser.referralPoints) || 0,
-                    referredBy: newUser.referredBy || null,
-                    referredByUsername: newUser.referredByUsername || '',
-                    supportCount: Number(newUser.supportCount) || 0,
-                    donatur: referralsApi.resolveUserDonaturInfo(newUser),
-                    settings: newUser.settings || {},
-                    createdAt: newUser.createdAt
-                }
+                redirectToLogin: true,
+                username: newUser.username,
+                email: newUser.rawEmail || newUser.email,
+                referralApplied: Boolean(newUser.referredBy),
+                message: 'Akun @' + newUser.username + ' berhasil dibuat! Silakan masuk (Login) dengan akun Anda.' + referralBonusMsg
             });
         }
 
@@ -1509,6 +2015,91 @@ module.exports = async (req, res) => {
                     },
                     message: banStatus.banReason || 'Akun Anda sedang diblokir oleh administrator.'
                 });
+            }
+
+            // OPSI A: Real-Time Email OTP Verification on Login (First Login / Untrusted Device)
+            const smtpCfgLogin = await readSmtpConfigAsync();
+            const deviceId = String(body.deviceId || '').trim();
+            const targetLoginEmail = String(user.rawEmail || user.email || '').trim().toLowerCase();
+            const trustedDevices = Array.isArray(user.trustedDevices) ? user.trustedDevices : [];
+            const isDeviceTrusted = Boolean(user.emailVerified && deviceId && trustedDevices.includes(deviceId));
+
+            if (smtpCfgLogin.enabled && smtpCfgLogin.appPassword && smtpCfgLogin.requireOtpOnRegister !== false && !isDeviceTrusted && targetLoginEmail && targetLoginEmail.includes('@') && !targetLoginEmail.includes('***')) {
+                const inputOtp = String(body.otpCode || '').trim();
+                const otpStore = await readOtpStoreAsync();
+                const otpKey = `login_${targetLoginEmail}`;
+
+                if (!inputOtp) {
+                    const now = Date.now();
+                    if (!otpStore[otpKey] || !otpStore[otpKey].lastSentAt || (now - otpStore[otpKey].lastSentAt) >= 5000 || Date.now() > otpStore[otpKey].expiresAt) {
+                        const newOtp = generate6DigitOtp();
+                        try {
+                            await sendEmailOtp(targetLoginEmail, newOtp, 'login', user.username);
+                            const expAt = Date.now() + 60 * 1000;
+                            otpStore[otpKey] = {
+                                code: newOtp,
+                                email: targetLoginEmail,
+                                username: user.username,
+                                purpose: 'login',
+                                lastSentAt: Date.now(),
+                                expiresAt: expAt,
+                                attempts: 0
+                            };
+                            await writeOtpStoreAsync(otpStore);
+                        } catch (err) {
+                            return res.status(500).json({
+                                status: false,
+                                message: 'Gagal mengirim kode OTP ke email Anda: ' + (err.message || 'Periksa alamat email Anda')
+                            });
+                        }
+                    }
+                    const currentExp = (otpStore[otpKey] && otpStore[otpKey].expiresAt) ? otpStore[otpKey].expiresAt : (Date.now() + 60 * 1000);
+                    return res.json({
+                        status: true,
+                        otpSent: true,
+                        otpRequired: true,
+                        expiresAt: currentExp,
+                        ttlSeconds: 60,
+                        email: targetLoginEmail,
+                        maskedEmail: maskEmail(targetLoginEmail),
+                        message: `Kode OTP 6 digit telah dikirim ke email ${targetLoginEmail}!`
+                    });
+                }
+
+                const record = otpStore[otpKey];
+                if (!record || !record.code || Date.now() > record.expiresAt) {
+                    return res.status(400).json({
+                        status: false,
+                        otpRequired: true,
+                        otpExpired: true,
+                        email: targetLoginEmail,
+                        maskedEmail: maskEmail(targetLoginEmail),
+                        message: 'Kode sudah kadaluarsa, silahkan coba lagi!'
+                    });
+                }
+                if (record.code !== inputOtp) {
+                    record.attempts = (record.attempts || 0) + 1;
+                    if (record.attempts >= 5) {
+                        delete otpStore[otpKey];
+                    }
+                    await writeOtpStoreAsync(otpStore);
+                    return res.status(400).json({
+                        status: false,
+                        otpRequired: true,
+                        email: targetLoginEmail,
+                        maskedEmail: maskEmail(targetLoginEmail),
+                        message: 'Kode OTP salah! Silakan periksa kembali 6 angka di kotak masuk email Anda.'
+                    });
+                }
+
+                // OTP verified! Mark emailVerified = true and save deviceId as trusted device
+                delete otpStore[otpKey];
+                await writeOtpStoreAsync(otpStore);
+                user.emailVerified = true;
+                if (deviceId) {
+                    const updatedTrusted = [deviceId, ...trustedDevices.filter(d => d !== deviceId)].slice(0, 20);
+                    user.trustedDevices = updatedTrusted;
+                }
             }
 
             // Record Login Log & IP
@@ -2052,6 +2643,7 @@ module.exports = async (req, res) => {
             }
 
             const deletedUser = db.users[userIndex];
+            const delIds = [targetUserId, deletedUser.id, deletedUser.originalId, deletedUser.username, deletedUser.email, deletedUser.rawEmail].filter(Boolean);
             db.users.splice(userIndex, 1);
 
             // Invalidate all sessions of this user
@@ -2062,10 +2654,20 @@ module.exports = async (req, res) => {
                 }
             });
 
+            try {
+                const deletedMap = await readDeletedUsersAsync();
+                delIds.forEach(k => {
+                    const cleanK = String(k || '').toLowerCase().trim();
+                    if (cleanK) deletedMap[cleanK] = Date.now();
+                });
+                await writeDeletedUsersAsync(deletedMap);
+            } catch (e) {}
+
             // Clean registry
             delete banRegistry[targetUserId];
             if (deletedUser.username) delete banRegistry[deletedUser.username.toLowerCase()];
             if (deletedUser.rawEmail) delete banRegistry[deletedUser.rawEmail.toLowerCase()];
+            db._deletedUserIds = delIds;
             await writeBanRegistryAsync(banRegistry);
             await writeDbAsync(db);
 
@@ -2078,6 +2680,7 @@ module.exports = async (req, res) => {
             db.sessions = db.sessions || {};
             if (token && db.sessions[token]) {
                 delete db.sessions[token];
+                db._deletedTokens = [token];
                 await writeDbAsync(db);
             }
             return res.json({ status: true, message: 'Logout berhasil' });

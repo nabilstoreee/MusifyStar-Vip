@@ -849,7 +849,7 @@ module.exports = async function handler(req, res) {
             // Sync updated borderUrl to any user currently wearing this border in RAM & background DB
             if (updatedBorder && updatedBorder.url) {
                 try {
-                    const db = storage.readData('users.json', { users: [], sessions: {} });
+                    const db = await storage.readDataAsync('users.json', { users: [], sessions: {} });
                     let changedUsers = false;
                     if (db && Array.isArray(db.users)) {
                         db.users.forEach(u => {
@@ -860,7 +860,7 @@ module.exports = async function handler(req, res) {
                         });
                     }
                     if (changedUsers) {
-                        storage.writeData('users.json', db);
+                        await storage.writeDataAsync('users.json', db);
                     }
                 } catch (e) {}
             }
