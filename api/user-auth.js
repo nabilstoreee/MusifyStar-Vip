@@ -753,8 +753,8 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
     const subjectTitle = isTest
         ? `[TES OTP] Kode Verifikasi MusifyStar: ${otpCode}`
         : isReset
-            ? ``
-            : `copy kode otp anda dibawah untuk pendaftaran akun MusifyStar`;
+            ? `${otpCode}`
+            : `${otpCode} copy kode otp anda dibawah untuk pendaftaran akun MusifyStar`;
 
     const purposeHeading = isTest
         ? 'Tes Pengiriman Email OTP Real-Time'
