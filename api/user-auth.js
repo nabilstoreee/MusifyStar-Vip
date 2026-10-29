@@ -631,40 +631,133 @@ function generate6DigitOtp() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+function sendGmailSmtpNative({ smtpEmail, cleanPass, senderName, toEmail, subjectTitle, htmlBody }) {
+    const tls = require('tls');
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (err, val) => {
+            if (settled) return;
+            settled = true;
+            try { socket.destroy(); } catch (e) {}
+            if (err) reject(err);
+            else resolve(val);
+        };
+
+        const socket = tls.connect({
+            host: 'smtp.gmail.com',
+            port: 465,
+            servername: 'smtp.gmail.com',
+            rejectUnauthorized: true
+        });
+
+        socket.setTimeout(15000, () => {
+            finish(new Error('Koneksi ke server SMTP Gmail timeout (15 detik).'));
+        });
+
+        socket.on('error', (err) => {
+            finish(new Error('Koneksi SMTP gagal: ' + (err.message || String(err))));
+        });
+
+        let buffer = '';
+        let step = 0;
+
+        const processResponse = (code, fullText) => {
+            if (step === 0) {
+                if (code !== 220) return finish(new Error('SMTP greeting gagal: ' + fullText));
+                step = 1;
+                socket.write('EHLO musifystar.web.id\r\n');
+            } else if (step === 1) {
+                if (code !== 250) return finish(new Error('SMTP EHLO gagal: ' + fullText));
+                step = 2;
+                socket.write('AUTH LOGIN\r\n');
+            } else if (step === 2) {
+                if (code !== 334) return finish(new Error('SMTP AUTH LOGIN gagal: ' + fullText));
+                step = 3;
+                socket.write(Buffer.from(smtpEmail, 'utf8').toString('base64') + '\r\n');
+            } else if (step === 3) {
+                if (code !== 334) return finish(new Error('SMTP Username ditolak: ' + fullText));
+                step = 4;
+                socket.write(Buffer.from(cleanPass, 'utf8').toString('base64') + '\r\n');
+            } else if (step === 4) {
+                if (code !== 235) return finish(new Error('Sandi Aplikasi Gmail (16 huruf) ditolak oleh Google: ' + fullText));
+                step = 5;
+                socket.write(`MAIL FROM:<${smtpEmail}>\r\n`);
+            } else if (step === 5) {
+                if (code !== 250) return finish(new Error('SMTP MAIL FROM gagal: ' + fullText));
+                step = 6;
+                socket.write(`RCPT TO:<${toEmail}>\r\n`);
+            } else if (step === 6) {
+                if (code !== 250) return finish(new Error('Alamat email tujuan ditolak: ' + fullText));
+                step = 7;
+                socket.write('DATA\r\n');
+            } else if (step === 7) {
+                if (code !== 354) return finish(new Error('SMTP DATA gagal: ' + fullText));
+                step = 8;
+                const encodedSubject = '=?UTF-8?B?' + Buffer.from(subjectTitle, 'utf8').toString('base64') + '?=';
+                const safeSenderName = '=?UTF-8?B?' + Buffer.from(senderName, 'utf8').toString('base64') + '?=';
+                const base64Html = Buffer.from(htmlBody, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n');
+                const msgId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@musifystar.web.id>`;
+                const mimeMessage = [
+                    `From: ${safeSenderName} <${smtpEmail}>`,
+                    `To: <${toEmail}>`,
+                    `Subject: ${encodedSubject}`,
+                    `Message-ID: ${msgId}`,
+                    `Date: ${new Date().toUTCString()}`,
+                    `MIME-Version: 1.0`,
+                    `Content-Type: text/html; charset=UTF-8`,
+                    `Content-Transfer-Encoding: base64`,
+                    ``,
+                    base64Html,
+                    `.`
+                ].join('\r\n') + '\r\n';
+                socket.write(mimeMessage);
+            } else if (step === 8) {
+                if (code !== 250) return finish(new Error('Gagal mengirim isi email OTP: ' + fullText));
+                step = 9;
+                try { socket.write('QUIT\r\n'); } catch (e) {}
+                finish(null, true);
+            }
+        };
+
+        socket.on('data', (chunk) => {
+            buffer += chunk.toString('utf8');
+            let lines = buffer.split('\r\n');
+            buffer = lines.pop();
+            let collected = [];
+            for (const line of lines) {
+                if (!line) continue;
+                collected.push(line);
+                if (/^\d{3} /.test(line)) {
+                    const code = parseInt(line.slice(0, 3), 10);
+                    const fullText = collected.join(' | ');
+                    collected = [];
+                    processResponse(code, fullText);
+                }
+            }
+        });
+    });
+}
+
 async function sendEmailOtp(toEmail, otpCode, purpose, username) {
-    if (!nodemailer) {
-        throw new Error('Modul nodemailer belum tersedia di server.');
-    }
     const cfg = await readSmtpConfigAsync();
     const smtpEmail = String(cfg.smtpEmail || '').trim();
     const cleanPass = String(cfg.appPassword || '').replace(/\s+/g, '');
     const senderName = String(cfg.senderName || 'MusifyStar StudioMusik').trim();
 
     if (!smtpEmail || !cleanPass) {
-        throw new Error('Sandi Aplikasi Gmail 16 huruf belum diatur di Panel Admin.');
+        throw new Error('Sandi Aplikasi Gmail (16 huruf) belum diatur di Panel Admin.');
     }
-
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-            user: smtpEmail,
-            pass: cleanPass
-        }
-    });
 
     const isReset = purpose === 'reset';
     const isTest = purpose === 'test';
     const subjectTitle = isTest
         ? `[TES OTP] Kode Verifikasi MusifyStar: ${otpCode}`
         : isReset
-            ? `${otpCode}`
-            : `copy kode otp anda dibawah untuk pendaftaran akun MusifyStar`;
+            ? `${otpCode} adalah Kode Reset Password MusifyStar Anda`
+            : `${otpCode} adalah Kode Verifikasi Login MusifyStar Anda`;
 
     const purposeHeading = isTest
-        ? 'Tes Pengiriman Email OTP'
+        ? 'Tes Pengiriman Email OTP Real-Time'
         : isReset
             ? 'Permintaan Reset Password Akun'
             : 'Verifikasi Keamanan Login Akun';
@@ -681,26 +774,53 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
             <div style="font-size: 16px; font-weight: 700; color: #38bdf8; margin-bottom: 8px;">${purposeHeading}</div>
             <p style="font-size: 13px; color: #cbd5e1; line-height: 1.6; margin: 0 0 20px;">
                 Halo <strong style="color: #ffffff;">${greetingName}</strong>,<br/>
-                Gunakan 6 digit kode OTP di bawah ini untuk melanjutkan proses pendaftaran di<strong>MusifyStar</strong>:
+                Gunakan 6 digit kode OTP di bawah ini untuk melanjutkan proses di <strong>MusifyStar</strong>:
             </p>
             <div style="background: #161926; border: 2px dashed #38bdf8; border-radius: 16px; padding: 18px 12px; margin: 0 auto 20px; max-width: 280px;">
                 <div style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #facc15; font-family: monospace;">${otpCode}</div>
             </div>
             <p style="font-size: 11px; color: #94a3b8; line-height: 1.5; margin: 0;">
-                Kode ini berlaku selama <strong>1menit 60detik</strong>. Jangan berikan kode ini kepada siapa pun termasuk pihak yang mengaku admin.
+                Kode ini berlaku selama <strong>1 menit (60 detik)</strong>. Jangan berikan kode ini kepada siapa pun termasuk pihak yang mengaku admin.
             </p>
         </div>
         <div style="background: #090a10; padding: 14px 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06);">
-            <strong>&copy; ${new Date().getFullYear()} ${senderName} &bull; Developer : Nabil Assihidiqi</strong>
+            &copy; ${new Date().getFullYear()} ${senderName} &bull; Dikirim otomatis secara Real-Time
         </div>
     </div>`;
 
-    await transporter.sendMail({
-        from: `"${senderName}" <${smtpEmail}>`,
-        to: toEmail,
-        subject: subjectTitle,
-        text: `Kode OTP MusifyStar Anda adalah: ${otpCode}. Berlaku selama 5 menit.`,
-        html: htmlBody
+    if (nodemailer && typeof nodemailer.createTransport === 'function') {
+        try {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                host: 'smtp.gmail.com',
+                port: 465,
+                secure: true,
+                auth: {
+                    user: smtpEmail,
+                    pass: cleanPass
+                }
+            });
+
+            await transporter.sendMail({
+                from: `"${senderName}" <${smtpEmail}>`,
+                to: toEmail,
+                subject: subjectTitle,
+                text: `Kode OTP MusifyStar Anda adalah: ${otpCode}. Berlaku selama 1 menit (60 detik).`,
+                html: htmlBody
+            });
+            return true;
+        } catch (nmErr) {
+            console.warn('[OTP SMTP] Fallback ke Native TLS SMTP:', nmErr.message);
+        }
+    }
+
+    await sendGmailSmtpNative({
+        smtpEmail,
+        cleanPass,
+        senderName,
+        toEmail,
+        subjectTitle,
+        htmlBody
     });
 
     return true;
@@ -1365,7 +1485,7 @@ module.exports = async (req, res) => {
                     await sendEmailOtp(targetEmail, testOtp, 'test', 'AdminMusifyStar');
                     return res.json({
                         status: true,
-                        message: `Berhasil! Email Tes OTP (${testOtp}) telah dikirim ke ${targetEmail}. Silakan cek kotak masuk!`
+                        message: `Berhasil! Email Tes OTP (${testOtp}) telah dikirim real-time ke ${targetEmail}. Silakan cek kotak masuk!`
                     });
                 } catch (err) {
                     return res.status(400).json({
