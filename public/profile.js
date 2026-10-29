@@ -360,7 +360,7 @@ var Profile = {
 
             <!-- 5. TOMBOL INSTALL APLIKASI & CHANNEL WHATSAPP (FULL WIDTH WITH EDGE PADDING) -->
             <div class="px-5 pt-4 pb-12 sm:px-6 space-y-2.5">
-                <button id="pwa-install-btn" onclick="installPWA()" class="${typeof isStandaloneApp !== 'undefined' && isStandaloneApp ? 'hidden ' : ''}w-full btn-chrome font-bold py-3.5 rounded-xl active:scale-[0.98] transition-all text-center flex items-center justify-center gap-2 text-xs shadow-lg shadow-black/40">
+                <button id="pwa-install-btn" onclick="installPWA()" class="${((typeof checkIsRunningStandalonePwa === 'function' && checkIsRunningStandalonePwa()) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true) ? 'hidden ' : ''}w-full btn-chrome font-bold py-3.5 rounded-xl active:scale-[0.98] transition-all text-center flex items-center justify-center gap-2 text-xs shadow-lg shadow-black/40">
                     <i data-lucide="download" class="w-4 h-4 text-sky-400"></i>
                     <span>Install Aplikasi MusifyStar</span>
                 </button>

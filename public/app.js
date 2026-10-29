@@ -16,14 +16,22 @@
 
 // PWA - INSTALL & OFFLINE MODE HANDLING
 var deferredInstallPrompt=null;
-var isStandaloneApp=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+function checkIsRunningStandalonePwa() {
+    return Boolean(
+        (window.matchMedia && (
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches ||
+            window.matchMedia('(display-mode: minimal-ui)').matches
+        )) ||
+        window.navigator.standalone === true ||
+        (typeof document !== 'undefined' && document.referrer && document.referrer.indexOf('android-app://') === 0)
+    );
+}
+var isStandaloneApp=checkIsRunningStandalonePwa();
 var isIOSDevice=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
 
-// Auto-fix PWA detection for users who have it installed but browser doesn't report standalone
 if (isStandaloneApp) {
     try { localStorage.setItem('pwa_installed', 'true'); } catch(e){}
-} else if (localStorage.getItem('pwa_installed') === 'true') {
-    isStandaloneApp = true;
 }
 
 function showToast(msg) {
@@ -166,12 +174,11 @@ function installPWA(){
         deferredInstallPrompt.userChoice.then(function(choice){
             if(choice.outcome==='accepted') {
                 try { localStorage.setItem('pwa_installed', 'true'); } catch(e){}
-                isStandaloneApp = true;
-                showToast('Menginstall NanzMusify...');
+                showToast('Menginstall MusifyStar...');
+                var btn=document.getElementById('pwa-install-btn');
+                if(btn&&checkIsRunningStandalonePwa())btn.classList.add('hidden');
             }
             deferredInstallPrompt=null;
-            var btn=document.getElementById('pwa-install-btn');
-            if(btn)btn.classList.add('hidden');
         });
     }else if(isIOSDevice){
         showToast('Tap ikon Bagikan lalu pilih "Add to Home Screen"');

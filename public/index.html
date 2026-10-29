@@ -61,8 +61,8 @@
             try {
                 caches.keys().then(function(keys) {
                     keys.forEach(function(k) {
-                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v113') ||
-                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v113')) {
+                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v114') ||
+                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v114')) {
                             caches.delete(k);
                         }
                     });
@@ -1736,7 +1736,7 @@
     <script src="/search.js?v=101"></script>
     <script src="/liked.js?v=101"></script>
     <script src="/library.js?v=101"></script>
-    <script src="/profile.js?v=101"></script>
+    <script src="/profile.js?v=102"></script>
     <script src="/miniplayer.js?v=101"></script>
     <script src="/fullplayer.js?v=101"></script>
     <script src="/artist.js?v=101"></script>
@@ -1746,7 +1746,7 @@
     <script src="/global-stats.js?v=101"></script>
     <script src="/admin-chat.js?v=101"></script>
     <script src="/dynamic-island.js?v=101"></script>
-    <script src="/app.js?v=101"></script>
+    <script src="/app.js?v=102"></script>
     <script>(function () {
   document.addEventListener('visibilitychange', function () {
     document.documentElement.classList.toggle('tab-hidden', document.hidden);

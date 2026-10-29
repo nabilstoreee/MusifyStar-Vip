@@ -1,5 +1,5 @@
-const CACHE_STATIC_NAME = 'MusifyStar-static-v106';
-const CACHE_DATA_NAME = 'MusifyStar-api-v106';
+const CACHE_STATIC_NAME = 'MusifyStar-static-v114';
+const CACHE_DATA_NAME = 'MusifyStar-api-v114';
 
 const STATIC_ASSETS = [
   '/',
