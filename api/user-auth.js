@@ -745,7 +745,7 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
     const senderName = String(cfg.senderName || 'MusifyStar StudioMusik').trim();
 
     if (!smtpEmail || !cleanPass) {
-        throw new Error('Sandi Aplikasi Gmail (16 huruf) belum diatur di Panel Admin.');
+        throw new Error('Sandi Aplikasi Gmail 16 huruf belum diatur di panel Admin.');
     }
 
     const isReset = purpose === 'reset';
@@ -753,8 +753,8 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
     const subjectTitle = isTest
         ? `[TES OTP] Kode Verifikasi MusifyStar: ${otpCode}`
         : isReset
-            ? `${otpCode} adalah Kode Reset Password MusifyStar Anda`
-            : `${otpCode} adalah Kode Verifikasi Login MusifyStar Anda`;
+            ? ``
+            : `copy kode otp anda dibawah untuk pendaftaran akun MusifyStar`;
 
     const purposeHeading = isTest
         ? 'Tes Pengiriman Email OTP Real-Time'
@@ -780,11 +780,11 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
                 <div style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #facc15; font-family: monospace;">${otpCode}</div>
             </div>
             <p style="font-size: 11px; color: #94a3b8; line-height: 1.5; margin: 0;">
-                Kode ini berlaku selama <strong>1 menit (60 detik)</strong>. Jangan berikan kode ini kepada siapa pun termasuk pihak yang mengaku admin.
+                Kode ini berlaku selama <strong>1menit 60detik</strong>. Jangan berikan kode ini kepada siapa pun termasuk pihak yang mengaku admin.
             </p>
         </div>
         <div style="background: #090a10; padding: 14px 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06);">
-            &copy; ${new Date().getFullYear()} ${senderName} &bull; Dikirim otomatis secara Real-Time
+            <strong>&copy; ${new Date().getFullYear()} ${senderName} &bull; Developer : Nabil Assihidiqi</strong>
         </div>
     </div>`;
 
@@ -805,7 +805,7 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
                 from: `"${senderName}" <${smtpEmail}>`,
                 to: toEmail,
                 subject: subjectTitle,
-                text: `Kode OTP MusifyStar Anda adalah: ${otpCode}. Berlaku selama 1 menit (60 detik).`,
+                text: `Kode OTP MusifyStar Anda adalah: ${otpCode}. Berlaku selama 1 menit 60 detik`,
                 html: htmlBody
             });
             return true;
