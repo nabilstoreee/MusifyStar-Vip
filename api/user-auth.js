@@ -631,8 +631,9 @@ function generate6DigitOtp() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-function sendGmailSmtpNative({ smtpEmail, cleanPass, senderName, toEmail, subjectTitle, htmlBody }) {
+function sendGmailSmtpNative({ smtpEmail, cleanPass, senderName, toEmail, subjectTitle, textBody }) {
     const tls = require('tls');
+    const senderDomain = (smtpEmail.split('@')[1] || 'gmail.com').trim();
     return new Promise((resolve, reject) => {
         let settled = false;
         const finish = (err, val) => {
@@ -665,7 +666,7 @@ function sendGmailSmtpNative({ smtpEmail, cleanPass, senderName, toEmail, subjec
             if (step === 0) {
                 if (code !== 220) return finish(new Error('SMTP greeting gagal: ' + fullText));
                 step = 1;
-                socket.write('EHLO musifystar.web.id\r\n');
+                socket.write(`EHLO ${senderDomain}\r\n`);
             } else if (step === 1) {
                 if (code !== 250) return finish(new Error('SMTP EHLO gagal: ' + fullText));
                 step = 2;
@@ -695,19 +696,20 @@ function sendGmailSmtpNative({ smtpEmail, cleanPass, senderName, toEmail, subjec
                 step = 8;
                 const encodedSubject = '=?UTF-8?B?' + Buffer.from(subjectTitle, 'utf8').toString('base64') + '?=';
                 const safeSenderName = '=?UTF-8?B?' + Buffer.from(senderName, 'utf8').toString('base64') + '?=';
-                const base64Html = Buffer.from(htmlBody, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n');
-                const msgId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@musifystar.web.id>`;
+                const base64Text = Buffer.from(textBody, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n');
+                const msgId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@${senderDomain}>`;
                 const mimeMessage = [
                     `From: ${safeSenderName} <${smtpEmail}>`,
+                    `Reply-To: ${safeSenderName} <${smtpEmail}>`,
                     `To: <${toEmail}>`,
                     `Subject: ${encodedSubject}`,
                     `Message-ID: ${msgId}`,
                     `Date: ${new Date().toUTCString()}`,
                     `MIME-Version: 1.0`,
-                    `Content-Type: text/html; charset=UTF-8`,
+                    `Content-Type: text/plain; charset=UTF-8`,
                     `Content-Transfer-Encoding: base64`,
                     ``,
-                    base64Html,
+                    base64Text,
                     `.`
                 ].join('\r\n') + '\r\n';
                 socket.write(mimeMessage);
@@ -743,50 +745,36 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
     const smtpEmail = String(cfg.smtpEmail || '').trim();
     const cleanPass = String(cfg.appPassword || '').replace(/\s+/g, '');
     const senderName = String(cfg.senderName || 'MusifyStar StudioMusik').trim();
+    const senderDomain = (smtpEmail.split('@')[1] || 'gmail.com').trim();
 
     if (!smtpEmail || !cleanPass) {
-        throw new Error('Sandi Aplikasi Gmail 16 huruf belum diatur di panel Admin.');
+        throw new Error('Sandi Aplikasi Gmail (16 huruf) belum diatur di Panel Admin.');
     }
 
     const isReset = purpose === 'reset';
     const isTest = purpose === 'test';
     const subjectTitle = isTest
-        ? `[TES OTP] Kode Verifikasi MusifyStar: ${otpCode}`
+        ? `Kode Verifikasi MusifyStar - ${otpCode}`
         : isReset
-            ? `${otpCode}`
-            : `${otpCode} copy kode otp anda dibawah untuk pendaftaran akun MusifyStar`;
+            ? `Kode Reset Password MusifyStar - ${otpCode}`
+            : `copy kode otp anda dibawah untuk pendaftaran akun MusifyStar`;
 
-    const purposeHeading = isTest
-        ? 'Tes Pengiriman Email OTP Real-Time'
-        : isReset
-            ? 'Permintaan Reset Password Akun'
-            : 'Verifikasi Keamanan Login Akun';
+    const greetingName = username ? username : toEmail.split('@')[0];
 
-    const greetingName = username ? `@${username}` : toEmail;
-
-    const htmlBody = `
-    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0d0f17; color: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.12);">
-        <div style="background: linear-gradient(135deg, #e11d48 0%, #7c3aed 100%); padding: 24px 20px; text-align: center;">
-            <div style="font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #ffffff;">MUSIFYSTAR</div>
-            <div style="font-size: 11px; color: rgba(255,255,255,0.85); text-transform: uppercase; letter-spacing: 2px; margin-top: 4px;">StudioMusik &bull; Sistem Keamanan OTP</div>
-        </div>
-        <div style="padding: 28px 24px; text-align: center;">
-            <div style="font-size: 16px; font-weight: 700; color: #38bdf8; margin-bottom: 8px;">${purposeHeading}</div>
-            <p style="font-size: 13px; color: #cbd5e1; line-height: 1.6; margin: 0 0 20px;">
-                Halo <strong style="color: #ffffff;">${greetingName}</strong>,<br/>
-                Gunakan 6 digit kode OTP di bawah ini untuk melanjutkan proses di <strong>MusifyStar</strong>:
-            </p>
-            <div style="background: #161926; border: 2px dashed #38bdf8; border-radius: 16px; padding: 18px 12px; margin: 0 auto 20px; max-width: 280px;">
-                <div style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #facc15; font-family: monospace;">${otpCode}</div>
-            </div>
-            <p style="font-size: 11px; color: #94a3b8; line-height: 1.5; margin: 0;">
-                Kode ini berlaku selama <strong>1menit 60detik</strong>. Jangan berikan kode ini kepada siapa pun termasuk pihak yang mengaku admin.
-            </p>
-        </div>
-        <div style="background: #090a10; padding: 14px 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06);">
-            <strong>&copy; ${new Date().getFullYear()} ${senderName} &bull; Developer : Nabil Assihidiqi</strong>
-        </div>
-    </div>`;
+    const textBody = [
+        `Halo ${greetingName},`,
+        ``,
+        `Berikut adalah 6 digit kode verifikasi (OTP) untuk akun MusifyStar Anda:`,
+        ``,
+        `${otpCode}`,
+        ``,
+        `Kode ini berlaku selama 1 menit 60 detik.`,
+        `Demi keamanan akun Anda, mohon jangan bagikan kode ini kepada siapa pun.`,
+        ``,
+        `Salam hormat,`,
+        `${senderName}`,
+        `Developer: Nabil Assihidiqi`
+    ].join('\r\n');
 
     if (nodemailer && typeof nodemailer.createTransport === 'function') {
         try {
@@ -803,10 +791,11 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
 
             await transporter.sendMail({
                 from: `"${senderName}" <${smtpEmail}>`,
+                replyTo: `"${senderName}" <${smtpEmail}>`,
                 to: toEmail,
                 subject: subjectTitle,
-                text: `Kode OTP MusifyStar Anda adalah: ${otpCode}. Berlaku selama 1 menit 60 detik`,
-                html: htmlBody
+                messageId: `<${Date.now()}.${Math.random().toString(36).slice(2)}@${senderDomain}>`,
+                text: textBody
             });
             return true;
         } catch (nmErr) {
@@ -820,7 +809,7 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
         senderName,
         toEmail,
         subjectTitle,
-        htmlBody
+        textBody
     });
 
     return true;
