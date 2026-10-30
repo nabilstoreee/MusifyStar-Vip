@@ -424,6 +424,26 @@ function canUserEquipBorder(user, borderObj, isAdminSession = false) {
         return false;
     }
 
+    // If user is on an active VIP Trial, enforce Admin-configured Trial Border Access
+    if (user.isVipTrial) {
+        const trialAccess = String(user.trialBorderAccess || 'platinum').toLowerCase();
+        if (trialAccess === 'none') {
+            return borderObj.isVip === false || borderObj.requiredTier === 'none';
+        }
+        if (trialAccess === 'all') {
+            return true;
+        }
+        const bId = String(borderObj.id || '').toLowerCase();
+        const bCat = String(borderObj.category || '').toLowerCase();
+        const bName = String(borderObj.name || '').toLowerCase();
+        const isPlat = bId === 'border_platinum' || bCat === 'platinum' || bName.includes('platinum');
+        const isMast = bId === 'border_master' || bCat === 'master' || bName.includes('master');
+        const isLeg = bId === 'border_legend' || bCat === 'legend' || bName.includes('legend');
+        if (trialAccess === 'platinum') return isPlat;
+        if (trialAccess === 'platinum_master') return isPlat || isMast;
+        if (trialAccess === 'platinum_master_legend') return isPlat || isMast || isLeg;
+    }
+
     // If user's VIP came from Referral and has Admin-configured Border restrictions, enforce Admin's Referral Border rules
     if (user.vipSource === 'referral' && user.referralBorderRestricted) {
         try {

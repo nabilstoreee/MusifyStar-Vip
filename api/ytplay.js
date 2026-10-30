@@ -139,7 +139,11 @@ async function resolveToVideoId(query, excludeId = null) {
   return null;
 }
 
-async function getDownload(url, title, artist, forceRefresh = false) {
+async function getDownload(url, title, artist, forceRefresh = false, preferredQuality = '128') {
+  const normQuality = ['64', '128', '320'].includes(String(preferredQuality || '').trim())
+    ? String(preferredQuality).trim()
+    : '128';
+
   let idMatch = await resolveToVideoId(url);
 
   if (!idMatch && (title || url)) {
@@ -151,25 +155,28 @@ async function getDownload(url, title, artist, forceRefresh = false) {
     return null;
   }
 
+  const cacheKey = normQuality === '128' ? idMatch : `${idMatch}_${normQuality}`;
+
   if (forceRefresh) {
+    ytCache.delete(cacheKey);
     ytCache.delete(idMatch);
   } else {
     // Check cache first (instant 0ms response)
-    const cached = ytCache.get(idMatch);
+    const cached = ytCache.get(cacheKey);
     if (cached && cached.expireAt > Date.now() && cached.data && cached.data.audio) {
       cached.data.audio = normalizeAudioUrl(cached.data.audio);
       return cached.data;
     }
   }
 
-  // Deduplicate in-flight requests for the same video ID
-  if (inFlightRequests.has(idMatch)) {
-    return await inFlightRequests.get(idMatch);
+  // Deduplicate in-flight requests for the same video ID + quality
+  if (inFlightRequests.has(cacheKey)) {
+    return await inFlightRequests.get(cacheKey);
   }
 
   const extractionPromise = (async () => {
     try {
-      let result = await executeExtraction(idMatch);
+      let result = await executeExtraction(idMatch, normQuality);
 
       // If primary extraction fails on the specific ID, resolve metadata via oembed or search alternative track
       if (!result) {
@@ -196,11 +203,11 @@ async function getDownload(url, title, artist, forceRefresh = false) {
               const altId = await resolveToVideoId(searchQuery + ' official audio', idMatch);
               if (altId && altId !== idMatch) {
                 console.log(`[EXTRACT] Trying alternative track ID for "${searchQuery}": ${altId}`);
-                result = await executeExtraction(altId);
+                result = await executeExtraction(altId, normQuality);
                 if (result && result.audio) {
                   result.audio = normalizeAudioUrl(result.audio);
-                  // Cache for the original requested video ID as well!
-                  ytCache.set(idMatch, { data: result, expireAt: Date.now() + CACHE_TTL });
+                  // Cache for the original requested video ID + quality as well!
+                  ytCache.set(cacheKey, { data: result, expireAt: Date.now() + CACHE_TTL });
                   persistCache();
                 }
               }
@@ -215,17 +222,23 @@ async function getDownload(url, title, artist, forceRefresh = false) {
 
       return result;
     } finally {
-      inFlightRequests.delete(idMatch);
+      inFlightRequests.delete(cacheKey);
     }
   })();
 
-  inFlightRequests.set(idMatch, extractionPromise);
+  inFlightRequests.set(cacheKey, extractionPromise);
   return await extractionPromise;
 }
 
-async function executeExtraction(idMatch) {
+async function executeExtraction(idMatch, preferredQuality = '128') {
   const fullUrl = "https://www.youtube.com/watch?v=" + idMatch;
   let videoUnavailableAbort = false;
+  const qualityOrder = preferredQuality === '64'
+    ? ['64', '128', '320']
+    : preferredQuality === '320'
+      ? ['320', '128', '64']
+      : ['128', '64', '320'];
+  const cacheKey = preferredQuality === '128' ? idMatch : `${idMatch}_${preferredQuality}`;
 
   // Single CDN extractor with IPv4 enforcement, key sharing, and multi-quality fallback
   async function trySavetube(cdn, customTimeout = 7000) {
@@ -269,9 +282,10 @@ async function executeExtraction(idMatch) {
 
     const decrypted = JSON.parse(decryptedBuffer.toString());
     
-    // Primary 128kbps, fallback 320kbps & 64kbps
+    // Order by user's selected streaming quality (64kbps Hemat Kuota, 128kbps Standar, 320kbps High Audio Quality)
     let audioUrl = null;
-    for (const q of ["128", "320", "64"]) {
+    let activeBitrate = preferredQuality;
+    for (const q of qualityOrder) {
       try {
         const downloadRes = await api.post(`https://${cdn}/download`, {
           id: idMatch,
@@ -282,7 +296,10 @@ async function executeExtraction(idMatch) {
           timeout: customTimeout
         });
         audioUrl = downloadRes.data?.data?.downloadUrl || downloadRes.data?.downloadUrl;
-        if (audioUrl && audioUrl.startsWith("http")) break;
+        if (audioUrl && audioUrl.startsWith("http")) {
+          activeBitrate = q;
+          break;
+        }
       } catch (errQ) {}
     }
 
@@ -294,7 +311,7 @@ async function executeExtraction(idMatch) {
           const downloadRes = await axios.post(`https://${altCdn}/download`, {
             id: idMatch,
             downloadType: "audio",
-            quality: "128",
+            quality: qualityOrder[0] || "128",
             key: decrypted.key
           }, {
             headers: {
@@ -308,6 +325,7 @@ async function executeExtraction(idMatch) {
           });
           audioUrl = downloadRes.data?.data?.downloadUrl || downloadRes.data?.downloadUrl;
           if (audioUrl && audioUrl.startsWith("http")) {
+            activeBitrate = qualityOrder[0] || "128";
             promoteCdn(altCdn);
             break;
           }
@@ -336,6 +354,7 @@ async function executeExtraction(idMatch) {
     return {
       duration: durStr,
       audio: audioUrl,
+      bitrate: activeBitrate,
       source: `savetube:${cdn}`
     };
   }
@@ -371,7 +390,7 @@ async function executeExtraction(idMatch) {
   try {
     const winner = await Promise.any(allAttempts);
     winner.audio = normalizeAudioUrl(winner.audio);
-    ytCache.set(idMatch, { data: winner, expireAt: Date.now() + CACHE_TTL });
+    ytCache.set(cacheKey, { data: winner, expireAt: Date.now() + CACHE_TTL });
     persistCache();
     return winner;
   } catch (err) {
@@ -384,7 +403,7 @@ async function executeExtraction(idMatch) {
       const retryAttempts = SAVETUBE_CDNS.slice(0, 3).map(cdn => trySavetube(cdn, 7000));
       const retryWinner = await Promise.any(retryAttempts);
       retryWinner.audio = normalizeAudioUrl(retryWinner.audio);
-      ytCache.set(idMatch, { data: retryWinner, expireAt: Date.now() + CACHE_TTL });
+      ytCache.set(cacheKey, { data: retryWinner, expireAt: Date.now() + CACHE_TTL });
       persistCache();
       return retryWinner;
     } catch (eRetry) {}
@@ -405,17 +424,20 @@ module.exports = async (req, res) => {
     const title = (body.title || '').trim();
     const artist = (body.artist || '').trim();
     const forceRefresh = Boolean(body.refresh);
+    const rawQuality = String(body.quality || body.bitrate || '128').trim();
+    const preferredQuality = ['64', '128', '320'].includes(rawQuality) ? rawQuality : '128';
 
     if (!url && !title) { res.status(400).json({ status: false, message: 'Parameter query wajib diisi' }); return; }
 
     try {
-        let audioData = await getDownload(url, title, artist, forceRefresh);
+        let audioData = await getDownload(url, title, artist, forceRefresh, preferredQuality);
 
         if (audioData && audioData.audio) {
             return res.status(200).json({
                 status: true,
                 result: {
                     duration: audioData.duration || null,
+                    bitrate: audioData.bitrate || preferredQuality,
                     download: { audio: normalizeAudioUrl(audioData.audio) }
                 }
             });

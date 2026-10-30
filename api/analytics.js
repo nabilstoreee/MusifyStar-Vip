@@ -580,6 +580,7 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
                 equippedBadgeTitle: u.equippedBadgeTitle || '',
                 equippedBadgeIcon: u.equippedBadgeIcon || '',
                 equippedBadgeColor: u.equippedBadgeColor || '',
+                nameGlow: u.nameGlow || '',
                 listeningSeconds: baselineSec,
                 totalPlays: baselinePlays,
                 lastSeen: u.lastLogin || Date.now(),
@@ -610,6 +611,7 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
         entry.equippedBadgeTitle = u.equippedBadgeTitle !== undefined ? u.equippedBadgeTitle : (entry.equippedBadgeTitle || '');
         entry.equippedBadgeIcon = u.equippedBadgeIcon !== undefined ? u.equippedBadgeIcon : (entry.equippedBadgeIcon || '');
         entry.equippedBadgeColor = u.equippedBadgeColor !== undefined ? u.equippedBadgeColor : (entry.equippedBadgeColor || '');
+        entry.nameGlow = u.nameGlow !== undefined ? u.nameGlow : (entry.nameGlow || '');
 
         entry.isVip = isVip;
         entry.isMasterAdmin = isMasterAdmin;
@@ -705,6 +707,7 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
                 equippedBadgeTitle: item.equippedBadgeTitle || '',
                 equippedBadgeIcon: item.equippedBadgeIcon || '',
                 equippedBadgeColor: item.equippedBadgeColor || '',
+                nameGlow: item.nameGlow || '',
                 donatur: item.donatur || null,
                 isOnline: !!item.isOnline,
                 currentTrack: item.currentTrack || '',

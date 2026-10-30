@@ -436,6 +436,7 @@ module.exports = async function (req, res) {
                         equippedBadgeTitle: equippedBadgeTitle,
                         equippedBadgeIcon: equippedBadgeIcon,
                         equippedBadgeColor: equippedBadgeColor,
+                        nameGlow: matchedUser?.nameGlow || (isTargetAdmin ? (usersList.find(u => ((u.email || u.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com' || String(u.id) === '8589478687' || String(u.username || '').toLowerCase().trim() === 'musifystar') && u.nameGlow)?.nameGlow || '') : '') || lbEntry?.nameGlow || '',
                         donatur: donaturInfo,
                         globalStatsRank: globalStatsRank,
                         listeningSeconds: listeningSeconds,
@@ -545,6 +546,7 @@ module.exports = async function (req, res) {
                     equippedBadgeTitle: equippedBadgeTitle,
                     equippedBadgeIcon: equippedBadgeIcon,
                     equippedBadgeColor: equippedBadgeColor,
+                    nameGlow: matchedUser?.nameGlow || (isMsgMasterAdmin ? (userMapByEmail.get('jrnabil570@gmail.com')?.nameGlow || userMapById.get('8589478687')?.nameGlow || userMapByName.get('musifystar')?.nameGlow || '') : ''),
                     donatur: matchedUser ? referralsApi.resolveUserDonaturInfo(matchedUser) : null,
                     createdAt: r.created_at,
                     // Email is ONLY visible to the master admin for moderation; hidden for all other users
@@ -889,10 +891,11 @@ module.exports = async function (req, res) {
             let equippedBadgeTitle = currentUser.equippedBadgeTitle || body.equippedBadgeTitle || '';
             let equippedBadgeIcon = currentUser.equippedBadgeIcon || body.equippedBadgeIcon || '';
             let equippedBadgeColor = currentUser.equippedBadgeColor || body.equippedBadgeColor || '';
+            let activeNameGlow = currentUser.nameGlow || '';
 
             try {
                 const dbData = await storage.readDataAsync('users.json', { users: [], sessions: {} });
-                const matched = (dbData.users || []).find(u => String(u.id) === userId || (u.email && u.email.toLowerCase() === email));
+                const matched = (dbData.users || []).find(u => String(u.id) === userId || (u.email && u.email.toLowerCase() === email) || (u.rawEmail && u.rawEmail.toLowerCase() === email));
                 if (matched) {
                     if (matched.username) displayUsername = matched.username;
                     if (matched.avatar) userAvatar = matched.avatar;
@@ -907,6 +910,7 @@ module.exports = async function (req, res) {
                     if (matched.equippedBadgeTitle !== undefined) equippedBadgeTitle = matched.equippedBadgeTitle;
                     if (matched.equippedBadgeIcon !== undefined) equippedBadgeIcon = matched.equippedBadgeIcon;
                     if (matched.equippedBadgeColor !== undefined) equippedBadgeColor = matched.equippedBadgeColor;
+                    if (matched.nameGlow) activeNameGlow = matched.nameGlow;
                 }
             } catch (e) {}
 
@@ -946,6 +950,7 @@ module.exports = async function (req, res) {
                     equippedBadgeTitle: saved.equipped_badge_title || equippedBadgeTitle,
                     equippedBadgeIcon: saved.equipped_badge_icon || equippedBadgeIcon,
                     equippedBadgeColor: saved.equipped_badge_color || equippedBadgeColor,
+                    nameGlow: activeNameGlow || currentUser?.nameGlow || '',
                     donatur: referralsApi.resolveUserDonaturInfo(currentUser),
                     createdAt: saved.created_at,
                     clientTempId: body.clientTempId || undefined

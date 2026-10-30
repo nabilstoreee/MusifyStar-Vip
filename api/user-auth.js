@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 let nodemailer = null;
@@ -631,7 +632,7 @@ function generate6DigitOtp() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-function sendGmailSmtpNative({ smtpEmail, cleanPass, senderName, toEmail, subjectTitle, htmlBody }) {
+function sendGmailSmtpNative({ smtpEmail, cleanPass, senderName, toEmail, subjectTitle, htmlBody, inlineAttachments }) {
     const tls = require('tls');
     return new Promise((resolve, reject) => {
         let settled = false;
@@ -650,8 +651,8 @@ function sendGmailSmtpNative({ smtpEmail, cleanPass, senderName, toEmail, subjec
             rejectUnauthorized: true
         });
 
-        socket.setTimeout(15000, () => {
-            finish(new Error('Koneksi ke server SMTP Gmail timeout (15 detik).'));
+        socket.setTimeout(20000, () => {
+            finish(new Error('Koneksi ke server SMTP Gmail timeout (20 detik).'));
         });
 
         socket.on('error', (err) => {
@@ -697,22 +698,61 @@ function sendGmailSmtpNative({ smtpEmail, cleanPass, senderName, toEmail, subjec
                 const safeSenderName = '=?UTF-8?B?' + Buffer.from(senderName, 'utf8').toString('base64') + '?=';
                 const base64Html = Buffer.from(htmlBody, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n');
                 const msgId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@musifystar.web.id>`;
-                const mimeMessage = [
-                    `From: ${safeSenderName} <${smtpEmail}>`,
-                    `To: <${toEmail}>`,
-                    `Subject: ${encodedSubject}`,
-                    `Message-ID: ${msgId}`,
-                    `Date: ${new Date().toUTCString()}`,
-                    `MIME-Version: 1.0`,
-                    `Content-Type: text/html; charset=UTF-8`,
-                    `Content-Transfer-Encoding: base64`,
-                    ``,
-                    base64Html,
-                    `.`
-                ].join('\r\n') + '\r\n';
+
+                let mimeMessage = '';
+                if (Array.isArray(inlineAttachments) && inlineAttachments.length > 0) {
+                    const boundary = '----=_MusifyStar_Rel_' + Date.now().toString(36);
+                    const parts = [
+                        `From: ${safeSenderName} <${smtpEmail}>`,
+                        `To: <${toEmail}>`,
+                        `Subject: ${encodedSubject}`,
+                        `Message-ID: ${msgId}`,
+                        `Date: ${new Date().toUTCString()}`,
+                        `MIME-Version: 1.0`,
+                        `Content-Type: multipart/related; boundary="${boundary}"`,
+                        ``,
+                        `--${boundary}`,
+                        `Content-Type: text/html; charset=UTF-8`,
+                        `Content-Transfer-Encoding: base64`,
+                        ``,
+                        base64Html
+                    ];
+                    for (const att of inlineAttachments) {
+                        if (!att || !att.base64Data) continue;
+                        const cleanB64 = String(att.base64Data).replace(/\s+/g, '').replace(/(.{76})/g, '$1\r\n');
+                        const cType = att.contentType || 'image/png';
+                        const fName = att.filename || 'qris.png';
+                        const cid = att.cid || 'qris_musifystar_official';
+                        parts.push(
+                            `--${boundary}`,
+                            `Content-Type: ${cType}; name="${fName}"`,
+                            `Content-Transfer-Encoding: base64`,
+                            `Content-ID: <${cid}>`,
+                            `Content-Disposition: inline; filename="${fName}"`,
+                            ``,
+                            cleanB64
+                        );
+                    }
+                    parts.push(`--${boundary}--`, `.`);
+                    mimeMessage = parts.join('\r\n') + '\r\n';
+                } else {
+                    mimeMessage = [
+                        `From: ${safeSenderName} <${smtpEmail}>`,
+                        `To: <${toEmail}>`,
+                        `Subject: ${encodedSubject}`,
+                        `Message-ID: ${msgId}`,
+                        `Date: ${new Date().toUTCString()}`,
+                        `MIME-Version: 1.0`,
+                        `Content-Type: text/html; charset=UTF-8`,
+                        `Content-Transfer-Encoding: base64`,
+                        ``,
+                        base64Html,
+                        `.`
+                    ].join('\r\n') + '\r\n';
+                }
                 socket.write(mimeMessage);
             } else if (step === 8) {
-                if (code !== 250) return finish(new Error('Gagal mengirim isi email OTP: ' + fullText));
+                if (code !== 250) return finish(new Error('Gagal mengirim isi email: ' + fullText));
                 step = 9;
                 try { socket.write('QUIT\r\n'); } catch (e) {}
                 finish(null, true);
@@ -826,6 +866,369 @@ async function sendEmailOtp(toEmail, otpCode, purpose, username) {
     return true;
 }
 
+// ==========================================
+// VIP FREE TRIAL EXPIRATION & EMAIL BILLING INVOICE
+// ==========================================
+function resolveQrisImageForEmail(pCfg) {
+    try {
+        const rawB64 = (pCfg && pCfg.qrisBase64) || (pCfg && typeof pCfg.qrisUrl === 'string' && pCfg.qrisUrl.startsWith('data:image/') ? pCfg.qrisUrl : null);
+        if (rawB64 && typeof rawB64 === 'string') {
+            const m = rawB64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+            if (m) {
+                const ext = m[1].includes('jpeg') || m[1].includes('jpg') ? 'jpg' : 'png';
+                return {
+                    cid: 'qris_musifystar_official',
+                    filename: `QRIS-MusifyStar.${ext}`,
+                    contentType: m[1],
+                    base64Data: m[2],
+                    buffer: Buffer.from(m[2], 'base64')
+                };
+            }
+        }
+        const customQrisPath = path.join(__dirname, '..', 'public', 'qris_custom.png');
+        const defaultQrisPath = path.join(__dirname, '..', 'public', 'qris.png');
+        const chosenPath = fs.existsSync(customQrisPath) ? customQrisPath : (fs.existsSync(defaultQrisPath) ? defaultQrisPath : null);
+        if (chosenPath) {
+            const buf = fs.readFileSync(chosenPath);
+            if (buf && buf.length > 0) {
+                const isJpeg = buf[0] === 0xFF && buf[1] === 0xD8;
+                const mime = isJpeg ? 'image/jpeg' : 'image/png';
+                const ext = isJpeg ? 'jpg' : 'png';
+                return {
+                    cid: 'qris_musifystar_official',
+                    filename: `QRIS-MusifyStar.${ext}`,
+                    contentType: mime,
+                    base64Data: buf.toString('base64'),
+                    buffer: buf
+                };
+            }
+        }
+    } catch (e) {
+        console.warn('[TRIAL INVOICE] Gagal membaca file QRIS untuk lampiran email:', e.message);
+    }
+    return null;
+}
+
+async function sendTrialInvoiceEmail(user, invoice, paymentConfig) {
+    const cfg = await readSmtpConfigAsync();
+    if (!cfg.appPassword) {
+        throw new Error('App Password Gmail SMTP belum dikonfigurasi di Admin Panel.');
+    }
+
+    const smtpEmail = (cfg.smtpEmail || 'jrnabil570@gmail.com').trim();
+    const cleanPass = String(cfg.appPassword).replace(/\s+/g, '');
+    const senderName = cfg.senderName || 'MusifyStar StudioMusik';
+    const toEmail = String(user.rawEmail || user.email || '').trim().toLowerCase();
+    if (!toEmail || !toEmail.includes('@') || toEmail.includes('***')) {
+        throw new Error('Alamat email pengguna tidak valid untuk pengiriman tagihan.');
+    }
+
+    const pCfg = paymentConfig || {};
+    const ewEnabled = pCfg.ewalletsEnabled !== false;
+    const ew = pCfg.ewallets || {};
+    const qrisHolder = pCfg.qrisHolder || 'NABIL (MusifyStar Official)';
+    const invId = invoice.invoiceId || ('INV-TRIAL-' + Date.now());
+    const pkgName = invoice.packageName || 'Paket 1 Bulan VIP';
+    const amountNum = Number(invoice.amount) || 10000;
+    const amountFormatted = 'Rp ' + amountNum.toLocaleString('id-ID');
+    const durationText = invoice.duration || '30 Hari';
+    const trialDays = invoice.trialDurationDays || user.trialDurationDays || 7;
+    const createdDate = new Date(invoice.createdAt || Date.now()).toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    let rawAdminWa = String(pCfg.adminWhatsapp || '6281234567890').replace(/[^0-9]/g, '');
+    if (rawAdminWa.startsWith('0')) rawAdminWa = '62' + rawAdminWa.slice(1);
+    if (!rawAdminWa) rawAdminWa = '6281234567890';
+    const waConfirmText = encodeURIComponent(
+        `Halo Admin MusifyStar! Saya sudah Scan QRIS dan ingin Lanjut Perpanjang VIP.\n\n` +
+        `• Username: @${user.username}\n` +
+        `• User ID: ${user.id}\n` +
+        `• Email: ${toEmail}\n` +
+        `• No. Tagihan: ${invId}\n` +
+        `• Paket: ${pkgName} (${durationText})\n` +
+        `• Total Transfer: ${amountFormatted}\n\n` +
+        `Berikut saya lampirkan bukti pembayarannya. Mohon diperpanjang otomatis ya Admin!`
+    );
+    const waConfirmUrl = `https://wa.me/${rawAdminWa}?text=${waConfirmText}`;
+
+    let ewalletHtmlRows = '';
+    if (ewEnabled) {
+        if (ew.gopay && ew.gopay.enabled !== false && ew.gopay.number) {
+            ewalletHtmlRows += `
+            <tr>
+                <td style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #38bdf8; font-weight: 800;">GoPay</td>
+                <td style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #ffffff; font-family: monospace; font-weight: 800; font-size: 13px;">${ew.gopay.number}</td>
+                <td style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #cbd5e1; font-size: 11px; text-align: right;">a.n ${ew.gopay.holder || qrisHolder}</td>
+            </tr>`;
+        }
+        if (ew.dana && ew.dana.enabled !== false && ew.dana.number) {
+            ewalletHtmlRows += `
+            <tr>
+                <td style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #60a5fa; font-weight: 800;">DANA</td>
+                <td style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #ffffff; font-family: monospace; font-weight: 800; font-size: 13px;">${ew.dana.number}</td>
+                <td style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #cbd5e1; font-size: 11px; text-align: right;">a.n ${ew.dana.holder || qrisHolder}</td>
+            </tr>`;
+        }
+        if (ew.ovo && ew.ovo.enabled !== false && ew.ovo.number) {
+            ewalletHtmlRows += `
+            <tr>
+                <td style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #c084fc; font-weight: 800;">OVO</td>
+                <td style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #ffffff; font-family: monospace; font-weight: 800; font-size: 13px;">${ew.ovo.number}</td>
+                <td style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #cbd5e1; font-size: 11px; text-align: right;">a.n ${ew.ovo.holder || qrisHolder}</td>
+            </tr>`;
+        }
+    }
+
+    const qrisAttachment = resolveQrisImageForEmail(pCfg);
+    const hasEwalletRows = Boolean(ewEnabled && ewalletHtmlRows);
+
+    const rawNote = invoice.note || 'Masa aktif Percobaan VIP (Free Trial) Anda telah berakhir. Silakan selesaikan pembayaran tagihan untuk kembali mengaktifkan akses penuh VIP MusifyStar.';
+    const cleanNote = hasEwalletRows
+        ? rawNote
+        : rawNote.replace(/\s*atau\s+E-Wallet\s*\(GoPay\s*\/\s*DANA\s*\/\s*OVO\)/gi, '').replace(/GoPay\s*\/\s*DANA\s*\/\s*OVO/gi, 'QRIS Resmi');
+
+    const subjectTitle = `[Tagihan VIP MusifyStar] Masa Percobaan VIP ${trialDays} Hari Telah Berakhir (${invId})`;
+
+    const htmlBody = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 540px; margin: 0 auto; background: #0b0d14; color: #f8fafc; border-radius: 18px; overflow: hidden; border: 1px solid rgba(250, 204, 21, 0.3);">
+        <div style="background: linear-gradient(135deg, #eab308, #f59e0b, #7c3aed); padding: 24px 22px; text-align: center;">
+            <div style="display: inline-block; padding: 4px 12px; border-radius: 999px; background: rgba(0,0,0,0.35); color: #fef08a; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px;">TAGIHAN RESMI VIP MUSIFYSTAR</div>
+            <h2 style="margin: 0; font-size: 21px; font-weight: 900; color: #ffffff; letter-spacing: 0.3px;">Masa Percobaan VIP Anda Telah Habis</h2>
+            <p style="margin: 6px 0 0; font-size: 12px; color: rgba(255,255,255,0.92);">Invoice ID: <strong>${invId}</strong> &bull; ${createdDate}</p>
+        </div>
+        <div style="padding: 24px 22px;">
+            <p style="font-size: 14px; color: #e2e8f0; margin-top: 0; line-height: 1.6;">
+                Halo <strong>@${user.username}</strong>,<br>
+                Terima kasih telah mencoba <strong>Percobaan VIP Gratis (${trialDays} Hari)</strong> di <strong>MusifyStar</strong>. Masa aktif percobaan VIP Anda kini telah berakhir dan status akun serta border profil VIP telah dinonaktifkan sementara.
+            </p>
+            <div style="background: rgba(250, 204, 21, 0.07); border: 1px solid rgba(250, 204, 21, 0.35); border-radius: 14px; padding: 16px; margin: 18px 0;">
+                <div style="font-size: 11px; color: #fde047; text-transform: uppercase; letter-spacing: 1px; font-weight: 800; margin-bottom: 10px;">RINCIAN TAGIHAN PERPANJANGAN VIP</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <tr>
+                        <td style="padding: 5px 0; color: #94a3b8;">Akun Pengguna</td>
+                        <td style="padding: 5px 0; color: #ffffff; font-weight: 700; text-align: right;">@${user.username} (ID: ${user.id})</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px 0; color: #94a3b8;">Paket Langganan</td>
+                        <td style="padding: 5px 0; color: #ffffff; font-weight: 700; text-align: right;">${pkgName} (${durationText})</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px 0; color: #94a3b8;">Status Tagihan</td>
+                        <td style="padding: 5px 0; color: #f87171; font-weight: 800; text-align: right;">BELUM DIBAYAR (UNPAID)</td>
+                    </tr>
+                    <tr style="border-top: 1px dashed rgba(255,255,255,0.15);">
+                        <td style="padding: 10px 0 4px; color: #fde047; font-weight: 800; font-size: 14px;">Total Tagihan</td>
+                        <td style="padding: 10px 0 4px; color: #facc15; font-weight: 900; font-size: 20px; text-align: right;">${amountFormatted}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 16px; padding: 16px; margin-bottom: 18px; text-align: center;">
+                <div style="font-size: 11px; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; font-weight: 800; margin-bottom: 6px;">METODE PEMBAYARAN RESMI MUSIFYSTAR</div>
+                <p style="font-size: 12px; color: #cbd5e1; margin: 0 0 12px; line-height: 1.5;">
+                    Silakan scan <strong>Barcode QRIS Resmi (${qrisHolder})</strong> di bawah ini sebesar <strong style="color: #facc15;">${amountFormatted}</strong>${hasEwalletRows ? ' atau transfer melalui E-Wallet di bawah:' : ':'}
+                </p>
+
+                ${qrisAttachment ? `
+                <div style="background: #ffffff; padding: 12px; border-radius: 14px; display: inline-block; max-width: 280px; width: 100%; box-sizing: border-box; margin: 0 auto 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.4);">
+                    <div style="font-size: 10px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;">QRIS RESMI: ${qrisHolder}</div>
+                    <img src="cid:qris_musifystar_official" alt="QRIS MusifyStar" style="width: 100%; max-width: 250px; height: auto; border-radius: 8px; display: block; margin: 0 auto;" />
+                    <div style="font-size: 11px; font-weight: 800; color: #059669; margin-top: 6px;">Nominal: ${amountFormatted}</div>
+                </div>
+                ` : ''}
+
+                ${hasEwalletRows ? `
+                <div style="text-align: left; margin-top: 8px;">
+                    <div style="font-size: 10px; color: #fde047; text-transform: uppercase; letter-spacing: 1px; font-weight: 800; margin-bottom: 6px;">TRANSFER E-WALLET (GOPAY / DANA / OVO):</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden;">
+                        ${ewalletHtmlRows}
+                    </table>
+                </div>` : ''}
+
+                <div style="margin-top: 14px;">
+                    <a href="${waConfirmUrl}" target="_blank" style="display: inline-block; width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 12px; background: linear-gradient(135deg, #10b981, #059669); color: #000000; font-weight: 900; font-size: 13px; text-decoration: none; text-align: center;">
+                        Sudah Scan QRIS? Kirim Bukti TF ke WhatsApp Admin &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin: 0;">
+                ${cleanNote}
+            </p>
+        </div>
+        <div style="background: #07080d; padding: 14px 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06);">
+            <strong>&copy; ${new Date().getFullYear()} MusifyStar Official &bull; Developer : Nabil Assihidiqi</strong>
+        </div>
+    </div>`;
+
+    if (nodemailer && typeof nodemailer.createTransport === 'function') {
+        try {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                host: 'smtp.gmail.com',
+                port: 465,
+                secure: true,
+                auth: {
+                    user: smtpEmail,
+                    pass: cleanPass
+                }
+            });
+
+            const mailOpts = {
+                from: `"${senderName}" <${smtpEmail}>`,
+                to: toEmail,
+                subject: subjectTitle,
+                text: `Halo @${user.username}, Masa Percobaan VIP MusifyStar (${trialDays} Hari) Anda telah habis. Nomor Tagihan: ${invId}. Paket: ${pkgName} (${durationText}) sebesar ${amountFormatted}. Silakan scan QRIS di email ini atau buka aplikasi MusifyStar > menu VIP.`,
+                html: htmlBody
+            };
+            if (qrisAttachment) {
+                mailOpts.attachments = [{
+                    filename: qrisAttachment.filename,
+                    content: qrisAttachment.buffer,
+                    contentType: qrisAttachment.contentType,
+                    cid: 'qris_musifystar_official'
+                }];
+            }
+            await transporter.sendMail(mailOpts);
+            return true;
+        } catch (nmErr) {
+            console.warn('[TRIAL INVOICE SMTP] Fallback ke Native TLS SMTP:', nmErr.message);
+        }
+    }
+
+    await sendGmailSmtpNative({
+        smtpEmail,
+        cleanPass,
+        senderName,
+        toEmail,
+        subjectTitle,
+        htmlBody,
+        inlineAttachments: qrisAttachment ? [qrisAttachment] : []
+    });
+
+    return true;
+}
+
+async function checkAndProcessExpiredVipTrial(user, db, forceExpire = false) {
+    if (!user || !user.isVipTrial) return false;
+    const isExpired = forceExpire || (user.vipExpiresAt && Date.now() > user.vipExpiresAt);
+    if (!isExpired) return false;
+
+    let paymentConfig = {};
+    try {
+        const paymentConfigApi = require('./payment-config.js');
+        if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+            paymentConfig = await paymentConfigApi.getPaymentConfig();
+        }
+    } catch (e) {}
+
+    const trialCfg = (paymentConfig && paymentConfig.vipTrialConfig) || {};
+    const invId = 'INV-VIP-' + Date.now().toString().slice(-6) + '-' + String(user.id || '').slice(-3);
+    const invoiceObj = {
+        invoiceId: invId,
+        userId: user.id,
+        username: user.username,
+        email: user.rawEmail || user.email || '',
+        packageId: trialCfg.invoicePackageId || 'pkg_1month',
+        packageName: trialCfg.invoicePackageName || 'Paket 1 Bulan VIP',
+        amount: Number(trialCfg.invoiceAmount) || 10000,
+        duration: trialCfg.invoiceDuration || '30 Hari',
+        trialDurationDays: user.trialDurationDays || trialCfg.durationDays || 7,
+        note: trialCfg.invoiceNote || 'Masa aktif Percobaan VIP (Free Trial) Anda telah berakhir. Silakan selesaikan pembayaran tagihan melalui QRIS atau E-Wallet (GoPay / DANA / OVO) untuk kembali mengaktifkan akses penuh VIP MusifyStar.',
+        status: 'unpaid',
+        createdAt: new Date().toISOString(),
+        emailSent: false,
+        emailSentAt: null
+    };
+
+    // Cabut akses VIP Trial, Border, Efek Nama & Custom ID
+    if (user.customId && user.originalId) {
+        user.id = user.originalId;
+        user.customId = null;
+        user.customIdExpiresAt = null;
+        user.isCustomIdTrial = false;
+    }
+    if (user.equippedBadge === 'badge_vip_sultan') {
+        user.equippedBadge = '';
+        user.equippedBadgeTitle = '';
+        user.equippedBadgeIcon = '';
+        user.equippedBadgeColor = '';
+    }
+    user.isPremium = false;
+    user.vipTier = 'none';
+    user.vipExpiresAt = null;
+    user.isVipTrial = false;
+    user.trialExpiredAt = new Date().toISOString();
+    if (user.border) {
+        user.lastTrialBorder = user.border;
+        user.lastTrialBorderUrl = user.borderUrl;
+        user.lastTrialBorderName = user.borderName;
+    }
+    user.border = '';
+    user.borderUrl = '';
+    user.borderName = '';
+    user.nameGlow = '';
+    user.hasUnpaidTrialInvoice = true;
+    user.pendingTrialInvoice = invoiceObj;
+
+    // Kirim email tagihan otomatis (atau saat dipaksa akhiri oleh Admin)
+    if (forceExpire || trialCfg.autoSendEmailInvoice !== false) {
+        try {
+            await sendTrialInvoiceEmail(user, invoiceObj, paymentConfig);
+            user.pendingTrialInvoice.emailSent = true;
+            user.pendingTrialInvoice.emailSentAt = new Date().toISOString();
+            delete user.pendingTrialInvoice.emailError;
+        } catch (emailErr) {
+            console.warn('[TRIAL INVOICE] Gagal kirim email tagihan otomatis ke', user.rawEmail || user.email, ':', emailErr.message);
+            user.pendingTrialInvoice.emailError = emailErr.message;
+        }
+    }
+
+    if (db) {
+        await writeDbAsync(db);
+    }
+    return true;
+}
+
+let _lastTrialSweepAt = 0;
+let _isSweepingTrials = false;
+async function sweepAllExpiredVipTrials() {
+    if (_isSweepingTrials) return;
+    const now = Date.now();
+    if (now - _lastTrialSweepAt < 45000) return;
+    _lastTrialSweepAt = now;
+    _isSweepingTrials = true;
+    try {
+        const db = await readDbAsync();
+        const users = Array.isArray(db.users) ? db.users : [];
+        let anyExpired = false;
+        for (const u of users) {
+            if (u && u.isVipTrial && u.vipExpiresAt && now > u.vipExpiresAt) {
+                const processed = await checkAndProcessExpiredVipTrial(u, null, false);
+                if (processed) anyExpired = true;
+            }
+        }
+        if (anyExpired) {
+            await writeDbAsync(db);
+        }
+    } catch (e) {
+        console.warn('[AUTO TRIAL SWEEP] Error:', e.message);
+    } finally {
+        _isSweepingTrials = false;
+    }
+}
+
+// Jalankan pengecekan otomatis di background setiap 60 detik agar saat masa Trial VIP habis (meskipun pengguna sedang tutup aplikasi), Email Tagihan + QRIS langsung terkirim otomatis
+if (!global.__musifyStarTrialAutoSweepTimer) {
+    global.__musifyStarTrialAutoSweepTimer = setInterval(() => {
+        sweepAllExpiredVipTrials().catch(() => {});
+    }, 60 * 1000);
+    if (typeof global.__musifyStarTrialAutoSweepTimer.unref === 'function') {
+        global.__musifyStarTrialAutoSweepTimer.unref();
+    }
+}
+
 module.exports = async (req, res) => {
     // Anti-Cache & CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -838,6 +1241,9 @@ module.exports = async (req, res) => {
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
+
+    // Trigger background check non-blocking jika sudah >45 detik
+    sweepAllExpiredVipTrials().catch(() => {});
 
     try {
         const action = (req.query.action || req.body?.action || '').toLowerCase();
@@ -938,6 +1344,17 @@ module.exports = async (req, res) => {
                     console.warn('[admin_get_users] Chat user heal notice:', healErr.message);
                 }
 
+                let anyTrialExpiredInList = false;
+                for (const u of (db.users || [])) {
+                    if (u && u.isVipTrial && u.vipExpiresAt && Date.now() > u.vipExpiresAt) {
+                        await checkAndProcessExpiredVipTrial(u, null, false);
+                        anyTrialExpiredInList = true;
+                    }
+                }
+                if (anyTrialExpiredInList) {
+                    await writeDbAsync(db);
+                }
+
                 const userList = db.users.map(u => {
                     const banStatus = getUserBanStatus(u, banRegistry);
                     const isMaster = (u.rawEmail || u.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com';
@@ -964,6 +1381,15 @@ module.exports = async (req, res) => {
                         borderUrl: isUserPremium ? (u.borderUrl || '') : '',
                         borderName: isUserPremium ? (u.borderName || '') : '',
                         vipSource: u.vipSource || 'standard',
+                        isVipTrial: Boolean(u.isVipTrial && isUserPremium),
+                        hasClaimedVipTrial: Boolean(u.hasClaimedVipTrial),
+                        trialClaimedAt: u.trialClaimedAt || null,
+                        trialExpiredAt: u.trialExpiredAt || null,
+                        trialDurationDays: u.trialDurationDays || null,
+                        trialBorderAccess: u.trialBorderAccess || 'platinum',
+                        trialAllowedFeatures: u.trialAllowedFeatures || null,
+                        hasUnpaidTrialInvoice: Boolean(u.hasUnpaidTrialInvoice),
+                        pendingTrialInvoice: u.pendingTrialInvoice || null,
                         referralBorderRestricted: Boolean(u.referralBorderRestricted),
                         referralAllowedBorders: Array.isArray(u.referralAllowedBorders) ? u.referralAllowedBorders : [],
                         referralCode: referralsApi.generateReferralCodeForUser(u, db.users),
@@ -1495,6 +1921,522 @@ module.exports = async (req, res) => {
                 }
             }
 
+            // ADMIN: GET VIP TRIALS, INVOICES & PAYMENT CONFIG
+            if (action === 'admin_get_vip_trials') {
+                let anyExpired = false;
+                for (const u of (db.users || [])) {
+                    if (u && u.isVipTrial && u.vipExpiresAt && Date.now() > u.vipExpiresAt) {
+                        await checkAndProcessExpiredVipTrial(u, null, false);
+                        anyExpired = true;
+                    }
+                }
+                if (anyExpired) {
+                    await writeDbAsync(db);
+                }
+
+                let paymentConfig = {};
+                try {
+                    const paymentConfigApi = require('./payment-config.js');
+                    if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                        paymentConfig = await paymentConfigApi.getPaymentConfig();
+                    }
+                } catch (e) {}
+
+                const allUsers = (db.users || []).filter(Boolean).map(u => ({
+                    id: u.id,
+                    originalId: u.originalId || u.id,
+                    username: u.username,
+                    email: u.rawEmail || u.email || '',
+                    avatar: u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.username)}`,
+                    border: u.border || '',
+                    borderUrl: u.borderUrl || '',
+                    borderName: u.borderName || '',
+                    lastTrialBorder: u.lastTrialBorder || '',
+                    lastTrialBorderUrl: u.lastTrialBorderUrl || '',
+                    lastTrialBorderName: u.lastTrialBorderName || '',
+                    isPremium: Boolean(u.isPremium),
+                    vipTier: u.vipTier || 'none',
+                    vipExpiresAt: u.vipExpiresAt || null,
+                    vipSource: u.vipSource || 'standard',
+                    isVipTrial: Boolean(u.isVipTrial),
+                    hasClaimedVipTrial: Boolean(u.hasClaimedVipTrial),
+                    trialClaimedAt: u.trialClaimedAt || null,
+                    trialExpiredAt: u.trialExpiredAt || null,
+                    trialDurationDays: u.trialDurationDays || null,
+                    trialBorderAccess: u.trialBorderAccess || 'platinum',
+                    trialAllowedFeatures: u.trialAllowedFeatures || null,
+                    hasUnpaidTrialInvoice: Boolean(u.hasUnpaidTrialInvoice),
+                    pendingTrialInvoice: u.pendingTrialInvoice || null,
+                    createdAt: u.createdAt || null,
+                    lastLoginAt: u.lastLoginAt || null
+                }));
+
+                return res.json({
+                    status: true,
+                    paymentConfig: paymentConfig,
+                    vipTrialConfig: paymentConfig.vipTrialConfig || {},
+                    users: allUsers
+                });
+            }
+
+            // ADMIN: SEND OR RESEND TRIAL BILLING INVOICE EMAIL TO USER (AND TERMINATE ANY ACTIVE TRIAL)
+            if (action === 'admin_send_trial_invoice') {
+                const targetId = String(body.userId || body.targetId || '').trim();
+                const targetUsername = String(body.username || '').replace(/^@/, '').trim().toLowerCase();
+                const user = (db.users || []).find(u => u && (
+                    (targetId && (String(u.id) === targetId || String(u.originalId) === targetId || String(u.customId) === targetId)) ||
+                    (targetUsername && (u.username || '').toLowerCase() === targetUsername)
+                ));
+                if (!user) {
+                    return res.status(404).json({ status: false, message: 'Pengguna tidak ditemukan.' });
+                }
+
+                let paymentConfig = {};
+                try {
+                    const paymentConfigApi = require('./payment-config.js');
+                    if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                        paymentConfig = await paymentConfigApi.getPaymentConfig();
+                    }
+                } catch (e) {}
+                const trialCfg = paymentConfig.vipTrialConfig || {};
+
+                const customAmount = Number(body.amount) || (user.pendingTrialInvoice && user.pendingTrialInvoice.amount) || Number(trialCfg.invoiceAmount) || 10000;
+                const customPkgName = String(body.packageName || (user.pendingTrialInvoice && user.pendingTrialInvoice.packageName) || trialCfg.invoicePackageName || 'Paket 1 Bulan VIP').trim();
+                const customDuration = String(body.duration || (user.pendingTrialInvoice && user.pendingTrialInvoice.duration) || trialCfg.invoiceDuration || '30 Hari').trim();
+                const customNote = String(body.note || (user.pendingTrialInvoice && user.pendingTrialInvoice.note) || trialCfg.invoiceNote || '').trim();
+
+                if (user.customId && user.originalId) {
+                    user.id = user.originalId;
+                    user.customId = null;
+                    user.customIdExpiresAt = null;
+                    user.isCustomIdTrial = false;
+                }
+                if (user.equippedBadge === 'badge_vip_sultan') {
+                    user.equippedBadge = '';
+                    user.equippedBadgeTitle = '';
+                    user.equippedBadgeIcon = '';
+                    user.equippedBadgeColor = '';
+                }
+
+                const invoiceObj = {
+                    invoiceId: (user.pendingTrialInvoice && user.pendingTrialInvoice.invoiceId) || ('INV-VIP-' + Date.now().toString().slice(-6) + '-' + String(user.id).slice(-3)),
+                    userId: user.id,
+                    username: user.username,
+                    email: user.rawEmail || user.email || '',
+                    packageId: trialCfg.invoicePackageId || 'pkg_1month',
+                    packageName: customPkgName,
+                    amount: customAmount,
+                    duration: customDuration,
+                    trialDurationDays: user.trialDurationDays || trialCfg.durationDays || 7,
+                    note: customNote,
+                    status: 'unpaid',
+                    createdAt: new Date().toISOString(),
+                    emailSent: false,
+                    emailSentAt: null
+                };
+
+                // Pastikan status Trial berakhir saat tagihan email dikirim/dikirim ulang agar tidak bentrok dengan TRIAL AKTIF
+                user.isPremium = false;
+                user.vipTier = 'none';
+                user.vipExpiresAt = null;
+                user.isVipTrial = false;
+                user.hasClaimedVipTrial = true;
+                user.trialExpiredAt = user.trialExpiredAt || new Date().toISOString();
+                if (user.border) {
+                    user.lastTrialBorder = user.border;
+                    user.lastTrialBorderUrl = user.borderUrl;
+                    user.lastTrialBorderName = user.borderName;
+                }
+                user.border = '';
+                user.borderUrl = '';
+                user.borderName = '';
+                user.nameGlow = '';
+                user.hasUnpaidTrialInvoice = true;
+                user.pendingTrialInvoice = invoiceObj;
+
+                try {
+                    await sendTrialInvoiceEmail(user, invoiceObj, paymentConfig);
+                    user.pendingTrialInvoice.emailSent = true;
+                    user.pendingTrialInvoice.emailSentAt = new Date().toISOString();
+                    delete user.pendingTrialInvoice.emailError;
+                    await writeDbAsync(db);
+                    return res.json({
+                        status: true,
+                        message: `Masa Trial diakhiri & Email Tagihan VIP (${invoiceObj.invoiceId} - Rp ${customAmount.toLocaleString('id-ID')}) beserta foto QRIS berhasil dikirim ke ${user.rawEmail || user.email}!`,
+                        invoice: user.pendingTrialInvoice,
+                        user: {
+                            id: user.id,
+                            originalId: user.originalId || user.id,
+                            customId: null,
+                            username: user.username,
+                            isPremium: false,
+                            vipTier: 'none',
+                            vipExpiresAt: null,
+                            isVipTrial: false,
+                            border: '',
+                            borderUrl: '',
+                            borderName: '',
+                            nameGlow: '',
+                            hasUnpaidTrialInvoice: true,
+                            pendingTrialInvoice: user.pendingTrialInvoice
+                        }
+                    });
+                } catch (err) {
+                    user.pendingTrialInvoice.emailError = err.message;
+                    await writeDbAsync(db);
+                    return res.status(400).json({
+                        status: false,
+                        message: `Masa Trial diakhiri, namun gagal mengirim email ke ${user.rawEmail || user.email}: ${err.message}`
+                    });
+                }
+            }
+
+            // ADMIN: MANAGE USER VIP TRIAL (GRANT TRIAL, EXPIRE & BILL NOW, MARK PAID, RESET TRIAL)
+            if (action === 'admin_manage_user_trial') {
+                const subAction = String(body.subAction || '').toLowerCase().trim();
+                const targetId = String(body.userId || body.targetId || '').trim();
+                const targetUsername = String(body.username || '').replace(/^@/, '').trim().toLowerCase();
+                const user = (db.users || []).find(u => u && (
+                    (targetId && (String(u.id) === targetId || String(u.originalId) === targetId || String(u.customId) === targetId)) ||
+                    (targetUsername && (u.username || '').toLowerCase() === targetUsername)
+                ));
+                if (!user) {
+                    return res.status(404).json({ status: false, message: 'Pengguna tidak ditemukan.' });
+                }
+
+                let paymentConfig = {};
+                try {
+                    const paymentConfigApi = require('./payment-config.js');
+                    if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                        paymentConfig = await paymentConfigApi.getPaymentConfig();
+                    }
+                } catch (e) {}
+                const trialCfg = paymentConfig.vipTrialConfig || {};
+
+                if (subAction === 'grant_trial') {
+                    const days = Math.max(1, Math.min(3650, Number(body.durationDays) || Number(trialCfg.durationDays) || 7));
+                    const bAccess = String(body.borderAccess || trialCfg.borderAccess || 'platinum').toLowerCase();
+                    const mergedFeatures = Object.assign(
+                        {
+                            liquidGlassIos27: true,
+                            nameGlow: true,
+                            customId: true,
+                            vipAvatar: true,
+                            dynamicIsland: true,
+                            highAudio: true,
+                            backgroundPlay: true,
+                            keepScreenAwake: true,
+                            swipeGestures: true,
+                            vipSultanBadge: true
+                        },
+                        trialCfg.allowedFeatures || {},
+                        (body.allowedFeatures && typeof body.allowedFeatures === 'object') ? body.allowedFeatures : {}
+                    );
+                    user.isPremium = true;
+                    user.vipTier = bAccess === 'all' ? 'permanent' : (bAccess === 'platinum_master_legend' ? '2months' : '1month');
+                    user.vipGrantedAt = Date.now();
+                    user.vipExpiresAt = Date.now() + (days * 24 * 3600 * 1000);
+                    user.vipSource = 'trial';
+                    user.isVipTrial = true;
+                    user.hasClaimedVipTrial = true;
+                    user.trialClaimedAt = new Date().toISOString();
+                    user.trialExpiredAt = null;
+                    user.trialDurationDays = days;
+                    user.trialBorderAccess = bAccess;
+                    user.trialAllowedFeatures = mergedFeatures;
+                    user.hasUnpaidTrialInvoice = false;
+                    user.pendingTrialInvoice = null;
+                    if (mergedFeatures.customId === false && user.customId) {
+                        user.id = user.originalId || user.id;
+                        user.customId = null;
+                        user.customIdExpiresAt = null;
+                        user.isCustomIdTrial = false;
+                    }
+                    if (mergedFeatures.nameGlow === false && user.nameGlow) {
+                        user.nameGlow = '';
+                    }
+                    if (mergedFeatures.vipSultanBadge === false && user.equippedBadge === 'badge_vip_sultan') {
+                        user.equippedBadge = '';
+                        user.equippedBadgeTitle = '';
+                        user.equippedBadgeIcon = '';
+                        user.equippedBadgeColor = '';
+                    }
+                    if (bAccess === 'none') {
+                        user.border = '';
+                        user.borderUrl = '';
+                        user.borderName = '';
+                    } else if (!user.border) {
+                        user.border = 'border_platinum';
+                        user.borderUrl = '/borders/Platinum.png';
+                        user.borderName = 'Platinum';
+                    }
+                    await writeDbAsync(db);
+                    return res.json({
+                        status: true,
+                        message: `Percobaan VIP (${days} Hari) berhasil diaktifkan untuk @${user.username}!`,
+                        user: {
+                            id: user.id,
+                            originalId: user.originalId || user.id,
+                            customId: user.customId || null,
+                            username: user.username,
+                            isPremium: true,
+                            vipTier: user.vipTier,
+                            vipExpiresAt: user.vipExpiresAt,
+                            vipSource: 'trial',
+                            isVipTrial: true,
+                            trialDurationDays: user.trialDurationDays,
+                            trialBorderAccess: user.trialBorderAccess,
+                            trialAllowedFeatures: user.trialAllowedFeatures,
+                            nameGlow: user.nameGlow || '',
+                            border: user.border || '',
+                            borderUrl: user.borderUrl || '',
+                            borderName: user.borderName || '',
+                            hasUnpaidTrialInvoice: false,
+                            pendingTrialInvoice: null
+                        }
+                    });
+                }
+
+                if (subAction === 'expire_and_bill') {
+                    user.isVipTrial = true;
+                    user.hasClaimedVipTrial = true;
+                    await checkAndProcessExpiredVipTrial(user, db, true);
+                    const emailOk = user.pendingTrialInvoice && user.pendingTrialInvoice.emailSent;
+                    return res.json({
+                        status: true,
+                        message: emailOk
+                            ? `Masa Trial @${user.username} diakhiri & Email Tagihan (${user.pendingTrialInvoice.invoiceId}) beserta foto QRIS berhasil dikirim ke ${user.rawEmail || user.email}!`
+                            : `Masa Trial @${user.username} diakhiri (Email belum terkirim: ${user.pendingTrialInvoice?.emailError || 'cek konfigurasi SMTP'}).`,
+                        user: {
+                            id: user.id,
+                            originalId: user.originalId || user.id,
+                            customId: null,
+                            username: user.username,
+                            isPremium: false,
+                            vipTier: 'none',
+                            vipExpiresAt: null,
+                            isVipTrial: false,
+                            border: '',
+                            borderUrl: '',
+                            borderName: '',
+                            nameGlow: '',
+                            hasUnpaidTrialInvoice: true,
+                            pendingTrialInvoice: user.pendingTrialInvoice
+                        }
+                    });
+                }
+
+                if (subAction === 'mark_paid' || subAction === 'auto_extend_vip') {
+                    const extPkg = String(body.extendPackage || 'trial_same').toLowerCase().trim();
+                    const extBorder = String(body.extendBorder || 'trial_border').toLowerCase().trim();
+                    const trialDays = Number(user.trialDurationDays) || (user.pendingTrialInvoice && parseInt(user.pendingTrialInvoice.duration)) || Number(trialCfg.durationDays) || 7;
+                    const trialPkgName = (user.pendingTrialInvoice && user.pendingTrialInvoice.packageName) || trialCfg.invoicePackageName || `Paket ${trialDays} Hari VIP`;
+
+                    let chosenTier = '1month';
+                    let chosenDurationLabel = '1 Bulan (30 Hari)';
+                    let durationMs = 30 * 24 * 3600 * 1000;
+
+                    if (extPkg === 'trial_same' || extPkg === 'trial' || extPkg === 'trial_current') {
+                        durationMs = trialDays * 24 * 3600 * 1000;
+                        chosenDurationLabel = `${trialDays} Hari (${trialPkgName})`;
+                        chosenTier = (user.trialBorderAccess === 'all') ? 'permanent' : (user.trialBorderAccess === 'platinum_master_legend' ? '5months' : '1month');
+                    } else if (extPkg === '1week' || extPkg === '7days') {
+                        chosenTier = '1month';
+                        chosenDurationLabel = '7 Hari (Paket Mingguan)';
+                        durationMs = 7 * 24 * 3600 * 1000;
+                    } else if (extPkg === '1month' || extPkg === '30days') {
+                        chosenTier = '1month';
+                        chosenDurationLabel = '1 Bulan (30 Hari)';
+                        durationMs = 30 * 24 * 3600 * 1000;
+                    } else if (extPkg === '5months' || extPkg === '150days') {
+                        chosenTier = '5months';
+                        chosenDurationLabel = '5 Bulan (150 Hari)';
+                        durationMs = 150 * 24 * 3600 * 1000;
+                    } else if (extPkg === 'permanent' || extPkg === 'lifetime') {
+                        chosenTier = 'permanent';
+                        chosenDurationLabel = 'Permanen (Lifetime)';
+                        durationMs = null;
+                    }
+
+                    // Tentukan Border VIP yang dipasang saat perpanjang otomatis
+                    let finalBorderId = 'border_platinum';
+                    let finalBorderName = 'Platinum';
+                    let finalBorderUrl = '/borders/Platinum.png';
+
+                    if (extBorder === 'trial_border') {
+                        if (user.border) {
+                            finalBorderId = user.border;
+                            finalBorderName = user.borderName || 'Platinum';
+                            finalBorderUrl = user.borderUrl || '/borders/Platinum.png';
+                        } else if (user.lastTrialBorder) {
+                            finalBorderId = user.lastTrialBorder;
+                            finalBorderName = user.lastTrialBorderName || 'Platinum';
+                            finalBorderUrl = user.lastTrialBorderUrl || '/borders/Platinum.png';
+                        } else if (user.trialBorderAccess === 'all') {
+                            finalBorderId = 'border_immortal';
+                            finalBorderName = 'Immortal';
+                            finalBorderUrl = '/borders/Imortal.png';
+                            chosenTier = 'permanent';
+                        } else if (user.trialBorderAccess === 'platinum_master_legend') {
+                            finalBorderId = 'border_legend';
+                            finalBorderName = 'Legend';
+                            finalBorderUrl = '/borders/Legend.png';
+                            if (chosenTier === '1month') chosenTier = '5months';
+                        } else if (user.trialBorderAccess === 'platinum_master') {
+                            finalBorderId = 'border_master';
+                            finalBorderName = 'Master';
+                            finalBorderUrl = '/borders/Master.png';
+                        } else if (user.trialBorderAccess === 'none') {
+                            finalBorderId = '';
+                            finalBorderName = '';
+                            finalBorderUrl = '';
+                        }
+                    } else if (extBorder === 'border_platinum' || extBorder === 'platinum') {
+                        finalBorderId = 'border_platinum';
+                        finalBorderName = 'Platinum';
+                        finalBorderUrl = '/borders/Platinum.png';
+                    } else if (extBorder === 'border_master' || extBorder === 'master') {
+                        finalBorderId = 'border_master';
+                        finalBorderName = 'Master';
+                        finalBorderUrl = '/borders/Master.png';
+                    } else if (extBorder === 'border_legend' || extBorder === 'legend') {
+                        finalBorderId = 'border_legend';
+                        finalBorderName = 'Legend';
+                        finalBorderUrl = '/borders/Legend.png';
+                        if (chosenTier === '1month') chosenTier = '5months';
+                    } else if (extBorder === 'border_immortal' || extBorder === 'immortal') {
+                        finalBorderId = 'border_immortal';
+                        finalBorderName = 'Immortal';
+                        finalBorderUrl = '/borders/Imortal.png';
+                        chosenTier = 'permanent';
+                    } else if (extBorder === 'all') {
+                        finalBorderId = 'border_immortal';
+                        finalBorderName = 'Immortal';
+                        finalBorderUrl = '/borders/Imortal.png';
+                        chosenTier = 'permanent';
+                    } else if (extBorder === 'none') {
+                        finalBorderId = '';
+                        finalBorderName = '';
+                        finalBorderUrl = '';
+                    }
+
+                    user.isPremium = true;
+                    user.is_premium = true;
+                    user.isVip = true;
+                    user.vipTier = chosenTier;
+                    user.vipGrantedAt = Date.now();
+                    user.vipExpiresAt = durationMs ? (Date.now() + durationMs) : null;
+                    user.vipSource = 'paid';
+                    user.isVipTrial = false;
+                    user.hasUnpaidTrialInvoice = false;
+                    user.border = finalBorderId;
+                    user.borderName = finalBorderName;
+                    user.borderUrl = finalBorderUrl;
+
+                    if (user.pendingTrialInvoice) {
+                        user.pendingTrialInvoice.status = 'paid';
+                        user.pendingTrialInvoice.waitingAdminApproval = false;
+                        user.pendingTrialInvoice.paidAt = new Date().toISOString();
+                        user.pendingTrialInvoice.paidMethod = user.pendingTrialInvoice.paymentMethod || 'QRIS (Dikonfirmasi Admin)';
+                        user.pendingTrialInvoice.extendedDuration = chosenDurationLabel;
+                    }
+                    await writeDbAsync(db);
+
+                    try {
+                        const messagesApi = require('./messages.js');
+                        if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
+                            await messagesApi.sendVipWelcomeMessage(user.id, user.username, chosenTier, chosenDurationLabel);
+                        }
+                    } catch (e) {}
+
+                    return res.json({
+                        status: true,
+                        message: `✅ VIP @${user.username} berhasil diperpanjang otomatis (${chosenDurationLabel}) & Tagihan telah LUNAS/dihapus!`,
+                        user: {
+                            id: user.id,
+                            username: user.username,
+                            isPremium: true,
+                            vipTier: user.vipTier,
+                            vipExpiresAt: user.vipExpiresAt,
+                            vipSource: 'paid',
+                            isVipTrial: false,
+                            hasUnpaidTrialInvoice: false,
+                            pendingTrialInvoice: user.pendingTrialInvoice,
+                            border: user.border,
+                            borderUrl: user.borderUrl,
+                            borderName: user.borderName
+                        }
+                    });
+                }
+
+                if (subAction === 'cancel_renewal' || subAction === 'decline_renewal') {
+                    user.isVipTrial = false;
+                    user.hasUnpaidTrialInvoice = false;
+                    if (user.vipSource === 'trial') {
+                        user.isPremium = false;
+                        user.vipTier = 'none';
+                        user.vipExpiresAt = null;
+                        user.vipSource = 'standard';
+                        user.border = '';
+                        user.borderUrl = '';
+                        user.borderName = '';
+                    }
+                    if (user.pendingTrialInvoice) {
+                        user.pendingTrialInvoice.status = 'declined';
+                        user.pendingTrialInvoice.waitingAdminApproval = false;
+                        user.pendingTrialInvoice.declinedAt = new Date().toISOString();
+                    }
+                    await writeDbAsync(db);
+                    return res.json({
+                        status: true,
+                        message: `Tagihan @${user.username} telah dihapus (Tidak Lanjut Perpanjang VIP).`,
+                        user: {
+                            id: user.id,
+                            username: user.username,
+                            isPremium: Boolean(user.isPremium),
+                            vipTier: user.vipTier || 'none',
+                            vipExpiresAt: user.vipExpiresAt || null,
+                            isVipTrial: false,
+                            hasUnpaidTrialInvoice: false,
+                            pendingTrialInvoice: user.pendingTrialInvoice
+                        }
+                    });
+                }
+
+                if (subAction === 'reset_trial') {
+                    user.isVipTrial = false;
+                    user.hasClaimedVipTrial = false;
+                    user.trialClaimedAt = null;
+                    user.trialExpiredAt = null;
+                    user.hasUnpaidTrialInvoice = false;
+                    user.pendingTrialInvoice = null;
+                    if (user.vipSource === 'trial') {
+                        user.isPremium = false;
+                        user.vipTier = 'none';
+                        user.vipExpiresAt = null;
+                        user.vipSource = 'standard';
+                    }
+                    await writeDbAsync(db);
+                    return res.json({
+                        status: true,
+                        message: `Status klaim Trial & Tagihan untuk @${user.username} berhasil di-reset (pengguna bisa klaim trial ulang).`,
+                        user: {
+                            id: user.id,
+                            username: user.username,
+                            isPremium: Boolean(user.isPremium),
+                            vipTier: user.vipTier || 'none',
+                            vipExpiresAt: user.vipExpiresAt || null,
+                            isVipTrial: false,
+                            hasClaimedVipTrial: false,
+                            hasUnpaidTrialInvoice: false,
+                            pendingTrialInvoice: null
+                        }
+                    });
+                }
+
+                return res.status(400).json({ status: false, message: 'Sub-action tidak dikenal.' });
+            }
+
             return res.status(400).json({ status: false, message: 'Action admin tidak dikenal' });
         }
 
@@ -1811,15 +2753,47 @@ module.exports = async (req, res) => {
                 }
 
                 if (targetUserId) {
+                    // Check if user's VIP Free Trial has expired -> auto-revert & send billing email
+                    if (user.isVipTrial && user.vipExpiresAt && Date.now() > user.vipExpiresAt) {
+                        await checkAndProcessExpiredVipTrial(user, db, false);
+                    }
+
+                    // Sync active VIP Trial allowedFeatures & borderAccess with latest Admin config
+                    if (user.isVipTrial) {
+                        try {
+                            const paymentConfigApi = require('./payment-config.js');
+                            if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                                const payCfg = await paymentConfigApi.getPaymentConfig();
+                                if (payCfg && payCfg.vipTrialConfig) {
+                                    user.trialAllowedFeatures = Object.assign({}, payCfg.vipTrialConfig.allowedFeatures || {});
+                                    user.trialBorderAccess = payCfg.vipTrialConfig.borderAccess || user.trialBorderAccess || 'platinum';
+                                    if (user.trialAllowedFeatures.customId === false && user.customId) {
+                                        user.id = user.originalId || user.id;
+                                        user.customId = null;
+                                        user.customIdExpiresAt = null;
+                                        user.isCustomIdTrial = false;
+                                    }
+                                    if (user.trialAllowedFeatures.nameGlow === false && user.nameGlow) {
+                                        user.nameGlow = '';
+                                    }
+                                }
+                            }
+                        } catch (e) {}
+                    }
+
                     const vipInfo = resolveUserVipStatus(user);
                     const isMasterAdmin = ((user.rawEmail || user.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com');
+
+                    if ((!isMasterAdmin && !vipInfo.isPremium) || (user.isVipTrial && user.trialAllowedFeatures && user.trialAllowedFeatures.nameGlow === false)) {
+                        if (user.nameGlow) {
+                            user.nameGlow = '';
+                            await writeDbAsync(db);
+                        }
+                    }
 
                     if (isMasterAdmin) {
                         Security.addImmuneIp(clientIp);
                     }
-
-                    // The server is the absolute authority for VIP status. If the client has outdated VIP state in cache,
-                    // the server simply responds with the true database VIP status (vipInfo), syncing the client safely.
 
                     const vipSig = Security.generateVipSignature(user.id, vipInfo.vipTier, vipInfo.vipExpiresAt);
                     const refreshedToken = !verifiedTok ? createSignedUserToken(user.id, user.username) : undefined;
@@ -1849,10 +2823,20 @@ module.exports = async (req, res) => {
                             equippedBadgeTitle: user.equippedBadgeTitle || '',
                             equippedBadgeIcon: user.equippedBadgeIcon || '',
                             equippedBadgeColor: user.equippedBadgeColor || '',
+                            nameGlow: user.nameGlow || '',
                             isPremium: isMasterAdmin || vipInfo.isPremium,
                             vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
                             vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
                             vipSource: user.vipSource || 'standard',
+                            isVipTrial: Boolean(user.isVipTrial && vipInfo.isPremium),
+                            hasClaimedVipTrial: Boolean(user.hasClaimedVipTrial),
+                            trialClaimedAt: user.trialClaimedAt || null,
+                            trialExpiredAt: user.trialExpiredAt || null,
+                            trialDurationDays: user.trialDurationDays || null,
+                            trialBorderAccess: user.trialBorderAccess || 'platinum',
+                            trialAllowedFeatures: user.trialAllowedFeatures || null,
+                            hasUnpaidTrialInvoice: Boolean(user.hasUnpaidTrialInvoice),
+                            pendingTrialInvoice: user.pendingTrialInvoice || null,
                             referralBorderRestricted: Boolean(user.referralBorderRestricted),
                             referralAllowedBorders: Array.isArray(user.referralAllowedBorders) ? user.referralAllowedBorders : [],
                             referralCode: referralsApi.generateReferralCodeForUser(user, db.users),
@@ -2255,6 +3239,23 @@ module.exports = async (req, res) => {
                 Security.addImmuneIp(clientIp);
             }
 
+            if (user.isVipTrial && user.vipExpiresAt && Date.now() > user.vipExpiresAt) {
+                await checkAndProcessExpiredVipTrial(user, db, false);
+            }
+
+            if (user.isVipTrial) {
+                try {
+                    const paymentConfigApi = require('./payment-config.js');
+                    if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                        const payCfg = await paymentConfigApi.getPaymentConfig();
+                        if (payCfg && payCfg.vipTrialConfig) {
+                            user.trialAllowedFeatures = Object.assign({}, payCfg.vipTrialConfig.allowedFeatures || {});
+                            user.trialBorderAccess = payCfg.vipTrialConfig.borderAccess || user.trialBorderAccess || 'platinum';
+                        }
+                    }
+                } catch (e) {}
+            }
+
             const vipInfo = resolveUserVipStatus(user);
             const vipSig = Security.generateVipSignature(user.id, isMasterAdmin ? 'permanent' : vipInfo.vipTier, isMasterAdmin ? null : vipInfo.vipExpiresAt);
 
@@ -2280,10 +3281,20 @@ module.exports = async (req, res) => {
                     equippedBadgeTitle: user.equippedBadgeTitle || '',
                     equippedBadgeIcon: user.equippedBadgeIcon || '',
                     equippedBadgeColor: user.equippedBadgeColor || '',
+                    nameGlow: ((!isMasterAdmin && !vipInfo.isPremium) || (user.isVipTrial && user.trialAllowedFeatures && user.trialAllowedFeatures.nameGlow === false)) ? '' : (user.nameGlow || ''),
                     isPremium: isMasterAdmin || vipInfo.isPremium,
                     vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
                     vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
                     vipSource: user.vipSource || 'standard',
+                    isVipTrial: Boolean(user.isVipTrial && vipInfo.isPremium),
+                    hasClaimedVipTrial: Boolean(user.hasClaimedVipTrial),
+                    trialClaimedAt: user.trialClaimedAt || null,
+                    trialExpiredAt: user.trialExpiredAt || null,
+                    trialDurationDays: user.trialDurationDays || null,
+                    trialBorderAccess: user.trialBorderAccess || 'platinum',
+                    trialAllowedFeatures: user.trialAllowedFeatures || null,
+                    hasUnpaidTrialInvoice: Boolean(user.hasUnpaidTrialInvoice),
+                    pendingTrialInvoice: user.pendingTrialInvoice || null,
                     referralBorderRestricted: Boolean(user.referralBorderRestricted),
                     referralAllowedBorders: Array.isArray(user.referralAllowedBorders) ? user.referralAllowedBorders : [],
                     referralCode: referralsApi.generateReferralCodeForUser(user, db.users),
@@ -2438,6 +3449,23 @@ module.exports = async (req, res) => {
                 Security.addImmuneIp(clientIp);
             }
 
+            if (user.isVipTrial && user.vipExpiresAt && Date.now() > user.vipExpiresAt) {
+                await checkAndProcessExpiredVipTrial(user, db, false);
+            }
+
+            if (user.isVipTrial) {
+                try {
+                    const paymentConfigApi = require('./payment-config.js');
+                    if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                        const payCfg = await paymentConfigApi.getPaymentConfig();
+                        if (payCfg && payCfg.vipTrialConfig) {
+                            user.trialAllowedFeatures = Object.assign({}, payCfg.vipTrialConfig.allowedFeatures || {});
+                            user.trialBorderAccess = payCfg.vipTrialConfig.borderAccess || user.trialBorderAccess || 'platinum';
+                        }
+                    }
+                } catch (e) {}
+            }
+
             const vipInfo = resolveUserVipStatus(user);
             const vipSig = Security.generateVipSignature(user.id, isGoogleMasterAdmin ? 'permanent' : vipInfo.vipTier, isGoogleMasterAdmin ? null : vipInfo.vipExpiresAt);
 
@@ -2463,10 +3491,20 @@ module.exports = async (req, res) => {
                     equippedBadgeTitle: user.equippedBadgeTitle || '',
                     equippedBadgeIcon: user.equippedBadgeIcon || '',
                     equippedBadgeColor: user.equippedBadgeColor || '',
+                    nameGlow: user.equippedNameGlow || user.nameGlow || '',
                     isPremium: isGoogleMasterAdmin || vipInfo.isPremium,
                     vipTier: isGoogleMasterAdmin ? 'permanent' : vipInfo.vipTier,
                     vipExpiresAt: isGoogleMasterAdmin ? null : vipInfo.vipExpiresAt,
                     vipSource: user.vipSource || 'standard',
+                    isVipTrial: Boolean(user.isVipTrial && vipInfo.isPremium),
+                    hasClaimedVipTrial: Boolean(user.hasClaimedVipTrial),
+                    trialClaimedAt: user.trialClaimedAt || null,
+                    trialExpiredAt: user.trialExpiredAt || null,
+                    trialDurationDays: user.trialDurationDays || null,
+                    trialBorderAccess: user.trialBorderAccess || 'platinum',
+                    trialAllowedFeatures: user.trialAllowedFeatures || null,
+                    hasUnpaidTrialInvoice: Boolean(user.hasUnpaidTrialInvoice),
+                    pendingTrialInvoice: user.pendingTrialInvoice || null,
                     referralBorderRestricted: Boolean(user.referralBorderRestricted),
                     referralAllowedBorders: Array.isArray(user.referralAllowedBorders) ? user.referralAllowedBorders : [],
                     referralCode: referralsApi.generateReferralCodeForUser(user, db.users),
@@ -2578,10 +3616,28 @@ module.exports = async (req, res) => {
                     user.borderUrl = '';
                     user.borderName = '';
                 } else if (borderMap[borderId]) {
-                    if (!isUserVip) {
+                    if (!isUserVip && !isMasterAdmin) {
                         return res.status(403).json({ status: false, message: 'Border profil khusus pengguna VIP!' });
                     }
-                    if (!isMasterAdmin) {
+                    // Jika akun sedang dalam mode Percobaan VIP (isVipTrial), terapkan batasan akses border Trial dari Admin
+                    if (user.isVipTrial) {
+                        const trialAccess = String(user.trialBorderAccess || 'platinum').toLowerCase();
+                        const bNameLow = String(borderMap[borderId].name || '').toLowerCase();
+                        const isPlat = borderId === 'border_platinum' || bNameLow.includes('platinum');
+                        const isMast = borderId === 'border_master' || bNameLow.includes('master');
+                        const isLeg = borderId === 'border_legend' || bNameLow.includes('legend');
+                        let trialAllowed = false;
+                        if (trialAccess === 'all') trialAllowed = true;
+                        else if (trialAccess === 'platinum') trialAllowed = isPlat;
+                        else if (trialAccess === 'platinum_master') trialAllowed = isPlat || isMast;
+                        else if (trialAccess === 'platinum_master_legend') trialAllowed = isPlat || isMast || isLeg;
+                        if (!trialAllowed) {
+                            return res.status(403).json({
+                                status: false,
+                                message: `Border ${borderMap[borderId].name} dikunci untuk paket Percobaan VIP (Free Trial) sesuai pengaturan Admin! Upgrade ke VIP penuh untuk membuka semua border.`
+                            });
+                        }
+                    } else if (!isMasterAdmin) {
                         if (user.vipSource === 'referral' && user.referralBorderRestricted) {
                             const refAllowed = referralsApi.canReferralVipEquipBorder(user, {
                                 id: borderId,
@@ -2614,10 +3670,58 @@ module.exports = async (req, res) => {
 
             // Update equipped custom rank badge if provided
             if (body.equippedBadge !== undefined) {
-                user.equippedBadge = String(body.equippedBadge || '').trim();
+                const reqBadge = String(body.equippedBadge || '').trim();
+                if (reqBadge === 'badge_vip_sultan' && user.isVipTrial) {
+                    const tf = user.trialAllowedFeatures || {};
+                    if (tf.vipSultanBadge === false) {
+                        return res.status(403).json({
+                            status: false,
+                            message: 'Lencana VIP Sultan Member dikunci oleh Admin selama masa Percobaan VIP (Trial)! Upgrade ke VIP Penuh untuk membuka lencana ini.'
+                        });
+                    }
+                }
+                user.equippedBadge = reqBadge;
                 user.equippedBadgeTitle = String(body.equippedBadgeTitle || '').trim();
                 user.equippedBadgeIcon = String(body.equippedBadgeIcon || '').trim();
                 user.equippedBadgeColor = String(body.equippedBadgeColor || '').trim();
+            }
+
+            // Update VIP Name Glow effect if provided (wajib VIP aktif & patuhi centang Trial Admin tanpa bypass Donatur)
+            if (body.nameGlow !== undefined) {
+                const rawGlow = String(body.nameGlow || '').trim().toLowerCase();
+                const validGlows = ['', 'none', 'liquid_glass', 'cyber_neon', 'royal_gold', 'crimson_flame', 'emerald_aurora', 'galaxy_amethyst', 'rainbow_prism', 'ice_diamond'];
+                if (rawGlow === '' || rawGlow === 'none') {
+                    user.nameGlow = '';
+                } else if (validGlows.includes(rawGlow)) {
+                    if (user.isVipTrial) {
+                        let globalNameGlowAllowed = true;
+                        try {
+                            const paymentConfigApi = require('./payment-config.js');
+                            if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                                const payCfg = await paymentConfigApi.getPaymentConfig();
+                                if (payCfg && payCfg.vipTrialConfig && payCfg.vipTrialConfig.allowedFeatures && payCfg.vipTrialConfig.allowedFeatures.nameGlow === false) {
+                                    globalNameGlowAllowed = false;
+                                }
+                            }
+                        } catch (e) {}
+                        const tf = user.trialAllowedFeatures || {};
+                        if (tf.nameGlow === false || !globalNameGlowAllowed) {
+                            user.nameGlow = '';
+                            return res.status(403).json({
+                                status: false,
+                                message: 'Fitur Efek Nama Berwarna dikunci oleh Admin pada masa Percobaan VIP (Trial)! Upgrade ke VIP Penuh untuk menggunakan efek nama ini.'
+                            });
+                        }
+                    }
+                    if (!isUserVip && !isMasterAdmin) {
+                        user.nameGlow = '';
+                        return res.status(403).json({
+                            status: false,
+                            message: 'Efek Nama Berwarna / Gradien Animasi khusus untuk Member VIP MusifyStar!'
+                        });
+                    }
+                    user.nameGlow = rawGlow;
+                }
             }
 
             // Update app settings if provided (e.g. homeTheme, navTheme, etc.)
@@ -2645,10 +3749,20 @@ module.exports = async (req, res) => {
                     equippedBadgeTitle: user.equippedBadgeTitle || '',
                     equippedBadgeIcon: user.equippedBadgeIcon || '',
                     equippedBadgeColor: user.equippedBadgeColor || '',
+                    nameGlow: user.nameGlow || '',
                     isPremium: vipInfo.isPremium,
                     vipTier: vipInfo.vipTier,
                     vipExpiresAt: vipInfo.vipExpiresAt,
                     vipSource: user.vipSource || 'standard',
+                    isVipTrial: Boolean(user.isVipTrial && vipInfo.isPremium),
+                    hasClaimedVipTrial: Boolean(user.hasClaimedVipTrial),
+                    trialClaimedAt: user.trialClaimedAt || null,
+                    trialExpiredAt: user.trialExpiredAt || null,
+                    trialDurationDays: user.trialDurationDays || null,
+                    trialBorderAccess: user.trialBorderAccess || 'platinum',
+                    trialAllowedFeatures: user.trialAllowedFeatures || null,
+                    hasUnpaidTrialInvoice: Boolean(user.hasUnpaidTrialInvoice),
+                    pendingTrialInvoice: user.pendingTrialInvoice || null,
                     referralBorderRestricted: Boolean(user.referralBorderRestricted),
                     referralAllowedBorders: Array.isArray(user.referralAllowedBorders) ? user.referralAllowedBorders : [],
                     referralCode: referralsApi.generateReferralCodeForUser(user, db.users),
@@ -3031,6 +4145,29 @@ module.exports = async (req, res) => {
                 return res.status(403).json({ status: false, message: 'Fitur Custom ID khusus untuk Member VIP MusifyStar.' });
             }
 
+            // Cek apakah pengguna sedang dalam masa Percobaan VIP (isVipTrial) dan fitur Custom ID tidak dicentang Admin
+            if (user.isVipTrial) {
+                let isCustomIdAllowedInTrial = true;
+                try {
+                    const paymentConfigApi = require('./payment-config.js');
+                    if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                        const payCfg = await paymentConfigApi.getPaymentConfig();
+                        if (payCfg && payCfg.vipTrialConfig && payCfg.vipTrialConfig.allowedFeatures) {
+                            user.trialAllowedFeatures = Object.assign({}, payCfg.vipTrialConfig.allowedFeatures);
+                        }
+                    }
+                } catch (e) {}
+                if (user.trialAllowedFeatures && user.trialAllowedFeatures.customId === false) {
+                    isCustomIdAllowedInTrial = false;
+                }
+                if (!isCustomIdAllowedInTrial) {
+                    return res.status(403).json({
+                        status: false,
+                        message: 'Fitur Custom ID VIP dikunci oleh Admin selama masa Percobaan VIP (Free Trial)! Upgrade ke VIP Penuh untuk menggunakan Custom ID.'
+                    });
+                }
+            }
+
             // Rule: jika user sedang menggunakan Trial ID yang belum habis, tidak boleh ganti sampai masa trial habis
             if (user.customId && user.customIdExpiresAt && Date.now() < user.customIdExpiresAt) {
                 return res.status(400).json({
@@ -3130,6 +4267,234 @@ module.exports = async (req, res) => {
                     customId: null
                 }
             });
+        }
+
+        // POST /api/user-auth?action=claim_vip_trial (Pengguna Baru Klaim Percobaan VIP Gratis)
+        if (action === 'claim_vip_trial') {
+            const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.body?.token;
+            let targetUserId = getUserIdFromToken(token, db);
+            const verified = verifyUserToken(token);
+            let user = targetUserId ? db.users.find(u => u && (String(u.id) === String(targetUserId) || String(u.originalId) === String(targetUserId))) : null;
+            if (!user && verified) {
+                user = db.users.find(u => u && ((u.id && String(u.id) === String(verified.uid)) || (u.originalId && String(u.originalId) === String(verified.uid)) || (verified.u && (u.username || '').toLowerCase() === String(verified.u).toLowerCase())));
+            }
+            if (!user && body.userId) {
+                user = db.users.find(u => u && (String(u.id) === String(body.userId) || String(u.originalId) === String(body.userId)));
+            }
+            if (!user) {
+                return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu untuk mengklaim Percobaan VIP.' });
+            }
+
+            let paymentConfig = {};
+            try {
+                const paymentConfigApi = require('./payment-config.js');
+                if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                    paymentConfig = await paymentConfigApi.getPaymentConfig();
+                }
+            } catch (e) {}
+
+            const trialCfg = (paymentConfig && paymentConfig.vipTrialConfig) || {
+                enabled: true,
+                durationDays: 7,
+                borderAccess: 'platinum',
+                allowedFeatures: {
+                    liquidGlassIos27: true,
+                    nameGlow: true,
+                    customId: true,
+                    vipAvatar: true,
+                    dynamicIsland: true,
+                    highAudio: true,
+                    backgroundPlay: true,
+                    keepScreenAwake: true,
+                    swipeGestures: true,
+                    vipSultanBadge: true
+                }
+            };
+
+            if (trialCfg.enabled === false) {
+                return res.status(403).json({
+                    status: false,
+                    message: 'Program Percobaan VIP Pengguna Baru sedang dinonaktifkan sementara oleh Admin.'
+                });
+            }
+
+            if (user.hasClaimedVipTrial) {
+                return res.status(400).json({
+                    status: false,
+                    message: 'Akun Anda sudah pernah mengklaim Percobaan VIP Pengguna Baru sebelumnya (1x per akun).'
+                });
+            }
+
+            const vipInfo = resolveUserVipStatus(user);
+            if (vipInfo.isPremium && !user.isVipTrial) {
+                return res.status(400).json({
+                    status: false,
+                    message: 'Akun Anda sudah berstatus Member VIP Aktif!'
+                });
+            }
+
+            const durationDays = Math.max(1, Math.min(3650, Number(trialCfg.durationDays) || 7));
+            const borderAccess = String(trialCfg.borderAccess || 'platinum').toLowerCase();
+            const expiresAt = Date.now() + (durationDays * 24 * 3600 * 1000);
+
+            user.isPremium = true;
+            user.vipTier = borderAccess === 'all' ? 'permanent' : (borderAccess === 'platinum_master_legend' ? '2months' : '1month');
+            user.vipGrantedAt = Date.now();
+            user.vipExpiresAt = expiresAt;
+            user.vipSource = 'trial';
+            user.isVipTrial = true;
+            user.hasClaimedVipTrial = true;
+            user.trialClaimedAt = new Date().toISOString();
+            user.trialExpiredAt = null;
+            user.trialDurationDays = durationDays;
+            user.trialBorderAccess = borderAccess;
+            user.trialAllowedFeatures = trialCfg.allowedFeatures || {};
+            user.hasUnpaidTrialInvoice = false;
+            user.pendingTrialInvoice = null;
+
+            if (user.trialAllowedFeatures.customId === false && user.customId) {
+                user.id = user.originalId || user.id;
+                user.customId = null;
+                user.customIdExpiresAt = null;
+                user.isCustomIdTrial = false;
+            }
+            if (user.trialAllowedFeatures.nameGlow === false && user.nameGlow) {
+                user.nameGlow = '';
+            }
+
+            // Pasang Border Platinum otomatis jika user belum punya border dan akses border diizinkan
+            if (!user.border && borderAccess !== 'none') {
+                user.border = 'border_platinum';
+                user.borderUrl = '/api/borders?action=image&id=border_platinum';
+                user.borderName = 'Platinum';
+            }
+
+            await writeDbAsync(db);
+
+            const borderLabelMap = {
+                'platinum': 'Border Platinum',
+                'platinum_master': 'Border Platinum & Master',
+                'platinum_master_legend': 'Border Platinum, Master & Legend',
+                'all': 'Semua Border VIP',
+                'none': 'Fitur VIP (Tanpa Border)'
+            };
+
+            return res.json({
+                status: true,
+                message: `Selamat! Percobaan VIP Gratis selama ${durationDays} Hari (${borderLabelMap[borderAccess] || 'Border Platinum'}) berhasil diaktifkan! Saat masa trial berakhir, rincian tagihan akan dikirim ke email ${user.rawEmail || user.email}.`,
+                user: {
+                    id: user.id,
+                    originalId: user.originalId || user.id,
+                    username: user.username,
+                    email: user.rawEmail || user.email,
+                    isPremium: true,
+                    vipTier: user.vipTier,
+                    vipExpiresAt: user.vipExpiresAt,
+                    vipSource: 'trial',
+                    isVipTrial: true,
+                    hasClaimedVipTrial: true,
+                    trialClaimedAt: user.trialClaimedAt,
+                    trialDurationDays: user.trialDurationDays,
+                    trialBorderAccess: user.trialBorderAccess,
+                    trialAllowedFeatures: user.trialAllowedFeatures,
+                    hasUnpaidTrialInvoice: false,
+                    pendingTrialInvoice: null,
+                    border: user.border,
+                    borderUrl: user.borderUrl,
+                    borderName: user.borderName
+                }
+            });
+        }
+
+        // POST /api/user-auth?action=user_trial_invoice_action (Pengguna Scan QRIS -> WA Admin atau Pilih Tidak Lanjut Perpanjang)
+        if (action === 'user_trial_invoice_action') {
+            const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.body?.token;
+            let targetUserId = getUserIdFromToken(token, db);
+            const verified = verifyUserToken(token);
+            let user = targetUserId ? db.users.find(u => u && (String(u.id) === String(targetUserId) || String(u.originalId) === String(targetUserId))) : null;
+            if (!user && verified) {
+                user = db.users.find(u => u && ((u.id && String(u.id) === String(verified.uid)) || (u.originalId && String(u.originalId) === String(verified.uid)) || (verified.u && (u.username || '').toLowerCase() === String(verified.u).toLowerCase())));
+            }
+            if (!user && body.userId) {
+                user = db.users.find(u => u && (String(u.id) === String(body.userId) || String(u.originalId) === String(body.userId)));
+            }
+            if (!user) {
+                return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu.' });
+            }
+
+            const subAction = String(body.subAction || '').toLowerCase().trim();
+
+            if (subAction === 'confirm_qris_scan') {
+                const chosenMethod = String(body.paymentMethod || 'QRIS').toUpperCase();
+                if (!user.pendingTrialInvoice || typeof user.pendingTrialInvoice !== 'object') {
+                    user.pendingTrialInvoice = {
+                        invoiceId: body.invoiceId || ('INV-VIP-' + Date.now().toString().slice(-6)),
+                        userId: user.id,
+                        username: user.username,
+                        email: user.rawEmail || user.email || '',
+                        status: 'unpaid',
+                        createdAt: new Date().toISOString()
+                    };
+                }
+                user.pendingTrialInvoice.packageId = body.packageId || user.pendingTrialInvoice.packageId || 'pkg_1month';
+                user.pendingTrialInvoice.packageName = body.packageName || user.pendingTrialInvoice.packageName || 'Paket 1 Bulan VIP';
+                user.pendingTrialInvoice.amount = Number(body.amount) || Number(user.pendingTrialInvoice.amount) || 10000;
+                user.pendingTrialInvoice.duration = body.duration || user.pendingTrialInvoice.duration || '30 Hari';
+                user.pendingTrialInvoice.paymentMethod = chosenMethod;
+                user.pendingTrialInvoice.waitingAdminApproval = true;
+                user.pendingTrialInvoice.scannedAt = new Date().toISOString();
+                user.pendingTrialInvoice.userChoice = 'continue';
+                await writeDbAsync(db);
+
+                return res.json({
+                    status: true,
+                    message: 'Status pembayaran telah tercatat! Mengarahkan ke WhatsApp Admin untuk pengiriman bukti transfer...',
+                    user: {
+                        id: user.id,
+                        username: user.username,
+                        hasUnpaidTrialInvoice: Boolean(user.hasUnpaidTrialInvoice),
+                        pendingTrialInvoice: user.pendingTrialInvoice
+                    }
+                });
+            }
+
+            if (subAction === 'decline_renewal') {
+                user.hasUnpaidTrialInvoice = false;
+                user.isVipTrial = false;
+                if (user.vipSource === 'trial') {
+                    user.isPremium = false;
+                    user.vipTier = 'none';
+                    user.vipExpiresAt = null;
+                    user.vipSource = 'standard';
+                    user.border = '';
+                    user.borderUrl = '';
+                    user.borderName = '';
+                }
+                if (user.pendingTrialInvoice && typeof user.pendingTrialInvoice === 'object') {
+                    user.pendingTrialInvoice.status = 'declined';
+                    user.pendingTrialInvoice.waitingAdminApproval = false;
+                    user.pendingTrialInvoice.userChoice = 'declined';
+                    user.pendingTrialInvoice.declinedAt = new Date().toISOString();
+                }
+                await writeDbAsync(db);
+
+                return res.json({
+                    status: true,
+                    message: 'Perpanjangan VIP dibatalkan. Tagihan telah dihapus dan akun Anda kembali menjadi akun reguler.',
+                    user: {
+                        id: user.id,
+                        username: user.username,
+                        isPremium: Boolean(user.isPremium),
+                        vipTier: user.vipTier || 'none',
+                        vipExpiresAt: user.vipExpiresAt || null,
+                        isVipTrial: false,
+                        hasUnpaidTrialInvoice: false,
+                        pendingTrialInvoice: user.pendingTrialInvoice
+                    }
+                });
+            }
+
+            return res.status(400).json({ status: false, message: 'Sub-action tidak dikenal.' });
         }
 
         return res.status(400).json({ status: false, message: 'Action tidak dikenal' });
