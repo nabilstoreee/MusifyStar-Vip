@@ -1563,7 +1563,7 @@ var Auth = {
                         </div>
                         <div class="mt-2 text-center">
                             <p class="text-white font-black text-sm truncate flex items-center justify-center">
-                                <span>${es(u.username)}</span>${isVerified ? `<span id="modal-badge-wrapper" class="global-verified-badge-container inline-flex items-center">${Auth.getVerifiedBadgeHTML(badgeS)}</span>` : ''}
+                                <span id="modal-profile-username-glow-span">${Auth.renderUsernameWithGlow(u.username, Auth.canUserUseNameGlow(u) ? u.nameGlow : '')}</span>${isVerified ? `<span id="modal-badge-wrapper" class="global-verified-badge-container inline-flex items-center">${Auth.getVerifiedBadgeHTML(badgeS)}</span>` : ''}
                             </p>
                             ${isUserVip ? `
                             <div class="mt-1 flex items-center justify-center shrink-0">
@@ -1610,6 +1610,25 @@ var Auth = {
                         </button>
                         ` : ''}
                     </div>
+
+                    <!-- Efek Nama Berwarna / Gradien Animasi (VIP ONLY) -->
+                    <button type="button" onclick="Auth.openNameGlowPickerModal()" class="w-full p-2.5 rounded-2xl bg-gradient-to-r from-fuchsia-500/15 via-cyan-500/15 to-amber-500/15 hover:from-fuchsia-500/25 hover:to-amber-500/25 border border-fuchsia-400/40 flex items-center justify-between text-left active:scale-[0.99] transition-all cursor-pointer shadow-sm group">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-7 h-7 rounded-xl bg-fuchsia-500/20 border border-fuchsia-400/30 text-fuchsia-300 flex items-center justify-center shrink-0">
+                                <i data-lucide="sparkles" class="w-4 h-4 text-fuchsia-300"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <h4 class="text-xs font-black text-white group-hover:text-fuchsia-300 transition-colors">Efek Nama Berwarna / Gradien Animasi</h4>
+                                    ${(u.isVipTrial && !Auth.canUserUseNameGlow(u))
+                                        ? `<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-rose-500/25 text-rose-300 border border-rose-400/40 uppercase tracking-wider">🔒 DIKUNCI ADMIN (TRIAL)</span>`
+                                        : `<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-fuchsia-500/25 text-fuchsia-200 border border-fuchsia-400/40 uppercase tracking-wider">VIP ONLY</span>`}
+                                </div>
+                                <p class="text-[9.5px] text-white/55 leading-tight truncate">Gaya teks username neon/gradien bergerak khusus Member VIP</p>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-fuchsia-300 shrink-0"></i>
+                    </button>
 
                     <!-- Shortcut ke Papan Peringkat & Global Stats -->
                     <button type="button" onclick="if(window.GlobalStats) GlobalStats.openModal();" class="w-full p-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 hover:from-amber-500/25 hover:to-orange-500/25 border border-amber-400/35 flex items-center justify-between text-left active:scale-[0.99] transition-all cursor-pointer shadow-sm group">
@@ -2731,11 +2750,14 @@ var Auth = {
         var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
         var isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
         var isUserPremium = ((u.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com') || (Boolean(u.isPremium || u.is_premium || isTierActive) && u.vipTier !== 'none' && !isVipExpired);
+        var isVipAvatarAllowed = (typeof Profile !== 'undefined' && typeof Profile.isVipFeatureAllowed === 'function')
+            ? Profile.isVipFeatureAllowed('vipAvatar')
+            : isUserPremium;
         var currentAvatar = u.avatar || '';
 
         grid.innerHTML = filtered.map(function(av) {
             var isSelected = currentAvatar === av.url;
-            var locked = av.isPremium && !isUserPremium;
+            var locked = av.isPremium && !isVipAvatarAllowed;
 
             return `
                 <div onclick="Auth.selectAvatar('${encodeURIComponent(av.url)}', ${av.isPremium ? 'true' : 'false'}, '${av.id}')" 
@@ -2761,7 +2783,7 @@ var Auth = {
                             <div class="w-8 h-8 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 mb-1">
                                 <i data-lucide="lock" class="w-4 h-4"></i>
                             </div>
-                            <span class="text-[9px] font-bold text-red-300">Khusus VIP</span>
+                            <span class="text-[9px] font-bold text-red-300 text-center px-1">${u.isVipTrial ? 'Dikunci Admin (Trial)' : 'Khusus VIP'}</span>
                         </div>
                     ` : ''}
 
@@ -2786,10 +2808,19 @@ var Auth = {
         var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
         var isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
         var isUserPremium = ((u.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com') || (Boolean(u.isPremium || u.is_premium || isTierActive) && u.vipTier !== 'none' && !isVipExpired);
+        var isVipAvatarAllowed = (typeof Profile !== 'undefined' && typeof Profile.isVipFeatureAllowed === 'function')
+            ? Profile.isVipFeatureAllowed('vipAvatar')
+            : isUserPremium;
 
-        if (isPremium && !isUserPremium) {
-            showToast('Avatar ini terkunci khusus pengguna Premium / VIP!');
-            if (typeof Profile !== 'undefined' && Profile.openPaymentModal) {
+        if (isPremium && !isVipAvatarAllowed) {
+            if (u.isVipTrial) {
+                showToast('🔒 Katalog Avatar VIP dikunci oleh Admin selama masa Percobaan VIP (Free Trial)! Upgrade ke VIP Penuh untuk memakai avatar ini.');
+            } else {
+                showToast('Avatar ini terkunci khusus pengguna Premium / VIP!');
+            }
+            if (typeof Profile !== 'undefined' && Profile.openVipPackagesModal) {
+                setTimeout(function() { Profile.openVipPackagesModal(); }, 900);
+            } else if (typeof Profile !== 'undefined' && Profile.openPaymentModal) {
                 setTimeout(function() { Profile.openPaymentModal(); }, 1200);
             }
             return;
@@ -3501,6 +3532,16 @@ var Auth = {
             return;
         }
 
+        if (u.isVipTrial && typeof Profile !== 'undefined' && typeof Profile.isVipFeatureAllowed === 'function' && !Profile.isVipFeatureAllowed('customId')) {
+            if (typeof showToast === 'function') {
+                showToast('🔒 Fitur Custom ID VIP tidak dibuka oleh Admin selama masa Percobaan VIP (Free Trial)! Upgrade ke VIP Penuh untuk menggunakan Custom ID.');
+            }
+            if (typeof Profile !== 'undefined' && Profile.openVipPackagesModal) {
+                Profile.openVipPackagesModal();
+            }
+            return;
+        }
+
         document.querySelectorAll('#customid-picker-modal').forEach(function(el) { el.remove(); });
 
         var renderModalBodyHtml = function(dataObj, isLoading) {
@@ -3896,9 +3937,9 @@ var Auth = {
                 color: '#facc15',
                 reqHours: 0,
                 reqLabel: 'VIP Active',
-                specialReq: 'Memerlukan Akun VIP Aktif',
+                specialReq: u.isVipTrial ? 'Dikunci Admin (Khusus VIP Penuh)' : 'Memerlukan Akun VIP Aktif',
                 desc: 'Lencana Mahkota Emas Sultan khusus Pengguna VIP.',
-                unlocked: isUserVip
+                unlocked: isUserVip && (!u.isVipTrial || (typeof Profile === 'undefined' || !Profile.isVipFeatureAllowed || Profile.isVipFeatureAllowed('vipSultanBadge')))
             },
             {
                 id: 'badge_top_champion',
@@ -4451,12 +4492,9 @@ var Auth = {
         u = u || Auth.currentUser || {};
         var myEmail = String(u.email || u.rawEmail || '').toLowerCase().trim();
         var isMasterAdmin = (myEmail === 'jrnabil570@gmail.com');
-        if (isMasterAdmin) {
-            return { unlocked: true, lockBadge: '', toast: '' };
-        }
         var isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
         var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
-        var isUserVip = ((Boolean(u.isPremium || u.is_premium || isTierActive)) && u.vipTier !== 'none' && !isVipExpired);
+        var isUserVip = isMasterAdmin || (((Boolean(u.isPremium || u.is_premium || isTierActive)) && u.vipTier !== 'none' && !isVipExpired));
         if (!isUserVip) {
             return {
                 unlocked: false,
@@ -4468,6 +4506,43 @@ var Auth = {
         var tierRankMap = { 'none': 0, '1month': 1, '2months': 2, '5months': 3, 'permanent': 4, 'lifetime': 4, 'sultan': 4 };
         var reqTier = String(b.requiredTier || '1month').toLowerCase();
         var reqRank = tierRankMap[reqTier] !== undefined ? tierRankMap[reqTier] : 1;
+
+        // Jika pengguna sedang menggunakan paket Percobaan VIP (Free Trial), patuhi pengaturan Akses Border dari Admin (termasuk saat Admin menguji Trial)
+        if (u.isVipTrial) {
+            var trialAccess = String(u.trialBorderAccess || 'platinum').toLowerCase();
+            if (trialAccess === 'all') {
+                return { unlocked: true, lockBadge: '', toast: '' };
+            }
+            if (trialAccess === 'none') {
+                return {
+                    unlocked: false,
+                    lockBadge: 'Diatur Admin (Trial)',
+                    toast: `Akses Border ${b.name} dikunci oleh Admin untuk paket Percobaan VIP. Upgrade ke VIP penuh untuk membuka semua border!`
+                };
+            }
+            var tbId = String(b.id || '').toLowerCase().trim();
+            var tbName = String(b.name || '').toLowerCase().trim();
+            var tbCat = String(b.category || '').toLowerCase().trim();
+            var isPlat = (tbId === 'border_platinum' || tbCat === 'platinum' || tbName.indexOf('platinum') !== -1);
+            var isMast = (tbId === 'border_master' || tbCat === 'master' || tbName.indexOf('master') !== -1);
+            var isLeg = (tbId === 'border_legend' || tbCat === 'legend' || tbName.indexOf('legend') !== -1);
+            var allowedByTrial = false;
+            if (trialAccess === 'platinum') allowedByTrial = isPlat;
+            else if (trialAccess === 'platinum_master') allowedByTrial = isPlat || isMast;
+            else if (trialAccess === 'platinum_master_legend') allowedByTrial = isPlat || isMast || isLeg;
+            if (allowedByTrial) {
+                return { unlocked: true, lockBadge: '', toast: '' };
+            }
+            return {
+                unlocked: false,
+                lockBadge: 'Khusus VIP Penuh',
+                toast: `Border ${b.name} dikunci oleh Admin untuk Percobaan VIP (Trial). Upgrade langganan VIP penuh untuk membuka border ini!`
+            };
+        }
+
+        if (isMasterAdmin) {
+            return { unlocked: true, lockBadge: '', toast: '' };
+        }
 
         // Jika VIP berasal dari Referral dan dibatasi aturan Border Profil oleh Admin
         if (u.referralBorderRestricted) {
@@ -4962,6 +5037,290 @@ var Auth = {
         setTimeout(function() {
             window.location.reload();
         }, 50);
+    },
+
+    getNameGlowCatalog() {
+        return [
+            {
+                id: 'none',
+                name: 'Putih Standar (Default)',
+                subtitle: 'Teks putih bersih tanpa efek gradien',
+                badge: 'Standar',
+                className: ''
+            },
+            {
+                id: 'cyber_neon',
+                name: 'Cyber Neon Pulse',
+                subtitle: 'Gradien sian elektrik, biru langit & magenta bergerak',
+                badge: 'VIP / Donatur',
+                className: 'vip-name-glow vip-name-glow-cyber_neon'
+            },
+            {
+                id: 'royal_gold',
+                name: 'Royal Sultan Gold',
+                subtitle: 'Kilau emas murni & cahaya mahkota mewah',
+                badge: 'VIP / Donatur',
+                className: 'vip-name-glow vip-name-glow-royal_gold'
+            },
+            {
+                id: 'crimson_flame',
+                name: 'Crimson Phoenix Flame',
+                subtitle: 'Efek bara merah menyala & jingga keemasan',
+                badge: 'VIP / Donatur',
+                className: 'vip-name-glow vip-name-glow-crimson_flame'
+            },
+            {
+                id: 'emerald_aurora',
+                name: 'Emerald Aurora Matrix',
+                subtitle: 'Gelombang hijau zamrud & pirus kutub utara',
+                badge: 'VIP / Donatur',
+                className: 'vip-name-glow vip-name-glow-emerald_aurora'
+            },
+            {
+                id: 'galaxy_amethyst',
+                name: 'Galaxy Amethyst Nebula',
+                subtitle: 'Cahaya ungu kosmik, merah muda & indigo bintang',
+                badge: 'VIP / Donatur',
+                className: 'vip-name-glow vip-name-glow-galaxy_amethyst'
+            },
+            {
+                id: 'rainbow_prism',
+                name: 'Rainbow Prism RGB',
+                subtitle: 'Spektrum pelangi RGB penuh bergelombang halus',
+                badge: 'VIP / Donatur',
+                className: 'vip-name-glow vip-name-glow-rainbow_prism'
+            },
+            {
+                id: 'ice_diamond',
+                name: 'Ice Crystal Diamond',
+                subtitle: 'Kilau berlian es biru muda & putih kristal',
+                badge: 'VIP / Donatur',
+                className: 'vip-name-glow vip-name-glow-ice_diamond'
+            },
+            {
+                id: 'liquid_glass',
+                name: 'Liquid Glass iOS 27',
+                subtitle: 'Kilau kaca cair kristal prismatik khas iOS 27 VIP',
+                badge: 'VIP / Donatur',
+                className: 'vip-name-glow vip-name-glow-liquid_glass'
+            }
+        ];
+    },
+
+    getNameGlowInfo(glowId) {
+        var clean = String(glowId || '').trim().toLowerCase();
+        var list = Auth.getNameGlowCatalog();
+        return list.find(function(item) { return item.id === clean; }) || list[0];
+    },
+
+    getNameGlowClass(glowId) {
+        var info = Auth.getNameGlowInfo(glowId);
+        return info ? (info.className || '') : '';
+    },
+
+    renderUsernameWithGlow(usernameText, glowId, extraClass) {
+        var safeText = String(usernameText || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        var effectiveGlowId = glowId;
+        if (Auth.currentUser && String(usernameText || '').toLowerCase().replace(/^@/, '') === String(Auth.currentUser.username || '').toLowerCase().replace(/^@/, '')) {
+            if (!Auth.canUserUseNameGlow(Auth.currentUser)) {
+                effectiveGlowId = '';
+            }
+        }
+        var glowCls = Auth.getNameGlowClass(effectiveGlowId);
+        var combined = ((glowCls ? glowCls + ' ' : '') + (extraClass || '')).trim();
+        if (!combined) return safeText;
+        return `<span class="${combined}">${safeText}</span>`;
+    },
+
+    canUserUseNameGlow(user) {
+        var u = user || Auth.currentUser;
+        if (!u) return false;
+        // Jika pengguna sedang dalam masa Percobaan VIP (Trial), wajib patuhi centang Admin tanpa pengecualian!
+        if (u.isVipTrial) {
+            if (u.trialAllowedFeatures && u.trialAllowedFeatures.nameGlow === false) {
+                return false;
+            }
+            if (typeof Profile !== 'undefined' && typeof Profile.isVipFeatureAllowed === 'function') {
+                return Profile.isVipFeatureAllowed('nameGlow');
+            }
+        }
+        var isMasterAdmin = Boolean(((u.email || u.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com') || ((u.username || '').toLowerCase().trim() === 'musifystar') || u.isMasterAdmin);
+        var isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
+        var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
+        var isUserVip = (isMasterAdmin || ((Boolean(u.isPremium || u.is_premium || isTierActive)) && u.vipTier !== 'none')) && !isVipExpired;
+        return Boolean(isMasterAdmin || isUserVip);
+    },
+
+    openNameGlowPickerModal() {
+        var u = Auth.currentUser;
+        if (!u) {
+            if (typeof showToast === 'function') showToast('Silakan login terlebih dahulu untuk memilih Efek Nama.');
+            Auth.toggleTopDropdown();
+            return;
+        }
+
+        var existing = gid('name-glow-picker-modal');
+        if (existing) existing.remove();
+
+        var canEquip = Auth.canUserUseNameGlow(u);
+        if (!canEquip && u.nameGlow) {
+            u.nameGlow = '';
+            Auth.saveUser(u);
+        }
+        var currentGlow = canEquip ? (String(u.nameGlow || 'none').trim().toLowerCase() || 'none') : 'none';
+        var catalog = Auth.getNameGlowCatalog();
+        var displayUname = u.username || 'MusifyStar';
+
+        var modal = document.createElement('div');
+        modal.id = 'name-glow-picker-modal';
+        modal.className = 'fixed inset-0 z-[760] flex items-center justify-center p-4 select-none';
+        modal.innerHTML = `
+            <div onclick="gid('name-glow-picker-modal')?.remove()" class="fixed inset-0 bg-black/85 backdrop-blur-md"></div>
+            <div class="relative z-10 w-full max-w-md bg-[#11131c] border border-fuchsia-500/35 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88dvh]">
+                <!-- Header -->
+                <div class="p-4 sm:p-5 border-b border-white/10 bg-gradient-to-r from-fuchsia-500/15 via-cyan-500/10 to-amber-500/15 flex items-center justify-between">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-2xl bg-fuchsia-500/20 border border-fuchsia-400/40 flex items-center justify-center text-fuchsia-300 shrink-0 shadow-inner">
+                            <i data-lucide="sparkles" class="w-5 h-5"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <h3 class="text-white font-black text-sm sm:text-base tracking-tight">Efek Nama Berwarna (VIP Glow)</h3>
+                            </div>
+                            <p class="text-[11px] text-white/55 truncate">Gradien animasi khusus Member VIP</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="gid('name-glow-picker-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center cursor-pointer active:scale-95 transition-all">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Live Preview Box -->
+                <div class="px-4 pt-3.5 pb-2 bg-[#0c0e15] border-b border-white/10">
+                    <div class="p-3.5 rounded-2xl bg-[#161924] border border-white/10 text-center space-y-1">
+                        <span class="text-[9.5px] font-mono uppercase tracking-widest text-white/45 block">Pratinjau Langsung Username Anda</span>
+                        <div class="text-base sm:text-lg font-black tracking-tight py-0.5 flex items-center justify-center gap-1.5">
+                            <span id="name-glow-live-preview-text" class="${Auth.getNameGlowClass(currentGlow)}">@${es(displayUname)}</span>
+                            ${Auth.getVipBadgeHTML('text-[8px]')}
+                        </div>
+                        <p class="text-[10px] text-white/45">Tampil otomatis di Profil, Ruang Chat Global & Papan Peringkat</p>
+                    </div>
+                    ${!canEquip ? `
+                    <div class="mt-2.5 p-2.5 rounded-xl bg-rose-500/15 border border-rose-400/35 flex items-center justify-between gap-2 text-[10.5px]">
+                        <span class="text-rose-200/95 leading-snug">${u.isVipTrial ? '🔒 Fitur <strong>Efek Nama Berwarna</strong> tidak dicentang / dikunci oleh Admin selama masa Percobaan VIP (Free Trial). Upgrade ke VIP Penuh untuk memakai fitur ini!' : '🔒 Fitur eksklusif khusus <strong>Member VIP MusifyStar</strong>. Akun non-VIP tidak dapat memakai Efek Nama Berwarna.'}</span>
+                        <button type="button" onclick="gid('name-glow-picker-modal')?.remove(); if(typeof Profile !== 'undefined') Profile.openVipPackagesModal();" class="px-2.5 py-1 rounded-lg bg-amber-400 text-black font-black text-[10px] shrink-0 cursor-pointer active:scale-95">Buka VIP</button>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <!-- List of Glow Styles -->
+                <div class="p-4 overflow-y-auto hide-scrollbar space-y-2.5 flex-1">
+                    ${catalog.map(function(item) {
+                        var isSelected = (currentGlow === item.id) || (currentGlow === '' && item.id === 'none');
+                        var isLockedItem = !canEquip && item.id !== 'none';
+                        return `
+                        <div onclick="Auth.equipNameGlow('${item.id}')" class="p-3 rounded-2xl border transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between gap-3 ${isSelected ? 'bg-fuchsia-500/15 border-fuchsia-400 shadow-[0_0_18px_rgba(217,70,239,0.25)]' : (isLockedItem ? 'bg-white/[0.02] border-white/10 opacity-75' : 'bg-white/[0.03] hover:bg-white/[0.07] border-white/10')}">
+                            <div class="min-w-0 flex-1 space-y-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-sm font-black ${item.className || 'text-white'}">@${es(displayUname)}</span>
+                                    <span class="text-[8.5px] px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider ${item.id === 'none' ? 'bg-white/10 text-white/60 border border-white/15' : 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-400/35'}">${es(item.name)}</span>
+                                </div>
+                                <p class="text-[10px] text-white/50 truncate">${es(item.subtitle)}</p>
+                            </div>
+                            <div class="shrink-0">
+                                ${isSelected ? `
+                                <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-black text-[10px] inline-flex items-center gap-1">
+                                    <i data-lucide="check" class="w-3 h-3"></i> Dipakai
+                                </span>
+                                ` : (isLockedItem ? `
+                                <span class="px-2.5 py-1 rounded-full bg-rose-500/20 border border-rose-400/40 text-rose-300 font-bold text-[10px] inline-flex items-center gap-1">
+                                    <i data-lucide="lock" class="w-3 h-3"></i> Terkunci
+                                </span>
+                                ` : `
+                                <span class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white/80 font-bold text-[10px] inline-flex items-center gap-1">
+                                    Pakai
+                                </span>
+                                `)}
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            try { window.lucide.createIcons(); } catch(e){}
+        }
+    },
+
+    async equipNameGlow(glowId) {
+        var u = Auth.currentUser;
+        if (!u) return;
+
+        var cleanGlow = String(glowId || '').trim().toLowerCase();
+        if (cleanGlow !== 'none' && cleanGlow !== '' && !Auth.canUserUseNameGlow(u)) {
+            if (typeof showToast === 'function') {
+                if (u.isVipTrial) {
+                    showToast('🔒 Fitur Efek Nama Berwarna tidak dicentang / dikunci oleh Admin selama masa Percobaan VIP (Free Trial)! Upgrade ke VIP Penuh untuk membuka fitur ini.');
+                } else {
+                    showToast('🔒 Efek Nama Berwarna khusus untuk Member VIP MusifyStar! Silakan berlangganan VIP terlebih dahulu.');
+                }
+            }
+            return;
+        }
+
+        var previewEl = gid('name-glow-live-preview-text');
+        if (previewEl) {
+            previewEl.className = Auth.getNameGlowClass(cleanGlow);
+        }
+
+        try {
+            var token = Auth.token || localStorage.getItem('musifystar_auth_token') || sessionStorage.getItem('musifystar_auth_token') || '';
+            var res = await fetch('/api/user-auth?action=update_profile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    nameGlow: cleanGlow === 'none' ? '' : cleanGlow
+                })
+            });
+            var data = await res.json();
+            if (data && data.status && data.user) {
+                Auth.currentUser = Object.assign({}, Auth.currentUser, data.user);
+                Auth.saveUser(Auth.currentUser);
+                var info = Auth.getNameGlowInfo(cleanGlow);
+                if (typeof showToast === 'function') {
+                    showToast(cleanGlow === 'none' || !cleanGlow ? 'Efek nama dikembalikan ke standar.' : ('✨ Efek Nama "' + info.name + '" berhasil dipasang!'));
+                }
+                gid('name-glow-picker-modal')?.remove();
+                var spanModal = gid('modal-profile-username-glow-span');
+                if (spanModal) {
+                    spanModal.innerHTML = Auth.renderUsernameWithGlow(Auth.currentUser.username, Auth.currentUser.nameGlow);
+                }
+                if (typeof Profile !== 'undefined' && typeof Profile.render === 'function') {
+                    try { Profile.render(); } catch(e){}
+                }
+                if (typeof GlobalChat !== 'undefined' && GlobalChat.isOpen) {
+                    try { GlobalChat.renderMessagesList(GlobalChat.messages || [], false); } catch(e){}
+                }
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast((data && data.message) || 'Gagal menyimpan efek nama.');
+                }
+            }
+        } catch(e) {
+            if (typeof showToast === 'function') {
+                showToast('Gagal menyimpan efek nama ke server.');
+            }
+        }
     }
 };
 

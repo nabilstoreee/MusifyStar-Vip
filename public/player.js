@@ -542,14 +542,38 @@ function normalizeAudioStreamUrl(url) {
     return url.replace(/(\.savetube\.vip)\/file\//i, '$1/media/');
 }
 
+function getActiveStreamingBitrate() {
+    try {
+        if (typeof Profile !== 'undefined' && typeof Profile.getAudioQualityBitrateInfo === 'function') {
+            var info = Profile.getAudioQualityBitrateInfo();
+            if (info && info.bitrate) return String(info.bitrate);
+        }
+    } catch(e) {}
+    return '128';
+}
+window.getActiveStreamingBitrate = getActiveStreamingBitrate;
+
+function clearCachedStreamAudioUrls() {
+    audioUrlCache = {};
+    try { localStorage.removeItem('pwa_audio_cache_v2'); } catch(e) {}
+}
+window.clearCachedStreamAudioUrls = clearCachedStreamAudioUrls;
+
 function getCachedAudioUrl(vid) {
-    if (!vid || !audioUrlCache[vid]) return null;
-    var entry = audioUrlCache[vid];
+    if (!vid) return null;
+    var qKey = vid + '_' + getActiveStreamingBitrate();
+    var entry = audioUrlCache[qKey] || audioUrlCache[vid];
+    if (!entry) return null;
     if (typeof entry === 'string') {
+        delete audioUrlCache[qKey];
         delete audioUrlCache[vid];
         return null;
     }
+    if (entry.quality && String(entry.quality) !== getActiveStreamingBitrate()) {
+        return null;
+    }
     if (!entry.url || !entry.ts || (Date.now() - entry.ts > AUDIO_CACHE_TTL_MS) || entry.url.includes('googlevideo.com')) {
+        delete audioUrlCache[qKey];
         delete audioUrlCache[vid];
         return null;
     }
@@ -558,8 +582,11 @@ function getCachedAudioUrl(vid) {
 
 function setCachedAudioUrl(vid, url) {
     if (!vid || !url || typeof url !== 'string' || url.includes('googlevideo.com')) return;
-    audioUrlCache[vid] = {
+    var activeQ = getActiveStreamingBitrate();
+    var qKey = vid + '_' + activeQ;
+    audioUrlCache[qKey] = {
         url: normalizeAudioStreamUrl(url),
+        quality: activeQ,
         ts: Date.now()
     };
     savePwaCaches();
@@ -650,7 +677,8 @@ async function triggerPreloadNextTrack(){
                 body: JSON.stringify({
                     query: nextYtUrl,
                     title: nextTrack.title || '',
-                    artist: nextTrack.artist || ''
+                    artist: nextTrack.artist || '',
+                    quality: getActiveStreamingBitrate()
                 })
             });
             var d = await r.json();
@@ -1340,7 +1368,8 @@ function prefetchTrackAudio(trackOrVid) {
         body: JSON.stringify({
             query: ytUrl,
             title: typeof trackOrVid === 'object' ? (trackOrVid.title || '') : '',
-            artist: typeof trackOrVid === 'object' ? (trackOrVid.artist || '') : ''
+            artist: typeof trackOrVid === 'object' ? (trackOrVid.artist || '') : '',
+            quality: getActiveStreamingBitrate()
         })
     }).then(function(r) { return r.json(); }).then(function(d) {
         if (d && d.status && d.result && d.result.download && d.result.download.audio) {
@@ -1409,6 +1438,7 @@ async function fetchAudioAndPlay(track,resumeAt,isRetry){
                     query:ytUrl,
                     title: track.title || '',
                     artist: track.artist || '',
+                    quality: getActiveStreamingBitrate(),
                     refresh: !!isRetry
                 }),
                 signal: signal
@@ -3094,7 +3124,8 @@ function downloadCurrentSong(){
         body: JSON.stringify({
             query: ytUrl,
             title: track.title || '',
-            artist: track.artist || ''
+            artist: track.artist || '',
+            quality: getActiveStreamingBitrate()
         })
     })
     .then(function(r){ return r.json(); })

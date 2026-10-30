@@ -121,7 +121,7 @@ var Profile = {
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-1.5 flex-wrap leading-tight">
                             <div class="inline-flex items-center min-w-0">
-                                <h3 class="text-white font-black text-base leading-none truncate max-w-[210px]">${Profile.escapeHtml(u.username)}</h3>
+                                <h3 class="text-white font-black text-base leading-none truncate max-w-[210px]">${(typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && u.nameGlow && u.nameGlow !== 'none') ? Auth.renderUsernameWithGlow(u.username, u.nameGlow) : Profile.escapeHtml(u.username)}</h3>
                                 ${(isMasterAdmin || u.isVerified) ? `
                                 <span class="global-verified-badge-container inline-flex items-center shrink-0">${typeof Auth !== 'undefined' && Auth.getVerifiedBadgeHTML ? Auth.getVerifiedBadgeHTML() : '<span class="inline-flex items-center shrink-0 self-center select-none" style="margin-left: 2.5px; transform: translateY(-0.5px); line-height: 1;" title="Akun Terverifikasi"><svg style="width: 15px; height: 15px;" class="shrink-0 block" viewBox="2 2 20 20" fill="none"><circle cx="12" cy="12" r="10" fill="#0095F6"/><path fill-rule="evenodd" clip-rule="evenodd" d="M16.707 8.293a1 1 0 0 1 0 1.414l-6 6a1 1 0 0 1-1.414 0l-3-3a1 1 0 1 1 1.414-1.414L10 13.586l5.293-5.293a1 1 0 0 1 1.414 0z" fill="#FFFFFF"/></svg></span>'}</span>` : ''}
                             </div>
@@ -151,7 +151,7 @@ var Profile = {
                     </div>
                 </div>
 
-                <!-- Action Buttons: Profil, Katalog Border, Leaderboard -->
+                <!-- Action Buttons: Profil, Katalog Border, Efek Nama VIP, Leaderboard -->
                 <div class="pt-3.5 space-y-2 relative z-10">
                     <button onclick="Auth.openUserProfileModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-sky-500/25 via-indigo-500/20 to-sky-500/15 hover:from-sky-500/35 hover:to-indigo-500/30 border border-sky-400/35 text-white font-bold text-xs flex items-center justify-between active:scale-[0.98] transition-all shadow-md shadow-sky-500/10 cursor-pointer group">
                         <span class="flex items-center gap-2.5">
@@ -171,6 +171,14 @@ var Profile = {
                             <span>Leaderboard</span>
                         </button>
                     </div>
+
+                    <button onclick="Auth.openNameGlowPickerModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-fuchsia-500/20 via-amber-500/15 to-cyan-500/20 hover:from-fuchsia-500/30 hover:to-cyan-500/30 border border-fuchsia-400/35 text-white font-bold text-xs flex items-center justify-between active:scale-[0.98] transition-all shadow-sm cursor-pointer group">
+                        <span class="flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i>
+                            <span>Efek Nama Berwarna / Gradien Animasi</span>
+                        </span>
+                        <span class="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/35 font-mono">VIP & DONATUR</span>
+                    </button>
 
                     ${isMasterAdmin ? `
                     <button onclick="Profile.openAdminModal();" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-purple-600/30 via-rose-600/30 to-purple-600/30 hover:from-purple-600/45 hover:to-rose-600/45 border border-purple-500/50 text-purple-200 font-extrabold text-xs flex items-center justify-between active:scale-[0.98] transition-all shadow-md shadow-purple-500/20 cursor-pointer group">
@@ -251,6 +259,18 @@ var Profile = {
                     </div>
                 </button>
 
+                <!-- Tombol Pengatur Kualitas Streaming (Hemat Kuota vs High Audio Quality) -->
+                <button onclick="Profile.openStreamingQualityModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-sky-500/15 via-indigo-500/15 to-transparent hover:from-sky-500/25 hover:to-indigo-500/25 border border-sky-400/35 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Atur Hemat Kuota Seluler vs High Audio Quality Wi-Fi">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="sliders" class="w-4 h-4 text-sky-400"></i>
+                        <span>Pengatur Kualitas Streaming (Kuota vs Wi-Fi)</span>
+                    </span>
+                    <div class="flex items-center gap-1.5">
+                        <span id="profile-streaming-quality-badge" class="text-[10px] font-mono font-extrabold text-sky-300 bg-sky-500/15 border border-sky-400/30 px-2 py-0.5 rounded-full">${Profile.getAudioQualityBitrateInfo ? Profile.getAudioQualityBitrateInfo().shortLabel : '128 kbps'}</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
+                    </div>
+                </button>
+
                 ${hasUser ? `
                 <!-- Tombol Riwayat Musik (Kalender Mendengarkan) -->
                 <button onclick="Profile.openListeningCalendarModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-cyan-500/15 via-sky-500/15 to-transparent hover:from-cyan-500/25 hover:to-sky-500/25 border border-cyan-500/30 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Lihat riwayat lagu di tanggal tertentu atau bulan lalu">
@@ -288,6 +308,18 @@ var Profile = {
                     </div>
                 </button>
                 ` : ''}
+
+                <!-- Tombol Efek Nama Berwarna / Gradien Animasi (VIP Name Glow) -->
+                <button onclick="Auth.openNameGlowPickerModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-fuchsia-500/15 via-amber-500/15 to-transparent hover:from-fuchsia-500/25 hover:to-amber-500/25 border border-fuchsia-400/35 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Pilihan warna teks username bergaya neon/gradien bergerak khusus VIP & Donatur">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i>
+                        <span>Efek Nama Berwarna / Gradien Animasi (VIP)</span>
+                    </span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-extrabold text-amber-200 bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 rounded-full">Name Glow</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
+                    </div>
+                </button>
 
                 <!-- Tombol Badge Khusus Donatur / Top Supporter -->
                 <button onclick="Profile.openSupporterBadgesModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-transparent hover:from-pink-500/25 hover:to-purple-500/25 border border-pink-400/35 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Lencana kehormatan spesial untuk pendukung setia MusifyStar">
@@ -492,6 +524,11 @@ var Profile = {
         var existing = gid('musifystar-vip-packages-modal');
         if (existing) existing.remove();
 
+        // Sinkronisasi sesi pengguna terbaru dari server terlebih dahulu agar jika Admin sudah klik Tandai Lunas / Perpanjang VIP / Batal, kartu merah tagihan langsung hilang real-time
+        if (typeof Auth !== 'undefined' && typeof Auth.checkSession === 'function') {
+            try { await Auth.checkSession(); } catch(e) {}
+        }
+
         var config = Profile.cachedPaymentConfig;
         try {
             var res = await fetch('/api/payment-config?t=' + Date.now());
@@ -522,6 +559,119 @@ var Profile = {
                          packages.find(function(p){ return p.popular; }) ||
                          packages[0];
         Profile.selectedVipPackage = defaultPkg;
+
+        // Konfigurasi Percobaan VIP (Free Trial) & Tagihan dari Admin
+        var trialCfg = (config && config.vipTrialConfig) ? config.vipTrialConfig : {
+            enabled: true,
+            durationDays: 7,
+            borderAccess: 'platinum',
+            allowedFeatures: {
+                liquidGlassIos27: true,
+                nameGlow: true,
+                dynamicIsland: true,
+                highAudio: true,
+                backgroundPlay: true,
+                keepScreenAwake: true,
+                swipeGestures: true
+            },
+            invoicePackageId: 'pkg_1month',
+            invoicePackageName: 'Paket 1 Bulan VIP',
+            invoiceAmount: 10000,
+            invoiceDuration: '30 Hari'
+        };
+
+        var currUser = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
+        var isMasterAdm = String(currUser.email || currUser.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com';
+        var invStatus = (currUser.pendingTrialInvoice && currUser.pendingTrialInvoice.status) ? String(currUser.pendingTrialInvoice.status).toLowerCase() : '';
+        var hasUnpaidInv = Boolean(
+            currUser.hasUnpaidTrialInvoice &&
+            invStatus !== 'paid' &&
+            invStatus !== 'declined'
+        );
+        var isCurrTrial = Boolean(currUser.isVipTrial && currUser.vipExpiresAt && Date.now() < currUser.vipExpiresAt);
+        var canClaimTrial = Boolean(trialCfg.enabled !== false && !currUser.hasClaimedVipTrial && !currUser.isPremium && !isMasterAdm && !hasUnpaidInv);
+
+        // Cek apakah pembayaran GoPay / DANA / OVO sedang ON atau OFF
+        var ewMasterOn = config ? (config.ewalletsEnabled !== false) : true;
+        var ewCfg = (config && config.ewallets) ? config.ewallets : {};
+        var activeEwalletNames = [];
+        if (ewMasterOn) {
+            if (!ewCfg.gopay || ewCfg.gopay.enabled !== false) activeEwalletNames.push('GoPay');
+            if (!ewCfg.dana || ewCfg.dana.enabled !== false) activeEwalletNames.push('DANA');
+            if (!ewCfg.ovo || ewCfg.ovo.enabled !== false) activeEwalletNames.push('OVO');
+        }
+        var paymentMethodSummaryText = activeEwalletNames.length > 0
+            ? ('QRIS / ' + activeEwalletNames.join(' / '))
+            : 'QRIS Resmi MusifyStar';
+
+        var borderAccessLabelMap = {
+            'platinum': 'Border Platinum',
+            'platinum_master': 'Border Platinum & Master',
+            'platinum_master_legend': 'Border Platinum, Master & Legend',
+            'all': 'Semua Border VIP (Termasuk Immortal)',
+            'none': 'Fitur VIP (Tanpa Border)'
+        };
+        var trialBorderLabel = borderAccessLabelMap[String(trialCfg.borderAccess || 'platinum').toLowerCase()] || 'Border Platinum';
+        var trialDaysNum = Number(trialCfg.durationDays) || 7;
+        var trialInvAmountFmt = Number(trialCfg.invoiceAmount || 10000).toLocaleString('id-ID');
+
+        var trialOrInvoiceSectionHtml = '';
+        if (isCurrTrial) {
+            var remMs = Math.max(0, Number(currUser.vipExpiresAt) - Date.now());
+            var remDays = Math.ceil(remMs / (24 * 3600 * 1000));
+            var activeTrialBorder = borderAccessLabelMap[String(currUser.trialBorderAccess || trialCfg.borderAccess || 'platinum').toLowerCase()] || 'Border Platinum';
+            trialOrInvoiceSectionHtml = `
+            <!-- BANNER STATUS TRIAL VIP AKTIF -->
+            <div class="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-cyan-500/15 to-amber-500/15 border border-emerald-400/40 space-y-2.5 shadow-lg">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span class="text-xs font-black uppercase tracking-wider text-emerald-300">PERCOBAAN VIP AKTIF (${remDays} Hari Tersisa)</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-md bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[10px] font-bold">${Profile.escapeHtml(activeTrialBorder)}</span>
+                </div>
+                <p class="text-xs text-white/75 leading-relaxed">
+                    Anda sedang menikmati akses <strong>Percobaan VIP Pengguna Baru</strong>. Saat masa aktif berakhir, tagihan perpanjangan sebesar <strong class="text-amber-300">Rp ${trialInvAmountFmt}</strong> akan dikirimkan ke email <strong class="text-white">${Profile.escapeHtml(currUser.email || currUser.rawEmail || 'Anda')}</strong>.
+                </p>
+            </div>`;
+        } else if (canClaimTrial) {
+            trialOrInvoiceSectionHtml = `
+            <!-- KARTU KLAIM PERCOBAAN VIP PENGGUNA BARU (FREE TRIAL) -->
+            <div class="p-4 rounded-2xl bg-gradient-to-br from-amber-500/20 via-purple-500/15 to-emerald-500/20 border-2 border-amber-400/50 shadow-[0_0_25px_rgba(245,158,11,0.2)] space-y-3 relative overflow-hidden">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-300 text-black flex items-center justify-center shrink-0 shadow-md shadow-amber-400/30">
+                            <i data-lucide="gift" class="w-6 h-6 stroke-[2.2]"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="px-2 py-0.5 rounded-full bg-emerald-400 text-black text-[9px] font-black uppercase tracking-wider">KHUSUS PENGGUNA BARU</span>
+                                <span class="px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[9px] font-extrabold">${trialDaysNum} HARI GRATIS</span>
+                            </div>
+                            <h3 class="text-sm sm:text-base font-black text-white mt-1 leading-tight">Coba Gratis VIP MusifyStar ${trialDaysNum} Hari!</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5 text-xs text-white/80">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-amber-400 shrink-0"></i>
+                        <span>Akses Border Trial: <strong class="text-amber-300">${Profile.escapeHtml(trialBorderLabel)}</strong> (Diatur Admin)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-cyan-400 shrink-0"></i>
+                        <span>Buka fitur <strong>Liquid Glass iOS 27, Efek Nama Berwarna, Audio HD & Dynamic Island</strong></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="mail" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                        <span>Saat masa trial ${trialDaysNum} hari habis, tagihan otomatis (<strong class="text-amber-300">Rp ${trialInvAmountFmt}</strong>) dikirim ke email Anda</span>
+                    </div>
+                </div>
+                <button type="button" id="btn-claim-vip-trial" onclick="Profile.claimFreeVipTrial()" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-400 via-teal-400 to-amber-400 hover:from-emerald-500 hover:to-amber-500 active:scale-95 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer">
+                    <i data-lucide="zap" class="w-4 h-4 fill-black"></i>
+                    <span>Klaim Percobaan VIP ${trialDaysNum} Hari Sekarang (Rp 0)</span>
+                </button>
+            </div>`;
+        }
 
         var modal = document.createElement('div');
         modal.id = 'musifystar-vip-packages-modal';
@@ -559,6 +709,8 @@ var Profile = {
                     <p class="text-xs text-white/70 mt-0.5 leading-relaxed">Nikmati musik kualitas Ultra HD 320kbps, bebas border profil animasi, dan pengalaman tanpa iklan!</p>
                 </div>
             </div>
+
+            ${trialOrInvoiceSectionHtml}
 
             <!-- BAGIAN 1: PILIH PAKET LANGGANAN -->
             <div class="space-y-2">
@@ -753,8 +905,10 @@ var Profile = {
     },
 
     // ==============================================================
-    // FOTO 5: HALAMAN PEMBAYARAN QRIS (ADMIN BISA UBAH GAMBAR QRIS)
+    // FOTO 5: HALAMAN PEMBAYARAN QRIS & E-WALLET (GOPAY, DANA, OVO ON/OFF ADMIN)
     // ==============================================================
+    selectedPaymentMethod: 'QRIS',
+
     async openQrisPaymentModal(selectedPackage) {
         var existing = gid('musifystar-qris-payment-modal');
         if (existing) existing.remove();
@@ -773,8 +927,62 @@ var Profile = {
         if (!rawQris || rawQris.includes('placeholder')) rawQris = '/qris.png';
         var qrisUrl = rawQris;
         var qrisHolder = (config && config.qrisHolder) || 'NABIL (MusifyStar Official)';
-        var pkg = selectedPackage || { name: 'Paket Bulanan VIP', duration: '30 Hari', price: 19000 };
+        var pkg = selectedPackage || { id: 'pkg_1month', name: 'Paket 1 Bulan VIP', duration: '30 Hari', price: 10000 };
         var priceFmt = Number(pkg.price).toLocaleString('id-ID');
+
+        var ewEnabled = config ? (config.ewalletsEnabled !== false) : true;
+        var ew = (config && config.ewallets) ? config.ewallets : {
+            gopay: { enabled: true, number: '081234567890', holder: qrisHolder },
+            dana: { enabled: true, number: '081234567890', holder: qrisHolder },
+            ovo: { enabled: true, number: '081234567890', holder: qrisHolder }
+        };
+
+        var availableMethods = [
+            { id: 'QRIS', label: 'QRIS Barcode', sub: 'Semua Bank & E-Wallet', color: 'amber', icon: 'qr-code' }
+        ];
+        if (ewEnabled) {
+            if (ew.gopay && ew.gopay.enabled !== false) {
+                availableMethods.push({
+                    id: 'GOPAY',
+                    label: 'GoPay',
+                    sub: ew.gopay.number || '081234567890',
+                    holder: ew.gopay.holder || qrisHolder,
+                    number: ew.gopay.number || '081234567890',
+                    color: 'sky',
+                    icon: 'wallet'
+                });
+            }
+            if (ew.dana && ew.dana.enabled !== false) {
+                availableMethods.push({
+                    id: 'DANA',
+                    label: 'DANA',
+                    sub: ew.dana.number || '081234567890',
+                    holder: ew.dana.holder || qrisHolder,
+                    number: ew.dana.number || '081234567890',
+                    color: 'blue',
+                    icon: 'wallet'
+                });
+            }
+            if (ew.ovo && ew.ovo.enabled !== false) {
+                availableMethods.push({
+                    id: 'OVO',
+                    label: 'OVO',
+                    sub: ew.ovo.number || '081234567890',
+                    holder: ew.ovo.holder || qrisHolder,
+                    number: ew.ovo.number || '081234567890',
+                    color: 'purple',
+                    icon: 'wallet'
+                });
+            }
+        }
+
+        Profile.selectedPaymentMethod = 'QRIS';
+        Profile.currentPaymentModalMeta = {
+            pkg: pkg,
+            qrisUrl: qrisUrl,
+            qrisHolder: qrisHolder,
+            availableMethods: availableMethods
+        };
 
         var modal = document.createElement('div');
         modal.id = 'musifystar-qris-payment-modal';
@@ -787,8 +995,8 @@ var Profile = {
                     <i data-lucide="arrow-left" class="w-5 h-5"></i>
                 </button>
                 <div>
-                    <h1 class="text-lg sm:text-xl font-black text-white tracking-tight drop-shadow-md leading-tight">Pembayaran QRIS</h1>
-                    <p class="text-white/60 text-xs leading-tight mt-0.5">Scan kode di bawah dengan m-Banking atau E-Wallet</p>
+                    <h1 class="text-lg sm:text-xl font-black text-white tracking-tight drop-shadow-md leading-tight">Pembayaran VIP MusifyStar</h1>
+                    <p class="text-white/60 text-xs leading-tight mt-0.5">${availableMethods.length > 1 ? 'Pilih pembayaran via QRIS atau E-Wallet (GoPay / DANA / OVO)' : 'Scan kode QRIS di bawah dengan m-Banking atau E-Wallet'}</p>
                 </div>
             </div>
             <button type="button" onclick="gid('musifystar-qris-payment-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer">
@@ -804,109 +1012,182 @@ var Profile = {
                 <div class="min-w-0">
                     <span class="text-xs text-amber-300 font-mono font-bold uppercase tracking-wider block">${Profile.escapeHtml(pkg.name)} (${Profile.escapeHtml(pkg.duration)})</span>
                     <span class="text-lg sm:text-xl font-black text-white block mt-0.5">Total: Rp ${priceFmt}</span>
+                    ${pkg.invoiceId ? `<span class="text-[10px] text-rose-300 font-mono block mt-0.5">No. Tagihan: ${Profile.escapeHtml(pkg.invoiceId)}</span>` : ''}
                 </div>
                 <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-extrabold font-mono flex items-center gap-1.5 shrink-0">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> MENUNGGU
                 </span>
             </div>
 
-            <!-- Foto QRIS Penuh -->
-            <div class="flex flex-col items-center justify-center w-full my-1">
-                <div class="w-full max-w-md flex items-center justify-center overflow-hidden rounded-2xl bg-black/40 border border-white/10 shadow-2xl relative p-2">
-                    <img id="qris-payment-image" src="${qrisUrl}" class="w-full h-auto max-h-[520px] object-contain select-none rounded-2xl block" alt="Barcode QRIS MusifyStar" onerror="if(this.src && !this.src.endsWith('/qris.png')){this.src='/qris.png';}else{this.onerror=null;this.parentElement.innerHTML='<p class=\\'text-xs text-rose-400 p-4 text-center\\'>Gagal memuat barcode QRIS</p>';}">
+            ${availableMethods.length > 1 ? `
+            <!-- PILIH METODE PEMBAYARAN (QRIS / GOPAY / DANA / OVO) -->
+            <div class="space-y-2">
+                <span class="text-[11px] font-black uppercase tracking-wider text-amber-400 block px-0.5">Pilih Metode Pembayaran:</span>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="payment-methods-tab-grid">
+                    ${availableMethods.map(function(m) {
+                        var isAct = m.id === 'QRIS';
+                        return `
+                        <button type="button" id="pay-method-tab-${m.id}" onclick="Profile.selectPaymentMethodTab('${m.id}')" class="p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ${isAct ? 'bg-amber-400/20 border-amber-400 text-white shadow-[0_0_15px_rgba(250,204,21,0.2)]' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'}">
+                            <div class="w-7 h-7 rounded-lg ${isAct ? 'bg-amber-400 text-black' : 'bg-white/10 text-white'} flex items-center justify-center shrink-0 font-black text-[10px]">
+                                ${m.id === 'QRIS' ? 'QR' : m.id.slice(0, 2)}
+                            </div>
+                            <div class="min-w-0">
+                                <span class="text-xs font-black block leading-tight truncate">${Profile.escapeHtml(m.label)}</span>
+                                <span class="text-[10px] text-white/50 block truncate">${m.id === 'QRIS' ? 'Instan' : 'Transfer'}</span>
+                            </div>
+                        </button>`;
+                    }).join('')}
                 </div>
             </div>
+            ` : ''}
 
-            <!-- Tombol Unduh Barcode QRIS -->
-            <div>
-                <button type="button" id="btn-download-qris-modal" onclick="Profile.downloadQRIS('${qrisUrl}', 'QRIS-MusifyStar.png')" class="w-full py-3.5 px-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer shadow-md">
-                    <i data-lucide="download" class="w-4 h-4 text-amber-300"></i>
-                    <span>Unduh Barcode QRIS</span>
-                </button>
+            <!-- CONTAINER KONTEN METODE PEMBAYARAN DINAMIS -->
+            <div id="payment-method-dynamic-body" class="space-y-4">
+                <!-- Diisi oleh Profile.selectPaymentMethodTab('QRIS') -->
             </div>
 
-            <!-- Panduan Langkah Cepat -->
-            <div class="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 text-xs text-white/70">
-                <span class="text-xs font-bold text-white/40 uppercase tracking-wider block mb-1">Langkah Pembayaran:</span>
-                <p class="text-xs">1. Buka aplikasi M-Banking atau E-Wallet di HP Anda</p>
-                <p class="text-xs">2. Pilih menu <strong>Scan / Bayar QRIS</strong> dan scan barcode di atas</p>
-                <p class="text-xs">3. Masukkan nominal tepat <strong>Rp ${priceFmt}</strong> dan selesaikan pembayaran</p>
-                <p class="text-xs">4. Klik tombol konfirmasi di bawah untuk aktivasi akun VIP Anda</p>
-            </div>
-
-            <!-- Footer Action: Konfirmasi Pembayaran -->
-            <div class="pt-2">
-                <button type="button" onclick="Profile.openPaymentConfirmDialog('${pkg.id || ''}', '${Profile.escapeHtml(pkg.name)}', ${pkg.price}, '${Profile.escapeHtml(pkg.duration)}')" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-600 hover:to-teal-500 text-black font-extrabold text-sm sm:text-base flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.35)]">
-                    <i data-lucide="check-circle-2" class="w-5 h-5 text-black"></i>
-                    <span>Saya Sudah Bayar (Konfirmasi VIP)</span>
+            <!-- Footer Action: Scan QRIS -> Otomatis Arahkan ke WhatsApp Admin -->
+            <div class="pt-2 space-y-2">
+                <button type="button" id="btn-confirm-pay-main" onclick="Profile.confirmScanQrisAndRedirectWhatsApp('${pkg.id || ''}', '${Profile.escapeHtml(pkg.name)}', ${pkg.price}, '${Profile.escapeHtml(pkg.duration)}', '${pkg.invoiceId || ''}')" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-600 hover:to-teal-500 text-black font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer shadow-[0_0_20px_rgba(16,185,129,0.35)]">
+                    <i data-lucide="message-circle" class="w-5 h-5 text-black fill-black/15"></i>
+                    <span id="btn-confirm-pay-label">Sudah Scan QRIS? Kirim Bukti TF ke WhatsApp Admin</span>
                 </button>
+                ${pkg.invoiceId ? `
+                <button type="button" onclick="Profile.declineTrialRenewalByUser()" class="w-full py-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 border border-white/15 hover:border-rose-400/40 text-white/75 hover:text-rose-200 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer">
+                    <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                    <span>Tidak Lanjut Perpanjang VIP (Batalkan Tagihan)</span>
+                </button>
+                ` : ''}
             </div>
         </div>
         `;
 
         document.body.appendChild(modal);
+        Profile.selectPaymentMethodTab('QRIS');
         if (window.lucide) lucide.createIcons();
     },
 
-    openPaymentConfirmDialog(packageId, packageName, amount, duration) {
+    async confirmScanQrisAndRedirectWhatsApp(packageId, packageName, amount, duration, invoiceId) {
         var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
+        var token = (typeof Auth !== 'undefined' && Auth.token) ? Auth.token : '';
         var username = u.username || 'Pengguna MusifyStar';
-        var userId = u.id || u.userId || Math.floor(1000000000 + Math.random() * 9000000000).toString();
-
-        var existing = gid('musifystar-confirm-dialog');
-        if (existing) existing.remove();
+        var userId = u.originalId || u.id || u.userId || '-';
+        var userEmail = u.email || u.rawEmail || '-';
+        var payMethod = Profile.selectedPaymentMethod || 'QRIS';
 
         var adminWa = (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.adminWhatsapp) ? Profile.cachedPaymentConfig.adminWhatsapp : '6281234567890';
         adminWa = String(adminWa).replace(/[^0-9]/g, '');
         if (adminWa.startsWith('0')) adminWa = '62' + adminWa.slice(1);
         if (!adminWa) adminWa = '6281234567890';
 
-        var waText = encodeURIComponent(`Halo Admin MusifyStar! Saya telah melakukan transfer QRIS untuk ${packageName} seharga Rp ${Number(amount).toLocaleString('id-ID')} (${duration}).\n\nUsername: ${username}\nUser ID: ${userId}\n\nMohon bantu verifikasi dan aktivasi VIP akun saya. Terima kasih!`);
+        var waText = encodeURIComponent(
+            `Halo Admin MusifyStar! Saya sudah melakukan pembayaran / Scan ${payMethod} untuk perpanjangan VIP:\n\n` +
+            `• Username: @${username}\n` +
+            `• User ID: ${userId}\n` +
+            `• Email: ${userEmail}\n` +
+            `• Paket: ${packageName} (${duration})\n` +
+            `• Total Bayar: Rp ${Number(amount || 10000).toLocaleString('id-ID')}\n` +
+            `• Metode: ${payMethod}\n` +
+            (invoiceId ? `• No. Tagihan: ${invoiceId}\n` : '') +
+            `\nBerikut saya lampirkan foto bukti transfernya. Mohon bantu perpanjang VIP akun saya ya Admin. Terima kasih!`
+        );
         var waUrl = `https://wa.me/${adminWa}?text=${waText}`;
 
-        var diag = document.createElement('div');
-        diag.id = 'musifystar-confirm-dialog';
-        diag.className = 'fixed inset-0 z-[850] flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-xl animate-fade-in select-none';
-        diag.innerHTML = `
-        <div class="w-full max-w-sm bg-[#13151f] border border-emerald-500/40 rounded-3xl shadow-2xl p-5 space-y-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                        <i data-lucide="message-circle" class="w-4 h-4"></i>
-                    </div>
-                    <h3 class="text-sm font-black text-white">Konfirmasi Pembayaran</h3>
-                </div>
-                <button onclick="gid('musifystar-confirm-dialog')?.remove()" class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white/70 flex items-center justify-center cursor-pointer">
-                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
-                </button>
-            </div>
+        // Catat ke server bahwa pengguna sudah scan QRIS dan sedang mengirim bukti TF ke WA Admin
+        if (u && u.id) {
+            try {
+                var res = await fetch('/api/user-auth?action=user_trial_invoice_action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token ? ('Bearer ' + token) : ''
+                    },
+                    body: JSON.stringify({
+                        userId: u.id,
+                        subAction: 'confirm_qris_scan',
+                        paymentMethod: payMethod
+                    })
+                });
+                var data = await res.json();
+                if (data && data.status && data.user && typeof Auth !== 'undefined' && Auth.currentUser) {
+                    Object.assign(Auth.currentUser, data.user);
+                    if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                }
+            } catch (e) {}
+        }
 
-            <p class="text-xs text-white/70 leading-relaxed">
-                Kirimkan konfirmasi pembayaran agar Admin dapat langsung memproses status VIP akun Anda:
-            </p>
+        gid('musifystar-qris-payment-modal')?.remove();
+        gid('musifystar-confirm-dialog')?.remove();
 
-            <div class="space-y-2">
-                <!-- WhatsApp Confirmation Option -->
-                <a href="${waUrl}" target="_blank" onclick="gid('musifystar-confirm-dialog')?.remove(); gid('musifystar-qris-payment-modal')?.remove();" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20 no-underline">
-                    <i data-lucide="message-circle" class="w-4 h-4 fill-black"></i>
-                    <span>Konfirmasi via WhatsApp (Kirim Bukti TF)</span>
-                </a>
+        if (typeof showToast === 'function') {
+            showToast('Mengarahkan otomatis ke WhatsApp Admin untuk kirim bukti transfer...');
+        }
 
-                <!-- In-app Automatic Option -->
-                <button type="button" onclick="Profile.submitInAppPaymentConfirmation('${packageId}', '${packageName}', ${amount}, '${duration}')" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer">
-                    <i data-lucide="send" class="w-4 h-4 text-emerald-300"></i>
-                    <span>Kirim Konfirmasi Otomatis ke Sistem</span>
-                </button>
-            </div>
-        </div>
-        `;
-        document.body.appendChild(diag);
-        if (window.lucide) lucide.createIcons();
+        // Redirect otomatis ke WhatsApp Admin (gunakan anchor klik agar aman di mobile & webview)
+        try {
+            var a = document.createElement('a');
+            a.href = waUrl;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() { a.remove(); }, 300);
+        } catch (err) {
+            window.location.href = waUrl;
+        }
     },
 
-    async submitInAppPaymentConfirmation(packageId, packageName, amount, duration) {
+    async declineTrialRenewalByUser() {
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
         var token = (typeof Auth !== 'undefined' && Auth.token) ? Auth.token : '';
-        if (typeof showToast === 'function') showToast('Mengirim konfirmasi pembayaran...');
+        if (!u || !u.id) return;
+
+        if (typeof showToast === 'function') showToast('Membatalkan perpanjangan VIP & menghapus tagihan...');
+        try {
+            var res = await fetch('/api/user-auth?action=user_trial_invoice_action', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? ('Bearer ' + token) : ''
+                },
+                body: JSON.stringify({
+                    userId: u.id,
+                    subAction: 'decline_renewal'
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                if (typeof Auth !== 'undefined' && Auth.currentUser) {
+                    Auth.currentUser.hasUnpaidTrialInvoice = false;
+                    Auth.currentUser.isVipTrial = false;
+                    if (data.user) Object.assign(Auth.currentUser, data.user);
+                    if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                }
+                gid('musifystar-qris-payment-modal')?.remove();
+                gid('user-unpaid-trial-invoice-card')?.remove();
+                if (typeof showToast === 'function') {
+                    showToast(data.message || 'Perpanjangan VIP dibatalkan. Tagihan telah dihapus.');
+                }
+                if (gid('musifystar-vip-packages-modal')) {
+                    Profile.openVipPackagesModal();
+                }
+                if (typeof Profile.render === 'function') Profile.render();
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal membatalkan tagihan.');
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Gagal menghubungi server.');
+        }
+    },
+
+    openPaymentConfirmDialog(packageId, packageName, amount, duration, invoiceId) {
+        return Profile.confirmScanQrisAndRedirectWhatsApp(packageId, packageName, amount, duration, invoiceId);
+    },
+
+    async submitInAppPaymentConfirmation(packageId, packageName, amount, duration, paymentMethod, invoiceId) {
+        var token = (typeof Auth !== 'undefined' && Auth.token) ? Auth.token : '';
+        var chosenMethod = paymentMethod || Profile.selectedPaymentMethod || 'QRIS';
+        if (typeof showToast === 'function') showToast('Mengirim konfirmasi pembayaran ' + chosenMethod + '...');
         try {
             var res = await fetch('/api/payment-config?action=submit_confirmation', {
                 method: 'POST',
@@ -919,7 +1200,9 @@ var Profile = {
                     packageName: packageName,
                     amount: amount,
                     duration: duration,
-                    notes: 'Konfirmasi QRIS dari web'
+                    paymentMethod: chosenMethod,
+                    invoiceId: invoiceId || null,
+                    notes: 'Konfirmasi ' + chosenMethod + ' dari web'
                 })
             });
             var data = await res.json();
@@ -930,6 +1213,11 @@ var Profile = {
                 if (data.user && typeof Auth !== 'undefined' && Auth.currentUser) {
                     Auth.currentUser.isPremium = true;
                     Auth.currentUser.vipTier = data.user.vipTier || '1month';
+                    Auth.currentUser.isVipTrial = false;
+                    Auth.currentUser.hasUnpaidTrialInvoice = false;
+                    if (Auth.currentUser.pendingTrialInvoice) {
+                        Auth.currentUser.pendingTrialInvoice.status = 'paid';
+                    }
                     if (data.user.vipExpiresAt) Auth.currentUser.vipExpiresAt = data.user.vipExpiresAt;
                     if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
                 }
@@ -1431,10 +1719,15 @@ var Profile = {
             dynamicIsland: true,
             homeTheme: 'classic',
             navTheme: 'classic',
+            liquidGlassIos26: false,
+            liquidGlassIos27: false,
             keepScreenAwake: false,
             ecoMode: false,
             swipeGestures: true,
-            audioQuality: 'auto'
+            audioQuality: 'auto',
+            autoCellularSaver: true,
+            mobileAudioQuality: 'saver',
+            wifiAudioQuality: 'high'
         };
         try {
             var raw = localStorage.getItem('musifystar_app_settings');
@@ -1445,11 +1738,16 @@ var Profile = {
             // Check cookie persistence (survives browser cache wipes)
             var cookieHome = null;
             var cookieNav = null;
+            var cookieLiquid = null;
             try {
                 var mH = document.cookie.match(/(?:^|;\s*)musify_home_theme=([^;]+)/);
                 if (mH && mH[1]) cookieHome = decodeURIComponent(mH[1]);
                 var mN = document.cookie.match(/(?:^|;\s*)musify_nav_theme=([^;]+)/);
                 if (mN && mN[1]) cookieNav = decodeURIComponent(mN[1]);
+                var mL27 = document.cookie.match(/(?:^|;\s*)musify_liquid_ios27=([^;]+)/);
+                var mL26 = document.cookie.match(/(?:^|;\s*)musify_liquid_ios26=([^;]+)/);
+                if (mL27 && mL27[1]) cookieLiquid = decodeURIComponent(mL27[1]);
+                else if (mL26 && mL26[1]) cookieLiquid = decodeURIComponent(mL26[1]);
             } catch(ce) {}
 
             var userSettings = (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.settings) ? Auth.currentUser.settings : {};
@@ -1460,6 +1758,19 @@ var Profile = {
             var merged = Object.assign({}, defaults, userSettings, parsed);
             merged.homeTheme = resolvedHomeTheme;
             merged.navTheme = resolvedNavTheme;
+            if (typeof merged.liquidGlassIos27 === 'boolean') {
+                merged.liquidGlassIos26 = merged.liquidGlassIos27;
+            } else if (typeof merged.liquidGlassIos26 === 'boolean') {
+                merged.liquidGlassIos27 = merged.liquidGlassIos26;
+            } else {
+                var fallbackLiq = (themeBackup && typeof themeBackup.liquidGlassIos27 === 'boolean')
+                    ? themeBackup.liquidGlassIos27
+                    : ((themeBackup && typeof themeBackup.liquidGlassIos26 === 'boolean')
+                        ? themeBackup.liquidGlassIos26
+                        : (cookieLiquid === '1'));
+                merged.liquidGlassIos26 = fallbackLiq;
+                merged.liquidGlassIos27 = fallbackLiq;
+            }
             return merged;
         } catch(e) {}
         return defaults;
@@ -1479,20 +1790,52 @@ var Profile = {
         return false;
     },
 
+    isVipFeatureAllowed(featureKey) {
+        if (!Profile.isCurrentUserVip()) return false;
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+        if (!u) return false;
+        if (u.isVipTrial) {
+            var mappedKey = (featureKey === 'liquidGlassIos26') ? 'liquidGlassIos27' : featureKey;
+            var cfgFeatures = (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.vipTrialConfig && Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures)
+                ? Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures
+                : null;
+            var userFeatures = (u.trialAllowedFeatures && typeof u.trialAllowedFeatures === 'object')
+                ? u.trialAllowedFeatures
+                : null;
+            if (userFeatures && userFeatures[mappedKey] !== undefined) {
+                return Boolean(userFeatures[mappedKey]);
+            }
+            if (cfgFeatures && cfgFeatures[mappedKey] !== undefined) {
+                return Boolean(cfgFeatures[mappedKey]);
+            }
+        }
+        return true;
+    },
+
     saveSettings(settings) {
         try {
+            if (settings) {
+                var liqState = Boolean(settings.liquidGlassIos27 !== undefined ? settings.liquidGlassIos27 : settings.liquidGlassIos26);
+                settings.liquidGlassIos26 = liqState;
+                settings.liquidGlassIos27 = liqState;
+            }
             localStorage.setItem('musifystar_app_settings', JSON.stringify(settings));
-            if (settings && (settings.homeTheme || settings.navTheme)) {
+            if (settings) {
                 var hTh = settings.homeTheme || 'classic';
                 var nTh = settings.navTheme || 'classic';
+                var liq = Boolean(settings.liquidGlassIos26);
                 localStorage.setItem('musifystar_theme_backup', JSON.stringify({
                     homeTheme: hTh,
-                    navTheme: nTh
+                    navTheme: nTh,
+                    liquidGlassIos26: liq,
+                    liquidGlassIos27: liq
                 }));
                 // Set cookies for 365 days so it survives clearing cache/localStorage
                 try {
                     document.cookie = 'musify_home_theme=' + encodeURIComponent(hTh) + '; max-age=31536000; path=/; SameSite=Lax';
                     document.cookie = 'musify_nav_theme=' + encodeURIComponent(nTh) + '; max-age=31536000; path=/; SameSite=Lax';
+                    document.cookie = 'musify_liquid_ios26=' + (liq ? '1' : '0') + '; max-age=31536000; path=/; SameSite=Lax';
+                    document.cookie = 'musify_liquid_ios27=' + (liq ? '1' : '0') + '; max-age=31536000; path=/; SameSite=Lax';
                 } catch(ce) {}
             }
         } catch(e) {}
@@ -1524,6 +1867,12 @@ var Profile = {
     applySettings(settings) {
         settings = settings || Profile.getSettings();
         var isVip = Profile.isCurrentUserVip();
+        var canBgPlay = Profile.isVipFeatureAllowed('backgroundPlay');
+        var canKeepAwake = Profile.isVipFeatureAllowed('keepScreenAwake');
+        var canSwipe = Profile.isVipFeatureAllowed('swipeGestures');
+        var canHighAudio = Profile.isVipFeatureAllowed('highAudio');
+        var canDynamicIsland = Profile.isVipFeatureAllowed('dynamicIsland');
+        var canLiquidGlass = Profile.isVipFeatureAllowed('liquidGlassIos27');
 
         // 1. Putar Otomatis (Autoplay)
         if (typeof S !== 'undefined') {
@@ -1532,10 +1881,10 @@ var Profile = {
         }
 
         // 2. Putar di Latar Belakang (Keep Playing in Background) - Khusus Member VIP
-        window._musifyBackgroundPlay = isVip ? (settings.backgroundPlay !== false) : false;
+        window._musifyBackgroundPlay = canBgPlay ? (settings.backgroundPlay !== false) : false;
 
         // 3. Layar Tetap Menyala (Keep Screen Awake) - Khusus VIP
-        window._musifyKeepScreenAwake = isVip ? (!!settings.keepScreenAwake) : false;
+        window._musifyKeepScreenAwake = canKeepAwake ? (!!settings.keepScreenAwake) : false;
         if (window._musifyKeepScreenAwake) {
             if (typeof window.requestMusifyScreenWakeLock === 'function') window.requestMusifyScreenWakeLock();
         } else {
@@ -1552,13 +1901,17 @@ var Profile = {
         }
 
         // 5. Gestur Usap Layar (Swipe Gestures)
-        window._musifySwipeGestures = (settings.swipeGestures !== false);
+        window._musifySwipeGestures = canSwipe ? (settings.swipeGestures !== false) : false;
 
         // 6. Kualitas Audio Streaming
-        window._musifyAudioQuality = settings.audioQuality || 'auto';
+        var reqQuality = settings.audioQuality || 'auto';
+        if (reqQuality === 'high' && !canHighAudio) {
+            reqQuality = 'standard';
+        }
+        window._musifyAudioQuality = reqQuality;
 
         // 7. Dynamic Island Mini Player
-        window._musifyDynamicIsland = (settings.dynamicIsland !== false);
+        window._musifyDynamicIsland = canDynamicIsland ? (settings.dynamicIsland !== false) : false;
         if (typeof DynamicIsland !== 'undefined' && typeof DynamicIsland.updateState === 'function') {
             DynamicIsland.updateState();
         }
@@ -1582,6 +1935,18 @@ var Profile = {
         });
         document.documentElement.classList.add('theme-nav-' + navTheme);
         document.body.classList.add('theme-nav-' + navTheme);
+
+        // 10. Mode Liquid Glass iOS 27 (Full Website UI - Khusus Member VIP, ON/OFF)
+        var enableLiquidIos = Boolean(settings.liquidGlassIos27 || settings.liquidGlassIos26) && canLiquidGlass;
+        window._musifyLiquidGlassIos26 = enableLiquidIos;
+        window._musifyLiquidGlassIos27 = enableLiquidIos;
+        if (enableLiquidIos) {
+            document.documentElement.classList.add('liquid-glass-ios26', 'liquid-glass-ios27');
+            document.body.classList.add('liquid-glass-ios26', 'liquid-glass-ios27');
+        } else {
+            document.documentElement.classList.remove('liquid-glass-ios26', 'liquid-glass-ios27');
+            document.body.classList.remove('liquid-glass-ios26', 'liquid-glass-ios27');
+        }
     },
 
     changeHomeTheme(themeName, selectEl) {
@@ -1622,16 +1987,22 @@ var Profile = {
     },
 
     toggleSetting(key) {
-        var isVipRequired = (key === 'backgroundPlay' || key === 'keepScreenAwake' || key === 'swipeGestures' || key === 'dynamicIsland');
-        if (isVipRequired && !Profile.isCurrentUserVip()) {
+        var isVipRequired = (key === 'backgroundPlay' || key === 'keepScreenAwake' || key === 'swipeGestures' || key === 'dynamicIsland' || key === 'liquidGlassIos26');
+        if (isVipRequired && !Profile.isVipFeatureAllowed(key)) {
             var featureNames = {
                 backgroundPlay: 'Putar di Latar Belakang',
                 keepScreenAwake: 'Layar Tetap Menyala',
                 swipeGestures: 'Gestur Usap Layar',
-                dynamicIsland: 'Dynamic Island Mini Player'
+                dynamicIsland: 'Dynamic Island Mini Player',
+                liquidGlassIos26: 'Liquid Glass iOS 27 (Full UI)'
             };
+            var curU = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
             if (typeof showToast === 'function') {
-                showToast(`Fitur "${featureNames[key]}" terkunci! Khusus member VIP (1 Bulan, 2 Bulan, 5 Bulan, atau Permanen).`);
+                if (curU && curU.isVipTrial) {
+                    showToast(`🔒 Fitur "${featureNames[key]}" tidak dibuka oleh Admin selama masa Percobaan VIP (Trial). Upgrade ke VIP Penuh untuk menggunakan fitur ini!`);
+                } else {
+                    showToast(`Fitur "${featureNames[key]}" terkunci! Khusus member VIP (1 Bulan, 2 Bulan, 5 Bulan, atau Permanen).`);
+                }
             }
             if (typeof Profile.openVipPackagesModal === 'function') {
                 setTimeout(function() {
@@ -1643,6 +2014,9 @@ var Profile = {
 
         var s = Profile.getSettings();
         s[key] = !s[key];
+        if (key === 'liquidGlassIos26') {
+            s.liquidGlassIos27 = s.liquidGlassIos26;
+        }
         Profile.saveSettings(s);
 
         // Update UI switch di modal secara realtime jika modal terbuka
@@ -1650,7 +2024,7 @@ var Profile = {
         var switchKnob = gid('setting-switch-knob-' + key);
         if (switchTrack && switchKnob) {
             if (s[key]) {
-                switchTrack.className = 'w-11 h-6 rounded-full p-0.5 flex items-center bg-indigo-600 cursor-pointer transition-colors duration-200';
+                switchTrack.className = 'w-11 h-6 rounded-full p-0.5 flex items-center ' + (key === 'liquidGlassIos26' ? 'bg-sky-500 shadow-[0_0_12px_rgba(56,189,248,0.6)]' : 'bg-indigo-600') + ' cursor-pointer transition-colors duration-200';
                 switchKnob.style.transform = 'translate3d(20px, 0, 0)';
                 switchKnob.className = 'w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200';
             } else {
@@ -1660,16 +2034,34 @@ var Profile = {
             }
         }
 
+        if (key === 'liquidGlassIos26') {
+            var statusBadge = gid('setting-liquid-glass-status-badge');
+            if (statusBadge) {
+                if (s.liquidGlassIos26) {
+                    statusBadge.textContent = 'ON · LIQUID GLASS iOS 27';
+                    statusBadge.className = 'text-[9px] px-2 py-0.5 rounded-full font-extrabold bg-sky-400/20 text-sky-200 border border-sky-400/40 font-mono';
+                } else {
+                    statusBadge.textContent = 'OFF · TAMPILAN SEMULA';
+                    statusBadge.className = 'text-[9px] px-2 py-0.5 rounded-full font-bold bg-white/10 text-white/60 border border-white/15 font-mono';
+                }
+            }
+        }
+
         var names = {
             autoplay: 'Putar Otomatis',
             backgroundPlay: 'Putar di Latar Belakang',
             keepScreenAwake: 'Layar Tetap Menyala',
             dynamicIsland: 'Dynamic Island Mini Player',
+            liquidGlassIos26: 'Liquid Glass iOS 27',
             ecoMode: 'Mode Hemat Baterai',
             swipeGestures: 'Gestur Usap Layar'
         };
         if (typeof showToast === 'function') {
-            showToast((names[key] || 'Pengaturan') + ': ' + (s[key] ? 'Aktif' : 'Nonaktif'));
+            if (key === 'liquidGlassIos26') {
+                showToast(s.liquidGlassIos26 ? '✨ Liquid Glass iOS 27: ON (Aktif di Seluruh Dalam Website MusifyStar)' : '↩️ Liquid Glass iOS 27: OFF (Kembali ke Tampilan Semula)');
+            } else {
+                showToast((names[key] || 'Pengaturan') + ': ' + (s[key] ? 'Aktif' : 'Nonaktif'));
+            }
         }
     },
 
@@ -1685,9 +2077,14 @@ var Profile = {
     },
 
     changeAudioQuality(newVal, selectEl) {
-        if ((newVal === 'high' || newVal === 'auto') && !Profile.isCurrentUserVip()) {
+        if (newVal === 'high' && !Profile.isVipFeatureAllowed('highAudio')) {
+            var curU = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
             if (typeof showToast === 'function') {
-                showToast('Kualitas Audio ' + (newVal === 'high' ? 'Tinggi (256 - 320 kbps)' : 'Adaptif') + ' terkunci! Khusus member VIP (1 Bulan, 2 Bulan, 5 Bulan, atau Permanen).');
+                if (curU && curU.isVipTrial) {
+                    showToast('🔒 Audio Ultra HD (320 kbps) tidak dibuka oleh Admin selama masa Percobaan VIP (Trial). Upgrade ke VIP Penuh untuk membuka fitur ini!');
+                } else {
+                    showToast('Kualitas Audio Tinggi HD (320 kbps) terkunci! Khusus member VIP (1 Bulan, 2 Bulan, 5 Bulan, atau Permanen).');
+                }
             }
             if (selectEl) selectEl.value = 'standard';
             var s0 = Profile.getSettings();
@@ -1704,15 +2101,17 @@ var Profile = {
         var s = Profile.getSettings();
         s.audioQuality = newVal;
         Profile.saveSettings(s);
+        Profile.reloadCurrentTrackWithNewQuality();
+        Profile.updateStreamingQualityBadges();
 
         var names = {
-            auto: 'Otomatis',
-            high: 'Kualitas Tinggi (256 - 320 kbps)',
-            standard: 'Standar (128 kbps)',
-            saver: 'Hemat Kuota (64 kbps)'
+            auto: 'Otomatis Pintar (Hemat Kuota di Seluler / HD di Wi-Fi)',
+            high: 'High Audio Quality HD (320 kbps)',
+            standard: 'Standar Stabil (128 kbps)',
+            saver: 'Hemat Kuota Ekstra (64 kbps)'
         };
         if (typeof showToast === 'function') {
-            showToast('Kualitas Audio: ' + (names[newVal] || newVal));
+            showToast('🎧 Kualitas Streaming: ' + (names[newVal] || newVal));
         }
     },
 
@@ -1835,6 +2234,14 @@ var Profile = {
 
         var s = Profile.getSettings();
         var isVip = Profile.isCurrentUserVip();
+        var curU = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+        var isVipTrialUser = Boolean(curU && curU.isVipTrial);
+        var allowBgPlay = Profile.isVipFeatureAllowed('backgroundPlay');
+        var allowHighAudio = Profile.isVipFeatureAllowed('highAudio');
+        var allowLiquid = Profile.isVipFeatureAllowed('liquidGlassIos27');
+        var allowIsland = Profile.isVipFeatureAllowed('dynamicIsland');
+        var allowAwake = Profile.isVipFeatureAllowed('keepScreenAwake');
+        var allowSwipe = Profile.isVipFeatureAllowed('swipeGestures');
 
         // Status Sleep Timer
         var sleepStatusText = 'Hentikan musik otomatis saat tidur';
@@ -1892,9 +2299,9 @@ var Profile = {
                 <div class="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-2">
                     <div class="flex items-center gap-1.5">
                         <i data-lucide="crown" class="w-3.5 h-3.5 text-amber-400"></i>
-                        <span class="text-[11px] font-semibold text-white">Status Membership <strong class="text-amber-300 font-bold">VIP Aktif</strong></span>
+                        <span class="text-[11px] font-semibold text-white">Status Membership <strong class="text-amber-300 font-bold">${isVipTrialUser ? 'Percobaan VIP (Trial)' : 'VIP Aktif'}</strong></span>
                     </div>
-                    <span class="text-[8.5px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">Semua Fitur Terbuka</span>
+                    <span class="text-[8.5px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">${isVipTrialUser ? 'Sesuai Izin Trial Admin' : 'Semua Fitur Terbuka'}</span>
                 </div>
                 `}
 
@@ -1929,13 +2336,16 @@ var Profile = {
                                 <i data-lucide="layers" class="w-4 h-4"></i>
                             </div>
                             <div class="min-w-0">
-                                <h4 class="text-xs font-semibold text-white">Putar di Latar Belakang</h4>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <h4 class="text-xs font-semibold text-white">Putar di Latar Belakang</h4>
+                                    ${(isVipTrialUser && !allowBgPlay) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                </div>
                                 <p class="text-[11px] text-white/50 leading-snug mt-0.5">Musik tetap berputar saat aplikasi diminimalkan atau layar mati</p>
                             </div>
                         </div>
                         <div class="shrink-0 pl-1">
-                            <div id="setting-switch-track-backgroundPlay" class="w-11 h-6 rounded-full p-0.5 flex items-center ${(s.backgroundPlay && isVip) ? 'bg-indigo-600' : 'bg-white/10 border border-white/15'} cursor-pointer transition-colors duration-200">
-                                <div id="setting-switch-knob-backgroundPlay" class="w-5 h-5 rounded-full ${(s.backgroundPlay && isVip) ? 'bg-white' : 'bg-white/70'} shadow-md transition-transform duration-200" style="transform: translate3d(${(s.backgroundPlay && isVip) ? '20px' : '0px'}, 0, 0);"></div>
+                            <div id="setting-switch-track-backgroundPlay" class="w-11 h-6 rounded-full p-0.5 flex items-center ${(s.backgroundPlay && allowBgPlay) ? 'bg-indigo-600' : 'bg-white/10 border border-white/15'} cursor-pointer transition-colors duration-200">
+                                <div id="setting-switch-knob-backgroundPlay" class="w-5 h-5 rounded-full ${(s.backgroundPlay && allowBgPlay) ? 'bg-white' : 'bg-white/70'} shadow-md transition-transform duration-200" style="transform: translate3d(${(s.backgroundPlay && allowBgPlay) ? '20px' : '0px'}, 0, 0);"></div>
                             </div>
                         </div>
                     </div>
@@ -1957,23 +2367,31 @@ var Profile = {
                         </div>
                     </div>
 
-                    <!-- 4. Kualitas Audio Streaming (KHUSUS VIP) -->
-                    <div class="p-3.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 space-y-2">
-                        <div class="flex items-center gap-3 min-w-0 ${!isVip ? 'cursor-pointer' : ''}" ${!isVip ? 'onclick="Profile.promptVipFeature(\'Kualitas Audio Streaming HD\')"' : ''}>
-                            <div class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/70 shrink-0">
-                                <i data-lucide="sliders" class="w-4 h-4"></i>
+                    <!-- 4. Kualitas Audio Streaming (Hemat Kuota vs High Audio Quality) -->
+                    <div class="p-3.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 space-y-2.5">
+                        <div class="flex items-center justify-between gap-3 min-w-0">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 shrink-0">
+                                    <i data-lucide="sliders" class="w-4 h-4"></i>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <h4 class="text-xs font-semibold text-white">Pengatur Kualitas Streaming</h4>
+                                        ${(isVipTrialUser && !allowHighAudio) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 320kbps DIKUNCI ADMIN</span>` : ''}
+                                    </div>
+                                    <p class="text-[11px] text-white/50 leading-snug mt-0.5">Mode Hemat Kuota Seluler (64 kbps) vs High Audio Wi-Fi (320 kbps)</p>
+                                </div>
                             </div>
-                            <div class="min-w-0 flex-1">
-                                <h4 class="text-xs font-semibold text-white">Kualitas Audio Streaming</h4>
-                                <p class="text-[11px] text-white/50 leading-snug mt-0.5">Atur bitrate pemutaran audio (256 - 320 kbps HD)</p>
-                            </div>
+                            <button onclick="Profile.openStreamingQualityModal()" class="px-2.5 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/35 text-sky-300 text-[10.5px] font-bold shrink-0 cursor-pointer active:scale-95 transition-all">
+                                Detail Wi-Fi / Kuota
+                            </button>
                         </div>
                         <div class="relative">
                             <select onchange="Profile.changeAudioQuality(this.value, this)" class="w-full py-2 px-3 pr-8 rounded-lg bg-black/40 border border-white/20 text-xs font-medium text-white appearance-none focus:outline-none focus:border-indigo-500 cursor-pointer transition-all">
-                                <option value="auto" ${s.audioQuality === 'auto' && isVip ? 'selected' : ''} class="bg-[#161922] text-white">Otomatis (Adaptif Jaringan)</option>
-                                <option value="high" ${s.audioQuality === 'high' && isVip ? 'selected' : ''} class="bg-[#161922] text-white">Kualitas Tinggi (256 - 320 kbps)</option>
-                                <option value="standard" ${(s.audioQuality === 'standard' || !isVip) ? 'selected' : ''} class="bg-[#161922] text-white">Standar (128 kbps)</option>
-                                <option value="saver" ${s.audioQuality === 'saver' ? 'selected' : ''} class="bg-[#161922] text-white">Hemat Kuota (64 kbps)</option>
+                                <option value="auto" ${s.audioQuality === 'auto' ? 'selected' : ''} class="bg-[#161922] text-white">Otomatis Pintar (Hemat saat Seluler / Tinggi saat Wi-Fi)</option>
+                                <option value="saver" ${s.audioQuality === 'saver' ? 'selected' : ''} class="bg-[#161922] text-white">Hemat Kuota Ekstra (64 kbps · ~0.48 MB/mnt)</option>
+                                <option value="standard" ${s.audioQuality === 'standard' ? 'selected' : ''} class="bg-[#161922] text-white">Standar Stabil (128 kbps · ~0.96 MB/mnt)</option>
+                                <option value="high" ${(s.audioQuality === 'high' && allowHighAudio) ? 'selected' : ''} class="bg-[#161922] text-white">High Audio Quality HD (320 kbps · ~2.40 MB/mnt) ${!allowHighAudio ? (isVipTrialUser ? '🔒 Dikunci Admin (Trial)' : '🔒 VIP') : ''}</option>
                             </select>
                             <div class="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-white/60">
                                 <i data-lucide="chevron-down" class="w-4 h-4"></i>
@@ -1986,6 +2404,29 @@ var Profile = {
                 <div class="space-y-2 pt-1">
                     <div class="text-[11px] font-bold uppercase tracking-wider text-white/40 px-1">
                         Layar & Performa
+                    </div>
+
+                    <!-- 0. Mode Liquid Glass iOS 27 (ON/OFF - KHUSUS VIP) -->
+                    <div onclick="Profile.toggleSetting('liquidGlassIos26')" class="p-3.5 rounded-xl bg-gradient-to-r from-sky-500/15 via-indigo-500/10 to-purple-500/15 hover:from-sky-500/25 hover:to-purple-500/25 border border-sky-400/35 flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-[0.99] shadow-sm">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-300/40 flex items-center justify-center text-sky-300 shrink-0 shadow-inner">
+                                <i data-lucide="droplets" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <h4 class="text-xs font-extrabold text-white">Liquid Glass iOS 27 (Full UI)</h4>
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded-full font-extrabold bg-amber-400/20 text-amber-200 border border-amber-400/40 font-mono">👑 VIP</span>
+                                    ${(isVipTrialUser && !allowLiquid) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                    <span id="setting-liquid-glass-status-badge" class="${(s.liquidGlassIos26 && allowLiquid) ? 'text-[9px] px-2 py-0.5 rounded-full font-extrabold bg-sky-400/20 text-sky-200 border border-sky-400/40 font-mono' : 'text-[9px] px-2 py-0.5 rounded-full font-bold bg-white/10 text-white/60 border border-white/15 font-mono'}">${(s.liquidGlassIos26 && allowLiquid) ? 'ON · LIQUID GLASS iOS 27' : 'OFF · TAMPILAN SEMULA'}</span>
+                                </div>
+                                <p class="text-[11px] text-white/60 leading-snug mt-0.5">Ubah seluruh isi dalam website MusifyStar (Beranda, Pencarian, Library, Lagu Disukai, Profil, Chat Global, Dynamic Island, Player & Semua Modal) menjadi kaca cair kristal iOS 27. Matikan (OFF) untuk kembali ke semula.</p>
+                            </div>
+                        </div>
+                        <div class="shrink-0 pl-1">
+                            <div id="setting-switch-track-liquidGlassIos26" class="w-11 h-6 rounded-full p-0.5 flex items-center ${(s.liquidGlassIos26 && allowLiquid) ? 'bg-sky-500 shadow-[0_0_12px_rgba(56,189,248,0.6)]' : 'bg-white/10 border border-white/15'} cursor-pointer transition-colors duration-200">
+                                <div id="setting-switch-knob-liquidGlassIos26" class="w-5 h-5 rounded-full ${(s.liquidGlassIos26 && allowLiquid) ? 'bg-white' : 'bg-white/70'} shadow-md transition-transform duration-200" style="transform: translate3d(${(s.liquidGlassIos26 && allowLiquid) ? '20px' : '0px'}, 0, 0);"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 1. Bebas Semua Tema Home Screen -->
@@ -2052,13 +2493,16 @@ var Profile = {
                                 <i data-lucide="sparkles" class="w-4 h-4 text-white/70"></i>
                             </div>
                             <div class="min-w-0">
-                                <h4 class="text-xs font-semibold text-white">Dynamic Island Mini Player</h4>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <h4 class="text-xs font-semibold text-white">Dynamic Island Mini Player</h4>
+                                    ${(isVipTrialUser && !allowIsland) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                </div>
                                 <p class="text-[11px] text-white/50 leading-snug mt-0.5">Island melayang interaktif di atas layar ala iOS saat musik diputar</p>
                             </div>
                         </div>
                         <div class="shrink-0 pl-1">
-                            <div id="setting-switch-track-dynamicIsland" class="w-11 h-6 rounded-full p-0.5 flex items-center ${(s.dynamicIsland && isVip) ? 'bg-indigo-600' : 'bg-white/10 border border-white/15'} cursor-pointer transition-colors duration-200">
-                                <div id="setting-switch-knob-dynamicIsland" class="w-5 h-5 rounded-full ${(s.dynamicIsland && isVip) ? 'bg-white' : 'bg-white/70'} shadow-md transition-transform duration-200" style="transform: translate3d(${(s.dynamicIsland && isVip) ? '20px' : '0px'}, 0, 0);"></div>
+                            <div id="setting-switch-track-dynamicIsland" class="w-11 h-6 rounded-full p-0.5 flex items-center ${(s.dynamicIsland && allowIsland) ? 'bg-indigo-600' : 'bg-white/10 border border-white/15'} cursor-pointer transition-colors duration-200">
+                                <div id="setting-switch-knob-dynamicIsland" class="w-5 h-5 rounded-full ${(s.dynamicIsland && allowIsland) ? 'bg-white' : 'bg-white/70'} shadow-md transition-transform duration-200" style="transform: translate3d(${(s.dynamicIsland && allowIsland) ? '20px' : '0px'}, 0, 0);"></div>
                             </div>
                         </div>
                     </div>
@@ -2070,13 +2514,16 @@ var Profile = {
                                 <i data-lucide="sun" class="w-4 h-4"></i>
                             </div>
                             <div class="min-w-0">
-                                <h4 class="text-xs font-semibold text-white">Layar Tetap Menyala (Keep Screen Awake)</h4>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <h4 class="text-xs font-semibold text-white">Layar Tetap Menyala (Keep Screen Awake)</h4>
+                                    ${(isVipTrialUser && !allowAwake) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                </div>
                                 <p class="text-[11px] text-white/50 leading-snug mt-0.5">Mencegah layar HP mati/terkunci saat memutar lagu</p>
                             </div>
                         </div>
                         <div class="shrink-0 pl-1">
-                            <div id="setting-switch-track-keepScreenAwake" class="w-11 h-6 rounded-full p-0.5 flex items-center ${(s.keepScreenAwake && isVip) ? 'bg-indigo-600' : 'bg-white/10 border border-white/15'} cursor-pointer transition-colors duration-200">
-                                <div id="setting-switch-knob-keepScreenAwake" class="w-5 h-5 rounded-full ${(s.keepScreenAwake && isVip) ? 'bg-white' : 'bg-white/70'} shadow-md transition-transform duration-200" style="transform: translate3d(${(s.keepScreenAwake && isVip) ? '20px' : '0px'}, 0, 0);"></div>
+                            <div id="setting-switch-track-keepScreenAwake" class="w-11 h-6 rounded-full p-0.5 flex items-center ${(s.keepScreenAwake && allowAwake) ? 'bg-indigo-600' : 'bg-white/10 border border-white/15'} cursor-pointer transition-colors duration-200">
+                                <div id="setting-switch-knob-keepScreenAwake" class="w-5 h-5 rounded-full ${(s.keepScreenAwake && allowAwake) ? 'bg-white' : 'bg-white/70'} shadow-md transition-transform duration-200" style="transform: translate3d(${(s.keepScreenAwake && allowAwake) ? '20px' : '0px'}, 0, 0);"></div>
                             </div>
                         </div>
                     </div>
@@ -2106,13 +2553,16 @@ var Profile = {
                                 <i data-lucide="move-horizontal" class="w-4 h-4"></i>
                             </div>
                             <div class="min-w-0">
-                                <h4 class="text-xs font-semibold text-white">Gestur Usap Layar (Swipe Gestures)</h4>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <h4 class="text-xs font-semibold text-white">Gestur Usap Layar (Swipe Gestures)</h4>
+                                    ${(isVipTrialUser && !allowSwipe) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                </div>
                                 <p class="text-[11px] text-white/50 leading-snug mt-0.5">Usap cover player untuk ganti lagu atau tutup player</p>
                             </div>
                         </div>
                         <div class="shrink-0 pl-1">
-                            <div id="setting-switch-track-swipeGestures" class="w-11 h-6 rounded-full p-0.5 flex items-center ${(s.swipeGestures && isVip) ? 'bg-indigo-600' : 'bg-white/10 border border-white/15'} cursor-pointer transition-colors duration-200">
-                                <div id="setting-switch-knob-swipeGestures" class="w-5 h-5 rounded-full ${(s.swipeGestures && isVip) ? 'bg-white' : 'bg-white/70'} shadow-md transition-transform duration-200" style="transform: translate3d(${(s.swipeGestures && isVip) ? '20px' : '0px'}, 0, 0);"></div>
+                            <div id="setting-switch-track-swipeGestures" class="w-11 h-6 rounded-full p-0.5 flex items-center ${(s.swipeGestures && allowSwipe) ? 'bg-indigo-600' : 'bg-white/10 border border-white/15'} cursor-pointer transition-colors duration-200">
+                                <div id="setting-switch-knob-swipeGestures" class="w-5 h-5 rounded-full ${(s.swipeGestures && allowSwipe) ? 'bg-white' : 'bg-white/70'} shadow-md transition-transform duration-200" style="transform: translate3d(${(s.swipeGestures && allowSwipe) ? '20px' : '0px'}, 0, 0);"></div>
                             </div>
                         </div>
                     </div>
@@ -2806,6 +3256,11 @@ var Profile = {
                         <i data-lucide="qr-code" class="w-4 h-4 text-amber-400"></i>
                         <span>QRIS & Pembayaran</span>
                     </button>
+                    <button id="admin-tab-btn-viptrial" onclick="Profile.setAdminTab('viptrial')" class="px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-400/40 hover:text-white whitespace-nowrap shadow-sm shadow-amber-500/20">
+                        <i data-lucide="gift" class="w-4 h-4 text-amber-400"></i>
+                        <span>Trial VIP & Tagihan Email</span>
+                        <span class="text-[9px] bg-emerald-400 text-black px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider">BARU</span>
+                    </button>
                     <button id="admin-tab-btn-messages" onclick="Profile.setAdminTab('messages')" class="px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-white/5 hover:bg-white/10 text-white/70 hover:text-white whitespace-nowrap">
                         <i data-lucide="send" class="w-4 h-4 text-emerald-400"></i>
                         <span>Pesan Pengguna (Direct)</span>
@@ -2986,6 +3441,16 @@ var Profile = {
                         </div>
                     </div>
                 </div>
+
+                <!-- TAB 18: PERCOBAAN VIP PENGGUNA BARU (TRIAL VIP) & TAGIHAN EMAIL + QRIS / GOPAY / DANA / OVO -->
+                <div id="admin-view-viptrial" class="hidden space-y-4">
+                    <div id="admin-viptrial-container" class="space-y-4">
+                        <div class="text-center py-12 text-white/50 space-y-2">
+                            <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-amber-400"></i>
+                            <p class="text-xs">Memuat pengaturan Percobaan VIP, Tagihan Email & Metode Pembayaran (QRIS / GoPay / DANA / OVO)...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Footer with Logout -->
@@ -3004,10 +3469,9 @@ var Profile = {
         if (Profile.adminRefreshInterval) clearInterval(Profile.adminRefreshInterval);
         Profile.adminRefreshInterval = setInterval(function() {
             if (gid('musifystar-admin-modal')) {
-                // Jangan refresh otomatis jika user sedang mengetik atau di tab form (vouchers, dsb) agar tidak hilang sendiri saat didiamkan
                 var activeEl = document.activeElement;
                 var isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
-                if (!isTyping && Profile.adminActiveTab !== 'vouchers') {
+                if (!isTyping && Profile.adminActiveTab !== 'vouchers' && Profile.adminActiveTab !== 'viptrial') {
                     Profile.refreshAdminData(true);
                 }
             } else {
@@ -3030,6 +3494,7 @@ var Profile = {
         var btnSecurity = gid('admin-tab-btn-security');
         var btnUsers = gid('admin-tab-btn-users');
         var btnVip = gid('admin-tab-btn-vip');
+        var btnVipTrial = gid('admin-tab-btn-viptrial');
         var btnVouchers = gid('admin-tab-btn-vouchers');
         var btnBans = gid('admin-tab-btn-bans');
         var btnPayment = gid('admin-tab-btn-payment');
@@ -3048,6 +3513,7 @@ var Profile = {
         var viewSecurity = gid('admin-view-security');
         var viewUsers = gid('admin-view-users');
         var viewVip = gid('admin-view-vip');
+        var viewVipTrial = gid('admin-view-viptrial');
         var viewVouchers = gid('admin-view-vouchers');
         var viewBans = gid('admin-view-bans');
         var viewPayment = gid('admin-view-payment');
@@ -3072,6 +3538,7 @@ var Profile = {
         if (btnSecurity) btnSecurity.className = tab === 'security' ? activeBtnClass : inactiveBtnClass;
         if (btnUsers) btnUsers.className = tab === 'users' ? activeBtnClass : inactiveBtnClass;
         if (btnVip) btnVip.className = tab === 'vip' ? activeVipBtnClass : inactiveVipBtnClass;
+        if (btnVipTrial) btnVipTrial.className = tab === 'viptrial' ? activeVipBtnClass : inactiveVipBtnClass;
         if (btnVouchers) btnVouchers.className = tab === 'vouchers' ? activeVipBtnClass : inactiveVipBtnClass;
         if (btnBans) btnBans.className = tab === 'bans' ? activeBtnClass : inactiveBtnClass;
         if (btnPayment) btnPayment.className = tab === 'payment' ? activeBtnClass : inactiveBtnClass;
@@ -3091,6 +3558,7 @@ var Profile = {
         if (viewSecurity) viewSecurity.classList.toggle('hidden', tab !== 'security');
         if (viewUsers) viewUsers.classList.toggle('hidden', tab !== 'users');
         if (viewVip) viewVip.classList.toggle('hidden', tab !== 'vip');
+        if (viewVipTrial) viewVipTrial.classList.toggle('hidden', tab !== 'viptrial');
         if (viewVouchers) viewVouchers.classList.toggle('hidden', tab !== 'vouchers');
         if (viewBans) viewBans.classList.toggle('hidden', tab !== 'bans');
         if (viewPayment) viewPayment.classList.toggle('hidden', tab !== 'payment');
@@ -3119,6 +3587,8 @@ var Profile = {
             Profile.loadAdminUsersList();
         } else if (tab === 'vip') {
             Profile.loadAdminVipTab();
+        } else if (tab === 'viptrial') {
+            Profile.loadAdminVipTrialTab();
         } else if (tab === 'vouchers') {
             Profile.loadAdminVouchersTab();
         } else if (tab === 'bans') {
@@ -3141,14 +3611,12 @@ var Profile = {
     },
 
     refreshAdminData(silent) {
-        // Auto-refresh interval (silent) only updates live counters & badges without touching forms
         if (silent) {
             if (Profile.adminActiveTab === 'analytics') {
                 Profile.loadAdminAnalytics(true);
             } else if (Profile.adminActiveTab === 'globalstats') {
                 Profile.loadAdminGlobalStats(true);
             }
-            // Borders, Vouchers & Referrals tab TIDAK di-refresh saat silent background ticker agar daftar & form pilihan tidak berubah-ubah atau terganggu saat didiamkan
             Profile.checkFeedbackBadgeQuietly();
             if (typeof Profile.checkSiteUpdateBadgeQuietly === 'function') {
                 Profile.checkSiteUpdateBadgeQuietly();
@@ -3156,7 +3624,6 @@ var Profile = {
             return;
         }
 
-        // Manual user refresh button click
         if (Profile.adminActiveTab === 'globalstats') {
             Profile.loadAdminGlobalStats();
         } else if (Profile.adminActiveTab === 'borders') {
@@ -3175,6 +3642,8 @@ var Profile = {
             Profile.loadAdminUsersList();
         } else if (Profile.adminActiveTab === 'vip') {
             Profile.loadAdminVipTab();
+        } else if (Profile.adminActiveTab === 'viptrial') {
+            Profile.loadAdminVipTrialTab();
         } else if (Profile.adminActiveTab === 'vouchers') {
             Profile.loadAdminVouchersTab();
         } else if (Profile.adminActiveTab === 'referrals') {
@@ -8779,6 +9248,62 @@ var Profile = {
                         </div>
                     </div>
 
+                    <!-- BAGIAN 1B: PEMBAYARAN VIA E-WALLET (GOPAY, DANA, OVO ON/OFF) -->
+                    <div class="space-y-3 pt-3 border-t border-white/10">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-white/80 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i data-lucide="wallet" class="w-4 h-4 text-sky-400"></i>
+                                    <span>1B. Pembayaran VIP via GoPay, DANA & OVO (Bisa Dimatikan ON/OFF)</span>
+                                </label>
+                                <p class="text-[11px] text-white/50">Jika dimatikan (OFF), opsi pembayaran GoPay / DANA / OVO akan disembunyikan dari halaman Pembayaran VIP & Tagihan.</p>
+                            </div>
+                            <label class="flex items-center gap-2 cursor-pointer bg-white/5 px-3 py-1.5 rounded-xl border border-white/15">
+                                <input type="checkbox" id="admin-pay-ewallets-master" ${config.ewalletsEnabled !== false ? 'checked' : ''} class="accent-emerald-400 w-4 h-4 rounded" />
+                                <span class="text-xs font-bold text-emerald-300">Aktifkan Metode E-Wallet (Master ON/OFF)</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <!-- GoPay -->
+                            <div class="p-3 rounded-xl bg-black/50 border border-sky-500/30 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-black text-sky-400">GoPay</span>
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-white/80">
+                                        <input type="checkbox" id="admin-pay-gopay-enabled" ${(config.ewallets?.gopay?.enabled !== false) ? 'checked' : ''} class="accent-sky-400 rounded" />
+                                        <span>ON</span>
+                                    </label>
+                                </div>
+                                <input type="text" id="admin-pay-gopay-number" value="${Profile.escapeHtml(config.ewallets?.gopay?.number || '081234567890')}" placeholder="Nomor GoPay" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white font-mono text-xs" />
+                                <input type="text" id="admin-pay-gopay-holder" value="${Profile.escapeHtml(config.ewallets?.gopay?.holder || config.qrisHolder || 'NABIL (MusifyStar Official)')}" placeholder="Atas Nama GoPay" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white/80 text-xs" />
+                            </div>
+                            <!-- DANA -->
+                            <div class="p-3 rounded-xl bg-black/50 border border-blue-500/30 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-black text-blue-400">DANA</span>
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-white/80">
+                                        <input type="checkbox" id="admin-pay-dana-enabled" ${(config.ewallets?.dana?.enabled !== false) ? 'checked' : ''} class="accent-blue-400 rounded" />
+                                        <span>ON</span>
+                                    </label>
+                                </div>
+                                <input type="text" id="admin-pay-dana-number" value="${Profile.escapeHtml(config.ewallets?.dana?.number || '081234567890')}" placeholder="Nomor DANA" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white font-mono text-xs" />
+                                <input type="text" id="admin-pay-dana-holder" value="${Profile.escapeHtml(config.ewallets?.dana?.holder || config.qrisHolder || 'NABIL (MusifyStar Official)')}" placeholder="Atas Nama DANA" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white/80 text-xs" />
+                            </div>
+                            <!-- OVO -->
+                            <div class="p-3 rounded-xl bg-black/50 border border-purple-500/30 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-black text-purple-400">OVO</span>
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-white/80">
+                                        <input type="checkbox" id="admin-pay-ovo-enabled" ${(config.ewallets?.ovo?.enabled !== false) ? 'checked' : ''} class="accent-purple-400 rounded" />
+                                        <span>ON</span>
+                                    </label>
+                                </div>
+                                <input type="text" id="admin-pay-ovo-number" value="${Profile.escapeHtml(config.ewallets?.ovo?.number || '081234567890')}" placeholder="Nomor OVO" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white font-mono text-xs" />
+                                <input type="text" id="admin-pay-ovo-holder" value="${Profile.escapeHtml(config.ewallets?.ovo?.holder || config.qrisHolder || 'NABIL (MusifyStar Official)')}" placeholder="Atas Nama OVO" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white/80 text-xs" />
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- BAGIAN 2: KELOLA PILIHAN PAKET VIP (FOTO 4) -->
                     <div class="space-y-3 pt-3 border-t border-white/10">
                         <div class="flex items-center justify-between">
@@ -9293,12 +9818,33 @@ var Profile = {
             lucide.createIcons();
         }
 
+        var ewMasterEl = gid('admin-pay-ewallets-master');
+        var ewalletsPayload = {
+            gopay: {
+                enabled: gid('admin-pay-gopay-enabled') ? Boolean(gid('admin-pay-gopay-enabled').checked) : true,
+                number: (gid('admin-pay-gopay-number')?.value || '081234567890').trim(),
+                holder: (gid('admin-pay-gopay-holder')?.value || holder || 'NABIL (MusifyStar Official)').trim()
+            },
+            dana: {
+                enabled: gid('admin-pay-dana-enabled') ? Boolean(gid('admin-pay-dana-enabled').checked) : true,
+                number: (gid('admin-pay-dana-number')?.value || '081234567890').trim(),
+                holder: (gid('admin-pay-dana-holder')?.value || holder || 'NABIL (MusifyStar Official)').trim()
+            },
+            ovo: {
+                enabled: gid('admin-pay-ovo-enabled') ? Boolean(gid('admin-pay-ovo-enabled').checked) : true,
+                number: (gid('admin-pay-ovo-number')?.value || '081234567890').trim(),
+                holder: (gid('admin-pay-ovo-holder')?.value || holder || 'NABIL (MusifyStar Official)').trim()
+            }
+        };
+
         var payload = {
             title: title || 'MusifyStar VIP Membership',
             description: desc,
             note: note,
             qrisHolder: holder || 'NABIL (MusifyStar Official)',
             adminWhatsapp: adminWa || '6281234567890',
+            ewalletsEnabled: ewMasterEl ? Boolean(ewMasterEl.checked) : true,
+            ewallets: ewalletsPayload,
             showAccounts: Profile.adminShowPaymentAccounts !== false,
             accounts: Profile.adminPaymentAccounts.filter(function(a){ return a.bankName || a.accountNumber; }),
             packages: Profile.adminPaymentPackages,
@@ -14079,6 +14625,24 @@ var Profile = {
 
         el.classList.remove('hidden');
 
+        if (u && u.isVipTrial && !Profile.isVipFeatureAllowed('customId')) {
+            el.className = 'p-2.5 rounded-xl bg-rose-500/10 border border-rose-400/35 space-y-1.5 my-1.5';
+            el.innerHTML = `
+                <div class="flex items-center justify-between text-[10px]">
+                    <span class="text-rose-300 font-bold flex items-center gap-1">
+                        <i data-lucide="lock" class="w-3 h-3 text-rose-400"></i>
+                        <span>Custom ID VIP:</span>
+                    </span>
+                    <span class="text-rose-300 font-extrabold text-[9.5px]">DIKUNCI ADMIN (TRIAL)</span>
+                </div>
+                <p class="text-[9.5px] text-white/60 leading-snug">
+                    Fitur Custom ID VIP tidak dibuka oleh Admin selama masa Percobaan VIP (Free Trial). Upgrade ke VIP Penuh untuk memakai Custom ID!
+                </p>
+            `;
+            if (window.lucide) lucide.createIcons();
+            return;
+        }
+
         if (currentCustomId) {
             el.className = 'p-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 border border-amber-400/40 space-y-1.5 shadow-sm my-1.5';
             el.innerHTML = `
@@ -14164,6 +14728,24 @@ var Profile = {
         // Non-VIP users DO NOT see this section
         if (!isVip) {
             container.innerHTML = '';
+            return;
+        }
+
+        if (u && u.isVipTrial && !Profile.isVipFeatureAllowed('customId')) {
+            container.innerHTML = `
+            <div class="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/35 space-y-2.5 text-center backdrop-blur-xl shadow-xl">
+                <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-400/40 text-rose-300 flex items-center justify-center mx-auto">
+                    <i data-lucide="lock" class="w-5 h-5"></i>
+                </div>
+                <h4 class="text-xs font-black text-rose-300">Custom ID VIP Dikunci Admin (Paket Trial)</h4>
+                <p class="text-[11px] text-white/65 leading-relaxed">
+                    Fitur Custom ID VIP tidak diaktifkan oleh Admin untuk paket Percobaan VIP (Free Trial). Upgrade ke paket VIP Penuh untuk menggunakan Custom ID keren!
+                </p>
+                <button type="button" onclick="Profile.openVipPackagesModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-black text-xs cursor-pointer">
+                    Upgrade ke VIP Penuh
+                </button>
+            </div>`;
+            if (window.lucide) lucide.createIcons();
             return;
         }
 
@@ -14300,6 +14882,15 @@ var Profile = {
 
     async userEquipDirectCustomId(customId) {
         if (!customId) return;
+        if (!Profile.isVipFeatureAllowed('customId')) {
+            if (typeof showToast === 'function') {
+                showToast('🔒 Fitur Custom ID VIP dikunci oleh Admin selama masa Percobaan VIP (Free Trial)! Upgrade ke VIP Penuh untuk memakai Custom ID.');
+            }
+            if (typeof Profile.openVipPackagesModal === 'function') {
+                Profile.openVipPackagesModal();
+            }
+            return;
+        }
         var token = localStorage.getItem('musifystar_auth_token') || sessionStorage.getItem('musifystar_auth_token') || '';
         try {
             var res = await fetch('/api/user-auth?action=equip_custom_id', {
@@ -14702,20 +15293,393 @@ var Profile = {
         return yyyy + '-' + mm;
     },
 
-    getAudioQualityBitrateInfo() {
-        var s = Profile.getSettings();
-        var q = (s && s.audioQuality) || window._musifyAudioQuality || 'auto';
-        var isVip = Profile.isCurrentUserVip();
-        if (!isVip && (q === 'high' || q === 'auto')) {
-            q = 'standard';
+    getNetworkConnectionInfo() {
+        var conn = (typeof navigator !== 'undefined') ? (navigator.connection || navigator.mozConnection || navigator.webkitConnection) : null;
+        var type = (conn && conn.type) ? String(conn.type).toLowerCase() : '';
+        var effectiveType = (conn && conn.effectiveType) ? String(conn.effectiveType).toLowerCase() : '';
+        var saveData = Boolean(conn && conn.saveData);
+        var downlink = (conn && typeof conn.downlink === 'number') ? conn.downlink : null;
+
+        // Allow manual simulation override if user tests or toggles network mode
+        var forcedNet = '';
+        try { forcedNet = sessionStorage.getItem('musifystar_simulated_network') || ''; } catch(e) {}
+
+        var isCellular = false;
+        var label = 'Wi-Fi / Broadband';
+        if (forcedNet === 'cellular') {
+            isCellular = true;
+            label = 'Data Seluler (Kuota Mobile)';
+        } else if (forcedNet === 'wifi') {
+            isCellular = false;
+            label = 'Terhubung ke Wi-Fi';
+        } else if (type === 'cellular' || type === 'wimax' || saveData || effectiveType === 'slow-2g' || effectiveType === '2g' || effectiveType === '3g') {
+            isCellular = true;
+            label = saveData ? 'Data Seluler (Penghemat Data Aktif)' : 'Data Seluler (' + (effectiveType ? effectiveType.toUpperCase() : 'Mobile') + ')';
+        } else if (type === 'wifi' || type === 'ethernet') {
+            isCellular = false;
+            label = type === 'ethernet' ? 'Koneksi Kabel (LAN)' : 'Terhubung ke Wi-Fi';
+        } else if (downlink !== null && downlink < 1.6) {
+            isCellular = true;
+            label = 'Jaringan Mobile / Hemat Data';
         }
-        var map = {
-            saver: { key: 'saver', label: 'Hemat Kuota (64 kbps)', bytesPerSec: 8192, mbPerMin: '0.48 MB/mnt', trackOverhead: 143360 },
-            standard: { key: 'standard', label: 'Standar (128 kbps)', bytesPerSec: 16384, mbPerMin: '0.96 MB/mnt', trackOverhead: 225280 },
-            auto: { key: 'auto', label: 'Otomatis Adaptif (~192 kbps)', bytesPerSec: 24576, mbPerMin: '1.44 MB/mnt', trackOverhead: 307200 },
-            high: { key: 'high', label: 'Kualitas Tinggi HD (320 kbps)', bytesPerSec: 40960, mbPerMin: '2.40 MB/mnt', trackOverhead: 430080 }
+
+        return {
+            isCellular: isCellular,
+            type: type || (isCellular ? 'cellular' : 'wifi'),
+            effectiveType: effectiveType || '4g',
+            saveData: saveData,
+            downlink: downlink,
+            label: label,
+            forcedNet: forcedNet
         };
-        return map[q] || map.standard;
+    },
+
+    initNetworkQualityAutoDetector() {
+        if (Profile._networkDetectorInitialized) return;
+        Profile._networkDetectorInitialized = true;
+        try {
+            var conn = (typeof navigator !== 'undefined') ? (navigator.connection || navigator.mozConnection || navigator.webkitConnection) : null;
+            if (conn && typeof conn.addEventListener === 'function') {
+                conn.addEventListener('change', function() {
+                    Profile.updateStreamingQualityBadges();
+                    var modal = gid('musifystar-streaming-quality-modal');
+                    if (modal) Profile.openStreamingQualityModal();
+                });
+            }
+        } catch(e) {}
+    },
+
+    getAudioQualityBitrateInfo() {
+        Profile.initNetworkQualityAutoDetector();
+        var s = Profile.getSettings();
+        var mode = (s && s.audioQuality) || window._musifyAudioQuality || 'auto';
+        var canHighAudio = Profile.isVipFeatureAllowed('highAudio');
+        var net = Profile.getNetworkConnectionInfo();
+
+        var resolvedTier = mode;
+        if (mode === 'auto') {
+            if (net.isCellular) {
+                resolvedTier = (s.autoCellularSaver !== false) ? (s.mobileAudioQuality || 'saver') : (s.mobileAudioQuality || 'standard');
+            } else {
+                resolvedTier = s.wifiAudioQuality || (canHighAudio ? 'high' : 'standard');
+            }
+        } else if (s.autoCellularSaver && net.isCellular && mode !== 'saver') {
+            // Jika sakelar otomatis hemat kuota saat data seluler aktif, prioritaskan pilihan kuota seluler
+            resolvedTier = s.mobileAudioQuality || 'saver';
+        }
+
+        if (!canHighAudio && resolvedTier === 'high') {
+            resolvedTier = 'standard';
+        }
+
+        var map = {
+            saver: {
+                key: 'saver',
+                mode: mode,
+                bitrate: '64',
+                shortLabel: 'Hemat 64 kbps',
+                label: 'Hemat Kuota (64 kbps)',
+                bytesPerSec: 8192,
+                mbPerMin: '0.48 MB/mnt',
+                mbPerHour: '~28.8 MB/jam',
+                trackOverhead: 143360
+            },
+            standard: {
+                key: 'standard',
+                mode: mode,
+                bitrate: '128',
+                shortLabel: 'Standar 128 kbps',
+                label: 'Standar Stabil (128 kbps)',
+                bytesPerSec: 16384,
+                mbPerMin: '0.96 MB/mnt',
+                mbPerHour: '~57.6 MB/jam',
+                trackOverhead: 225280
+            },
+            high: {
+                key: 'high',
+                mode: mode,
+                bitrate: '320',
+                shortLabel: 'High HD 320 kbps',
+                label: 'High Audio Quality HD (320 kbps)',
+                bytesPerSec: 40960,
+                mbPerMin: '2.40 MB/mnt',
+                mbPerHour: '~144 MB/jam',
+                trackOverhead: 430080
+            }
+        };
+
+        var chosen = Object.assign({}, map[resolvedTier] || map.standard);
+        chosen.networkLabel = net.label;
+        chosen.isCellular = net.isCellular;
+        if (mode === 'auto') {
+            chosen.label = (net.isCellular ? 'Otomatis Seluler · ' : 'Otomatis Wi-Fi · ') + chosen.shortLabel;
+        }
+        return chosen;
+    },
+
+    updateStreamingQualityBadges() {
+        var info = Profile.getAudioQualityBitrateInfo();
+        var badgeEl = gid('profile-streaming-quality-badge');
+        if (badgeEl) {
+            badgeEl.textContent = info.shortLabel;
+        }
+        Profile.updateLiveDataUsageUI();
+    },
+
+    reloadCurrentTrackWithNewQuality() {
+        try {
+            if (typeof window.clearCachedStreamAudioUrls === 'function') {
+                window.clearCachedStreamAudioUrls();
+            }
+            if (typeof S !== 'undefined' && S.ct && S.ip && typeof fetchAudioAndPlay === 'function') {
+                var resumeSec = (typeof AU !== 'undefined' && AU && AU.currentTime > 0) ? AU.currentTime : (S.pt || 0);
+                fetchAudioAndPlay(S.ct, resumeSec, true);
+            }
+        } catch(e) {}
+    },
+
+    setStreamingQualityConfig(updates) {
+        if (!updates || typeof updates !== 'object') return;
+        var isVip = Profile.isCurrentUserVip();
+        if ((updates.audioQuality === 'high' || updates.wifiAudioQuality === 'high' || updates.mobileAudioQuality === 'high') && !isVip) {
+            if (typeof showToast === 'function') {
+                showToast('High Audio Quality HD (320 kbps) khusus untuk Member VIP! Mengalihkan ke Standar (128 kbps).');
+            }
+            if (updates.audioQuality === 'high') updates.audioQuality = 'standard';
+            if (updates.wifiAudioQuality === 'high') updates.wifiAudioQuality = 'standard';
+            if (updates.mobileAudioQuality === 'high') updates.mobileAudioQuality = 'standard';
+            if (typeof Profile.openVipPackagesModal === 'function') {
+                setTimeout(function() { Profile.openVipPackagesModal(); }, 350);
+            }
+        }
+
+        var s = Profile.getSettings();
+        Object.keys(updates).forEach(function(k) {
+            s[k] = updates[k];
+        });
+        Profile.saveSettings(s);
+        Profile.reloadCurrentTrackWithNewQuality();
+        Profile.updateStreamingQualityBadges();
+
+        var modal = gid('musifystar-streaming-quality-modal');
+        if (modal) {
+            Profile.openStreamingQualityModal();
+        }
+        var info = Profile.getAudioQualityBitrateInfo();
+        if (typeof showToast === 'function') {
+            showToast('🎧 Kualitas Aktif: ' + info.shortLabel + ' (' + info.mbPerMin + ')');
+        }
+    },
+
+    setSimulatedNetworkType(netType) {
+        try {
+            if (!netType) sessionStorage.removeItem('musifystar_simulated_network');
+            else sessionStorage.setItem('musifystar_simulated_network', netType);
+        } catch(e) {}
+        Profile.reloadCurrentTrackWithNewQuality();
+        Profile.updateStreamingQualityBadges();
+        var modal = gid('musifystar-streaming-quality-modal');
+        if (modal) Profile.openStreamingQualityModal();
+        var info = Profile.getAudioQualityBitrateInfo();
+        if (typeof showToast === 'function') {
+            showToast('📶 Mode Jaringan: ' + info.networkLabel + ' → ' + info.shortLabel);
+        }
+    },
+
+    openStreamingQualityModal() {
+        var existing = gid('musifystar-streaming-quality-modal');
+        if (existing) existing.remove();
+
+        var s = Profile.getSettings();
+        var isVip = Profile.isCurrentUserVip();
+        var net = Profile.getNetworkConnectionInfo();
+        var info = Profile.getAudioQualityBitrateInfo();
+
+        var curMode = s.audioQuality || 'auto';
+        var autoCellular = s.autoCellularSaver !== false;
+        var mobileQ = s.mobileAudioQuality || 'saver';
+        var wifiQ = (!isVip && (s.wifiAudioQuality === 'high' || !s.wifiAudioQuality)) ? 'standard' : (s.wifiAudioQuality || 'high');
+
+        var modal = document.createElement('div');
+        modal.id = 'musifystar-streaming-quality-modal';
+        modal.className = 'fixed inset-0 z-[10060] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in';
+        modal.innerHTML = `
+            <div class="w-full max-w-md bg-[#12151e] border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <!-- Header -->
+                <div class="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-sky-500/10 via-indigo-500/10 to-transparent">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-400/35 flex items-center justify-center text-sky-400">
+                            <i data-lucide="sliders" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-black text-white leading-tight">Pengatur Kualitas Streaming</h3>
+                            <p class="text-[11px] text-white/55">Hemat Kuota Seluler vs High Audio Quality Wi-Fi</p>
+                        </div>
+                    </div>
+                    <button onclick="gid('musifystar-streaming-quality-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="p-5 overflow-y-auto space-y-4 hide-scrollbar">
+                    <!-- Status Jaringan & Bitrate Aktif Real-Time -->
+                    <div class="p-4 rounded-2xl bg-gradient-to-br ${net.isCellular ? 'from-amber-500/15 via-orange-500/10 to-transparent border-amber-400/35' : 'from-sky-500/15 via-emerald-500/10 to-transparent border-sky-400/35'} border space-y-2.5">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="inline-flex items-center gap-1.5 text-[11px] font-bold ${net.isCellular ? 'text-amber-300' : 'text-sky-300'}">
+                                <span class="w-2 h-2 rounded-full ${net.isCellular ? 'bg-amber-400' : 'bg-emerald-400'} animate-pulse"></span>
+                                ${net.label}
+                            </span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold bg-black/40 border border-white/15 text-white">
+                                Bitrate Aktif: ${info.bitrate} kbps
+                            </span>
+                        </div>
+                        <div class="flex items-baseline justify-between pt-0.5">
+                            <div>
+                                <div class="text-base font-black text-white">${info.label}</div>
+                                <div class="text-[11px] text-white/60 mt-0.5">Konsumsi data: <strong class="text-emerald-300 font-mono">${info.mbPerMin}</strong> (${info.mbPerHour})</div>
+                            </div>
+                        </div>
+                        <!-- Tombol Simulasi / Ganti Mode Jaringan Cepat -->
+                        <div class="pt-2 border-t border-white/10 flex items-center justify-between gap-1.5">
+                            <span class="text-[10.5px] text-white/55">Mode Jaringan Saat Ini:</span>
+                            <div class="flex items-center gap-1">
+                                <button onclick="Profile.setSimulatedNetworkType('')" class="px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${!net.forcedNet ? 'bg-white/20 text-white border border-white/30' : 'bg-white/5 text-white/60 hover:text-white'}">Deteksi Otomatis</button>
+                                <button onclick="Profile.setSimulatedNetworkType('cellular')" class="px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${net.forcedNet === 'cellular' ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40' : 'bg-white/5 text-white/60 hover:text-white'}">📱 Kuota Seluler</button>
+                                <button onclick="Profile.setSimulatedNetworkType('wifi')" class="px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${net.forcedNet === 'wifi' ? 'bg-sky-500/30 text-sky-200 border border-sky-400/40' : 'bg-white/5 text-white/60 hover:text-white'}">📶 Wi-Fi</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sakelar Pintar: Otomatis Hemat Kuota saat Pakai Data Seluler -->
+                    <div onclick="Profile.setStreamingQualityConfig({ autoCellularSaver: ${!autoCellular} })" class="p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/10 flex items-center justify-between gap-3 cursor-pointer transition-all">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                                <i data-lucide="shield-check" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-white">Penghemat Kuota Seluler Otomatis</h4>
+                                <p class="text-[11px] text-white/55 leading-snug mt-0.5">Otomatis beralih ke Hemat Kuota saat memakai data seluler & kembali ke kualitas tinggi saat Wi-Fi</p>
+                            </div>
+                        </div>
+                        <div class="w-11 h-6 rounded-full p-0.5 flex items-center shrink-0 transition-colors duration-200 ${autoCellular ? 'bg-emerald-500' : 'bg-white/10 border border-white/15'}">
+                            <div class="w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200" style="transform: translate3d(${autoCellular ? '20px' : '0px'}, 0, 0);"></div>
+                        </div>
+                    </div>
+
+                    <!-- Pilihan Mode Utama -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between px-1">
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider text-white/50">1. Pilih Mode Kualitas Utama</span>
+                            <span class="text-[10px] text-sky-300 font-semibold">Berlaku Instan</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2">
+                            <button onclick="Profile.setStreamingQualityConfig({ audioQuality: 'auto' })" class="p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${curMode === 'auto' ? 'bg-sky-500/15 border-sky-400/50 shadow-md shadow-sky-500/10' : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'}">
+                                <div class="min-w-0">
+                                    <div class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                                        <span>⚡ Otomatis Pintar (Kuota Seluler vs Wi-Fi)</span>
+                                        <span class="text-[9.5px] px-1.5 py-0.5 rounded bg-sky-500/25 text-sky-200 border border-sky-400/30 font-mono">DIREKOMENDASIKAN</span>
+                                    </div>
+                                    <p class="text-[11px] text-white/55 mt-0.5">Hemat Kuota (${mobileQ === 'saver' ? '64' : (mobileQ === 'standard' ? '128' : '320')} kbps) di Seluler & Kualitas Tinggi (${wifiQ === 'high' ? '320' : (wifiQ === 'standard' ? '128' : '64')} kbps) di Wi-Fi</p>
+                                </div>
+                                <div class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${curMode === 'auto' ? 'border-sky-400 bg-sky-400 text-black' : 'border-white/30'}">
+                                    ${curMode === 'auto' ? '✓' : ''}
+                                </div>
+                            </button>
+
+                            <button onclick="Profile.setStreamingQualityConfig({ audioQuality: 'saver', autoCellularSaver: false })" class="p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${curMode === 'saver' ? 'bg-emerald-500/15 border-emerald-400/50 shadow-md shadow-emerald-500/10' : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'}">
+                                <div class="min-w-0">
+                                    <div class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                                        <span>🍃 Mode Hemat Kuota Ekstra (64 kbps)</span>
+                                        <span class="text-[9.5px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">~0.48 MB/mnt</span>
+                                    </div>
+                                    <p class="text-[11px] text-white/55 mt-0.5">Hemat kuota hingga 80%! Sangat ringan & anti-buffering saat sinyal lemah</p>
+                                </div>
+                                <div class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${curMode === 'saver' ? 'border-emerald-400 bg-emerald-400 text-black' : 'border-white/30'}">
+                                    ${curMode === 'saver' ? '✓' : ''}
+                                </div>
+                            </button>
+
+                            <button onclick="Profile.setStreamingQualityConfig({ audioQuality: 'standard', autoCellularSaver: false })" class="p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${curMode === 'standard' ? 'bg-indigo-500/15 border-indigo-400/50 shadow-md shadow-indigo-500/10' : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'}">
+                                <div class="min-w-0">
+                                    <div class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                                        <span>🎵 Standar Jernih & Stabil (128 kbps)</span>
+                                        <span class="text-[9.5px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">~0.96 MB/mnt</span>
+                                    </div>
+                                    <p class="text-[11px] text-white/55 mt-0.5">Keseimbangan terbaik antara kejernihan suara dan konsumsi kuota</p>
+                                </div>
+                                <div class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${curMode === 'standard' ? 'border-indigo-400 bg-indigo-400 text-black' : 'border-white/30'}">
+                                    ${curMode === 'standard' ? '✓' : ''}
+                                </div>
+                            </button>
+
+                            <button onclick="Profile.setStreamingQualityConfig({ audioQuality: 'high', autoCellularSaver: false })" class="p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${curMode === 'high' ? 'bg-amber-500/15 border-amber-400/50 shadow-md shadow-amber-500/10' : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06]'}">
+                                <div class="min-w-0">
+                                    <div class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                                        <span>👑 High Audio Quality HD (320 kbps)</span>
+                                        <span class="text-[9.5px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">~2.40 MB/mnt</span>
+                                        ${!isVip ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-200 border border-amber-400/40 font-mono">VIP</span>' : ''}
+                                    </div>
+                                    <p class="text-[11px] text-white/55 mt-0.5">Kualitas studio tertinggi dengan bass lebih dalam & detail instrumen maksimal</p>
+                                </div>
+                                <div class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${curMode === 'high' ? 'border-amber-400 bg-amber-400 text-black' : 'border-white/30'}">
+                                    ${curMode === 'high' ? '✓' : ''}
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pengaturan Spesifik Saat Memakai Kuota Seluler vs Wi-Fi -->
+                    <div class="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+                        <div class="text-[11px] font-extrabold uppercase tracking-wider text-white/55">
+                            2. Preferensi Otomatis Berdasarkan Jaringan
+                        </div>
+
+                        <!-- Saat memakai Kuota Seluler -->
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-amber-300 flex items-center justify-between">
+                                <span>📱 Saat Memakai Kuota Seluler:</span>
+                                <span class="text-[10px] font-mono text-white/60">${mobileQ === 'saver' ? '64 kbps (Hemat)' : (mobileQ === 'standard' ? '128 kbps' : '320 kbps')}</span>
+                            </label>
+                            <div class="grid grid-cols-3 gap-1.5">
+                                <button onclick="Profile.setStreamingQualityConfig({ mobileAudioQuality: 'saver' })" class="py-2 px-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${mobileQ === 'saver' ? 'bg-emerald-500/25 border-emerald-400/50 text-emerald-200' : 'bg-black/30 border-white/10 text-white/65 hover:text-white'}">64 kbps (Hemat)</button>
+                                <button onclick="Profile.setStreamingQualityConfig({ mobileAudioQuality: 'standard' })" class="py-2 px-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${mobileQ === 'standard' ? 'bg-indigo-500/25 border-indigo-400/50 text-indigo-200' : 'bg-black/30 border-white/10 text-white/65 hover:text-white'}">128 kbps</button>
+                                <button onclick="Profile.setStreamingQualityConfig({ mobileAudioQuality: 'high' })" class="py-2 px-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${mobileQ === 'high' ? 'bg-amber-500/25 border-amber-400/50 text-amber-200' : 'bg-black/30 border-white/10 text-white/65 hover:text-white'}">320 kbps ${!isVip ? '🔒' : ''}</button>
+                            </div>
+                        </div>
+
+                        <!-- Saat terhubung ke Wi-Fi -->
+                        <div class="space-y-1.5 pt-1">
+                            <label class="text-xs font-bold text-sky-300 flex items-center justify-between">
+                                <span>📶 Saat Terhubung ke Wi-Fi:</span>
+                                <span class="text-[10px] font-mono text-white/60">${wifiQ === 'high' ? '320 kbps (High HD)' : (wifiQ === 'standard' ? '128 kbps' : '64 kbps')}</span>
+                            </label>
+                            <div class="grid grid-cols-3 gap-1.5">
+                                <button onclick="Profile.setStreamingQualityConfig({ wifiAudioQuality: 'saver' })" class="py-2 px-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${wifiQ === 'saver' ? 'bg-emerald-500/25 border-emerald-400/50 text-emerald-200' : 'bg-black/30 border-white/10 text-white/65 hover:text-white'}">64 kbps</button>
+                                <button onclick="Profile.setStreamingQualityConfig({ wifiAudioQuality: 'standard' })" class="py-2 px-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${wifiQ === 'standard' ? 'bg-indigo-500/25 border-indigo-400/50 text-indigo-200' : 'bg-black/30 border-white/10 text-white/65 hover:text-white'}">128 kbps</button>
+                                <button onclick="Profile.setStreamingQualityConfig({ wifiAudioQuality: 'high' })" class="py-2 px-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-all ${wifiQ === 'high' ? 'bg-amber-500/25 border-amber-400/50 text-amber-200' : 'bg-black/30 border-white/10 text-white/65 hover:text-white'}">320 kbps (HD) ${!isVip ? '🔒' : ''}</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="flex items-center gap-2 pt-1">
+                        <button onclick="gid('musifystar-streaming-quality-modal')?.remove(); Profile.openDataUsageModal();" class="flex-1 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-all cursor-pointer active:scale-95">
+                            Lihat Penggunaan Kuota Data
+                        </button>
+                        <button onclick="gid('musifystar-streaming-quality-modal')?.remove()" class="py-2.5 px-5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-xs font-extrabold transition-all cursor-pointer active:scale-95">
+                            Selesai
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        modal.onclick = function(e) {
+            if (e.target === modal) modal.remove();
+        };
+        document.body.appendChild(modal);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     },
 
     formatDataBytes(bytes) {
@@ -15004,8 +15968,8 @@ var Profile = {
 
                     <!-- Footer Actions -->
                     <div class="flex items-center gap-2.5 pt-1">
-                        <button onclick="gid('musifystar-data-usage-modal')?.remove(); Profile.openSettingsModal();" class="flex-1 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-all cursor-pointer active:scale-95">
-                            Atur Kualitas Audio
+                        <button onclick="gid('musifystar-data-usage-modal')?.remove(); Profile.openStreamingQualityModal();" class="flex-1 py-2.5 px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/35 text-sky-200 text-xs font-bold transition-all cursor-pointer active:scale-95">
+                            Atur Kualitas Streaming (Kuota / Wi-Fi)
                         </button>
                         <button onclick="Profile.resetDataUsageStats()" class="py-2.5 px-4 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold transition-all cursor-pointer active:scale-95">
                             Reset Kuota
@@ -17093,6 +18057,883 @@ var Profile = {
                 btn.disabled = false;
                 btn.innerText = 'Terapkan Badge Donatur';
             }
+        }
+    },
+
+    // ==============================================================
+    // SISTEM PERCOBAAN VIP PENGGUNA BARU (FREE TRIAL), TAGIHAN EMAIL
+    // & METODE PEMBAYARAN QRIS + GOPAY / DANA / OVO (ON/OFF ADMIN)
+    // ==============================================================
+    selectPaymentMethodTab(methodId) {
+        var meta = Profile.currentPaymentModalMeta || {};
+        var pkg = meta.pkg || { name: 'Paket 1 Bulan VIP', duration: '30 Hari', price: 10000 };
+        var priceFmt = Number(pkg.price || 10000).toLocaleString('id-ID');
+        var qrisUrl = meta.qrisUrl || '/qris.png';
+        var qrisHolder = meta.qrisHolder || 'NABIL (MusifyStar Official)';
+        var methods = Array.isArray(meta.availableMethods) ? meta.availableMethods : [{ id: 'QRIS', label: 'QRIS Barcode' }];
+
+        var chosen = methods.find(function(m) { return m.id === methodId; }) || methods[0];
+        Profile.selectedPaymentMethod = chosen.id;
+
+        methods.forEach(function(m) {
+            var tabBtn = gid('pay-method-tab-' + m.id);
+            if (!tabBtn) return;
+            var isAct = m.id === chosen.id;
+            tabBtn.className = 'p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 ' +
+                (isAct ? 'bg-amber-400/20 border-amber-400 text-white shadow-[0_0_15px_rgba(250,204,21,0.2)]' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10');
+        });
+
+        var confirmLbl = gid('btn-confirm-pay-label');
+        if (confirmLbl) {
+            confirmLbl.innerText = chosen.id === 'QRIS'
+                ? 'Sudah Scan QRIS? Kirim Bukti TF ke WhatsApp Admin'
+                : ('Sudah Transfer via ' + chosen.label + '? Kirim Bukti TF ke WhatsApp Admin');
+        }
+
+        var bodyContainer = gid('payment-method-dynamic-body');
+        if (!bodyContainer) return;
+
+        if (chosen.id === 'QRIS') {
+            bodyContainer.innerHTML = `
+                <!-- Foto QRIS Penuh -->
+                <div class="flex flex-col items-center justify-center w-full my-1">
+                    <div class="w-full max-w-md flex flex-col items-center justify-center overflow-hidden rounded-2xl bg-black/40 border border-white/10 shadow-2xl relative p-3 space-y-2">
+                        <span class="text-[11px] font-extrabold text-amber-300 uppercase tracking-wider">QRIS Official: ${Profile.escapeHtml(qrisHolder)}</span>
+                        <img id="qris-payment-image" src="${qrisUrl}" class="w-full h-auto max-h-[480px] object-contain select-none rounded-2xl block" alt="Barcode QRIS MusifyStar" onerror="if(this.src && !this.src.endsWith('/qris.png')){this.src='/qris.png';}else{this.onerror=null;this.parentElement.innerHTML='<p class=\\'text-xs text-rose-400 p-4 text-center\\'>Gagal memuat barcode QRIS</p>';}">
+                    </div>
+                </div>
+
+                <!-- Tombol Unduh Barcode QRIS -->
+                <div>
+                    <button type="button" id="btn-download-qris-modal" onclick="Profile.downloadQRIS('${qrisUrl}', 'QRIS-MusifyStar.png')" class="w-full py-3.5 px-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition cursor-pointer shadow-md">
+                        <i data-lucide="download" class="w-4 h-4 text-amber-300"></i>
+                        <span>Unduh Barcode QRIS</span>
+                    </button>
+                </div>
+
+                <!-- Panduan Langkah Cepat QRIS -> Otomatis WhatsApp Admin -->
+                <div class="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 text-xs text-white/70">
+                    <span class="text-xs font-bold text-white/40 uppercase tracking-wider block mb-1">Langkah Pembayaran QRIS:</span>
+                    <p class="text-xs">1. Buka aplikasi M-Banking atau E-Wallet di HP Anda</p>
+                    <p class="text-xs">2. Pilih menu <strong>Scan / Bayar QRIS</strong> dan scan barcode di atas</p>
+                    <p class="text-xs">3. Masukkan nominal tepat <strong>Rp ${priceFmt}</strong> dan simpan screenshot bukti pembayaran</p>
+                    <p class="text-xs">4. Klik tombol hijau di bawah untuk <strong>otomatis diarahkan ke WhatsApp Admin</strong> dan kirim bukti TF agar Admin langsung memperpanjang VIP Anda</p>
+                </div>
+            `;
+        } else {
+            var badgeBg = chosen.id === 'GOPAY' ? 'from-sky-500 to-cyan-400' : (chosen.id === 'DANA' ? 'from-blue-500 to-indigo-500' : 'from-purple-500 to-fuchsia-500');
+            var borderClr = chosen.id === 'GOPAY' ? 'border-sky-400/40' : (chosen.id === 'DANA' ? 'border-blue-400/40' : 'border-purple-400/40');
+            bodyContainer.innerHTML = `
+                <div class="p-5 rounded-2xl bg-white/[0.04] border ${borderClr} space-y-4 shadow-xl">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr ${badgeBg} text-white font-black text-sm flex items-center justify-center shadow-lg">
+                                ${Profile.escapeHtml(chosen.label)}
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-white/50 block">Transfer E-Wallet Resmi</span>
+                                <h3 class="text-base font-black text-white">Pembayaran via ${Profile.escapeHtml(chosen.label)}</h3>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-extrabold uppercase">Aktif</span>
+                    </div>
+
+                    <div class="p-4 rounded-xl bg-black/50 border border-white/10 space-y-2">
+                        <span class="text-[10px] text-white/50 uppercase font-bold tracking-wider block">Nomor Tujuan ${Profile.escapeHtml(chosen.label)}:</span>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-lg sm:text-xl font-black font-mono text-amber-300 tracking-wider select-all">${Profile.escapeHtml(chosen.number || '081234567890')}</span>
+                            <button type="button" onclick="Profile.copyEwalletNumber('${Profile.escapeHtml(chosen.number || '081234567890')}', '${Profile.escapeHtml(chosen.label)}')" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs flex items-center gap-1.5 active:scale-95 transition cursor-pointer shrink-0">
+                                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                                <span>Salin Nomor</span>
+                            </button>
+                        </div>
+                        <span class="text-xs text-white/70 block pt-1">Atas Nama: <strong class="text-white">${Profile.escapeHtml(chosen.holder || qrisHolder)}</strong></span>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5 text-xs text-white/70">
+                        <span class="text-[11px] font-bold text-white/50 uppercase tracking-wider block">Langkah Pembayaran ${Profile.escapeHtml(chosen.label)}:</span>
+                        <p>1. Salin nomor <strong>${Profile.escapeHtml(chosen.label)} (${Profile.escapeHtml(chosen.number || '')})</strong> di atas</p>
+                        <p>2. Buka aplikasi <strong>${Profile.escapeHtml(chosen.label)}</strong> atau M-Banking Anda</p>
+                        <p>3. Transfer tepat sebesar <strong class="text-amber-300">Rp ${priceFmt}</strong> ke nomor tersebut</p>
+                        <p>4. Klik tombol <strong>Saya Sudah Bayar via ${Profile.escapeHtml(chosen.label)}</strong> di bawah untuk mengaktifkan VIP Anda</p>
+                    </div>
+                </div>
+            `;
+        }
+        if (window.lucide) lucide.createIcons();
+    },
+
+    copyEwalletNumber(num, label) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(num).then(function() {
+                if (typeof showToast === 'function') showToast('Nomor ' + label + ' (' + num + ') berhasil disalin!');
+            }).catch(function() {
+                if (typeof showToast === 'function') showToast('Nomor ' + label + ': ' + num);
+            });
+        } else {
+            if (typeof showToast === 'function') showToast('Nomor ' + label + ': ' + num);
+        }
+    },
+
+    async claimFreeVipTrial() {
+        var token = (typeof Auth !== 'undefined' && Auth.token) ? Auth.token : '';
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+        if (!u || !u.id) {
+            if (typeof showToast === 'function') showToast('Silakan login ke akun Anda terlebih dahulu untuk mengklaim Percobaan VIP!');
+            return;
+        }
+
+        var btn = gid('btn-claim-vip-trial');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Mengaktifkan Percobaan VIP...</span>';
+            if (window.lucide) lucide.createIcons();
+        }
+
+        try {
+            var res = await fetch('/api/user-auth?action=claim_vip_trial', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? ('Bearer ' + token) : ''
+                },
+                body: JSON.stringify({
+                    userId: u.id,
+                    username: u.username
+                })
+            });
+            var data = await res.json();
+            if (data && data.status && data.user) {
+                if (typeof Auth !== 'undefined' && Auth.currentUser) {
+                    Object.assign(Auth.currentUser, data.user);
+                    if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                }
+                if (typeof showToast === 'function') {
+                    showToast(data.message || '🎁 Percobaan VIP Gratis berhasil diaktifkan!');
+                }
+                gid('musifystar-vip-packages-modal')?.remove();
+                if (typeof Profile.render === 'function') Profile.render();
+            } else {
+                if (typeof showToast === 'function') {
+                    showToast(data?.message || 'Gagal mengklaim Percobaan VIP.');
+                }
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4 fill-black"></i><span>Klaim Percobaan VIP Sekarang (Rp 0)</span>';
+                    if (window.lucide) lucide.createIcons();
+                }
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Gagal menghubungi server. Coba lagi.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4 fill-black"></i><span>Klaim Percobaan VIP Sekarang (Rp 0)</span>';
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+    },
+
+    payTrialInvoiceNow() {
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
+        var cfg = (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.vipTrialConfig) ? Profile.cachedPaymentConfig.vipTrialConfig : {};
+        var inv = u.pendingTrialInvoice || {
+            invoiceId: 'INV-VIP-' + String(u.id || '001').slice(-4),
+            packageId: cfg.invoicePackageId || 'pkg_1month',
+            packageName: cfg.invoicePackageName || 'Paket 1 Bulan VIP (Tagihan Trial)',
+            amount: Number(cfg.invoiceAmount) || 10000,
+            duration: cfg.invoiceDuration || '30 Hari'
+        };
+        gid('musifystar-vip-packages-modal')?.remove();
+        Profile.openQrisPaymentModal({
+            id: inv.packageId || 'pkg_1month',
+            name: inv.packageName || 'Paket 1 Bulan VIP (Tagihan Trial)',
+            price: Number(inv.amount) || 10000,
+            duration: inv.duration || '30 Hari',
+            invoiceId: inv.invoiceId || ''
+        });
+    },
+
+    async loadAdminVipTrialTab() {
+        var container = gid('admin-viptrial-container');
+        if (!container) return;
+
+        var adminTok = Profile.getAdminToken();
+        if (!adminTok) return;
+
+        try {
+            var res = await fetch('/api/user-auth?action=admin_get_vip_trials&t=' + Date.now(), {
+                headers: {
+                    'x-admin-token': adminTok,
+                    'Authorization': 'Bearer ' + adminTok
+                }
+            });
+            var data = await res.json();
+            if (!data || !data.status) {
+                container.innerHTML = '<div class="p-6 text-center text-rose-400 text-xs">Gagal memuat data Trial VIP & Tagihan Email.</div>';
+                return;
+            }
+
+            var payCfg = data.paymentConfig || Profile.cachedPaymentConfig || {};
+            Profile.cachedPaymentConfig = payCfg;
+            var tc = data.vipTrialConfig || payCfg.vipTrialConfig || {};
+            var tf = tc.allowedFeatures || {};
+            var ew = payCfg.ewallets || {};
+            var users = Array.isArray(data.users) ? data.users : [];
+
+            var activeTrialUsers = users.filter(function(u) { return u.isVipTrial; });
+            var unpaidInvoiceUsers = users.filter(function(u) { return u.hasUnpaidTrialInvoice || (u.pendingTrialInvoice && u.pendingTrialInvoice.status === 'unpaid'); });
+            var trialHistoryUsers = users.filter(function(u) { return u.isVipTrial || u.hasClaimedVipTrial || u.hasUnpaidTrialInvoice; });
+
+            container.innerHTML = `
+            <div class="space-y-5">
+                <!-- HEADER RINGKASAN -->
+                <div class="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-emerald-500/15 border border-amber-400/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-black uppercase">ADMIN CONTROL</span>
+                            <h3 class="text-sm sm:text-base font-black text-white">Percobaan VIP Pengguna Baru (Trial) & Tagihan Email Otomatis</h3>
+                        </div>
+                        <p class="text-xs text-white/65 mt-1">
+                            Atur durasi Trial VIP, akses Border & Fitur selama Trial, pengiriman Email Tagihan saat masa aktif habis, serta kontrol penuh QRIS & E-Wallet (GoPay, DANA, OVO ON/OFF).
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="px-3 py-2 rounded-xl bg-black/40 border border-emerald-400/30 text-center">
+                            <span class="text-[10px] text-white/50 block">Trial Aktif</span>
+                            <span class="text-sm font-black text-emerald-400">${activeTrialUsers.length} Akun</span>
+                        </div>
+                        <div class="px-3 py-2 rounded-xl bg-black/40 border border-rose-400/30 text-center">
+                            <span class="text-[10px] text-white/50 block">Tagihan Belum Lunas</span>
+                            <span class="text-sm font-black text-rose-400">${unpaidInvoiceUsers.length} Akun</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FORM PENGATURAN TRIAL VIP, TAGIHAN EMAIL & PEMBAYARAN -->
+                <div class="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-5">
+                    <!-- 1. PENGATURAN PERCOBAAN VIP (FREE TRIAL) -->
+                    <div class="space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                            <label class="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                                <i data-lucide="gift" class="w-4 h-4"></i>
+                                <span>1. Pengaturan Percobaan VIP Pengguna Baru (Free Trial)</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer bg-amber-400/15 border border-amber-400/40 px-3 py-1.5 rounded-xl">
+                                <input type="checkbox" id="adm-vt-enabled" ${tc.enabled !== false ? 'checked' : ''} class="accent-amber-400 w-4 h-4 rounded" />
+                                <span class="text-xs font-black text-amber-300">Izinkan Pengguna Baru Klaim Trial VIP (ON/OFF)</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div>
+                                <label class="block text-[11px] font-bold text-white/60 mb-1">Durasi Percobaan VIP (Hari — Bisa Diketik Bebas):</label>
+                                <div class="flex items-center gap-2">
+                                    <div class="relative flex-1">
+                                        <input type="number" id="adm-vt-duration" min="1" max="3650" value="${Number(tc.durationDays) || 7}" placeholder="Ketik jumlah hari (misal: 7)" class="w-full px-3 py-2.5 pr-14 bg-black/60 border border-white/15 rounded-xl text-amber-300 font-mono text-xs font-black focus:outline-none focus:border-amber-400" />
+                                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-white/50 pointer-events-none">Hari</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
+                                    <span class="text-[10px] text-white/45">Pilih Cepat:</span>
+                                    ${[1, 3, 5, 7, 14, 30].map(function(d) {
+                                        return `<button type="button" onclick="var el=gid('adm-vt-duration'); if(el){el.value='${d}';}" class="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-amber-400/20 border border-white/10 hover:border-amber-400/40 text-[10px] font-bold text-white/75 hover:text-amber-300 cursor-pointer transition">${d} Hari</button>`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-white/60 mb-1">Akses Border Profil Selama Trial (Diatur Admin):</label>
+                                <select id="adm-vt-border-access" class="w-full px-3 py-2.5 bg-black/60 border border-white/15 rounded-xl text-amber-300 text-xs font-bold focus:outline-none focus:border-amber-400">
+                                    <option value="platinum" ${(!tc.borderAccess || tc.borderAccess === 'platinum') ? 'selected' : ''}>Khusus Border Platinum Saja</option>
+                                    <option value="platinum_master" ${tc.borderAccess === 'platinum_master' ? 'selected' : ''}>Border Platinum & Master</option>
+                                    <option value="platinum_master_legend" ${tc.borderAccess === 'platinum_master_legend' ? 'selected' : ''}>Border Platinum, Master & Legend</option>
+                                    <option value="all" ${tc.borderAccess === 'all' ? 'selected' : ''}>Semua Border VIP (Termasuk Immortal & Custom)</option>
+                                    <option value="none" ${tc.borderAccess === 'none' ? 'selected' : ''}>Tanpa Border VIP (Hanya Fitur VIP)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                <div>
+                                    <span class="text-[11px] font-bold text-white/85 block">Fitur VIP yang Dibuka Selama Masa Trial (10 Fitur Lengkap):</span>
+                                    <span class="text-[10px] text-white/45 block">Fitur yang tidak dicentang otomatis dikunci untuk pengguna Trial VIP (termasuk Custom ID, Efek Nama, dll).</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <button type="button" onclick="document.querySelectorAll('.adm-vt-feat-chk').forEach(function(c){c.checked=true;})" class="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/35 text-emerald-300 text-[10px] font-bold cursor-pointer">Centang Semua</button>
+                                    <button type="button" onclick="document.querySelectorAll('.adm-vt-feat-chk').forEach(function(c){c.checked=false;})" class="px-2 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/35 text-rose-300 text-[10px] font-bold cursor-pointer">Matikan Semua</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs text-white/85 pt-1">
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-cyan-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-liquid" ${tf.liquidGlassIos27 !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-cyan-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Liquid Glass iOS 27 (Full UI)</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-purple-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-glow" ${tf.nameGlow !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-purple-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Efek Nama Berwarna (VIP Glow)</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-amber-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-customid" ${tf.customId !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-amber-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Custom ID VIP (Ganti ID Keren)</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-pink-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-avatar" ${tf.vipAvatar !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-pink-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Katalog Avatar VIP (Cewe & Cowo)</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-amber-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-island" ${tf.dynamicIsland !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-amber-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Dynamic Island Mini Player iOS</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-emerald-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-audio" ${tf.highAudio !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Audio Ultra HD 320kbps</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-indigo-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-bgplay" ${tf.backgroundPlay !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-indigo-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Putar Musik di Latar Belakang</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-yellow-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-awake" ${tf.keepScreenAwake !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-yellow-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Layar Tetap Menyala (Wake Lock)</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-sky-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-swipe" ${tf.swipeGestures !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-sky-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Gestur Usap Layar Player</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-amber-400/30 cursor-pointer">
+                                    <input type="checkbox" id="adm-vt-feat-badge" ${tf.vipSultanBadge !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-amber-400 rounded w-4 h-4 shrink-0" />
+                                    <span class="text-[11px] font-semibold">Lencana Rank VIP Sultan Member</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. PENGATURAN TAGIHAN EMAIL SAAT MASA TRIAL HABIS -->
+                    <div class="space-y-3 pt-3 border-t border-white/10">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <label class="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                                <i data-lucide="mail" class="w-4 h-4"></i>
+                                <span>2. Pengaturan Tagihan Email Saat Masa Trial Habis</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer bg-emerald-500/15 border border-emerald-500/40 px-3 py-1.5 rounded-xl">
+                                <input type="checkbox" id="adm-vt-auto-email" ${tc.autoSendEmailInvoice !== false ? 'checked' : ''} class="accent-emerald-400 w-4 h-4 rounded" />
+                                <span class="text-xs font-black text-emerald-300">Kirim Email Tagihan Otomatis Saat Trial Habis</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            <div>
+                                <label class="block text-[11px] font-bold text-white/60 mb-1">Nama Paket di Tagihan Email:</label>
+                                <input type="text" id="adm-vt-inv-pkg-name" value="${Profile.escapeHtml(tc.invoicePackageName || 'Paket 1 Bulan VIP')}" placeholder="Paket 1 Bulan VIP" class="w-full px-3 py-2 bg-black/60 border border-white/15 rounded-xl text-white text-xs" />
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-white/60 mb-1">Nominal Tagihan (Rp):</label>
+                                <input type="number" id="adm-vt-inv-amount" value="${Number(tc.invoiceAmount) || 10000}" placeholder="10000" class="w-full px-3 py-2 bg-black/60 border border-white/15 rounded-xl text-amber-400 font-mono font-bold text-xs" />
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-white/60 mb-1">Durasi Perpanjangan:</label>
+                                <input type="text" id="adm-vt-inv-duration" value="${Profile.escapeHtml(tc.invoiceDuration || '30 Hari')}" placeholder="30 Hari" class="w-full px-3 py-2 bg-black/60 border border-white/15 rounded-xl text-white text-xs" />
+                            </div>
+                            <div class="sm:col-span-3">
+                                <label class="block text-[11px] font-bold text-white/60 mb-1">Pesan Catatan di Email Tagihan:</label>
+                                <input type="text" id="adm-vt-inv-note" value="${Profile.escapeHtml(tc.invoiceNote || 'Masa aktif Percobaan VIP (Free Trial) Anda telah berakhir. Silakan selesaikan pembayaran tagihan melalui QRIS atau E-Wallet (GoPay / DANA / OVO) untuk kembali mengaktifkan akses penuh VIP MusifyStar.')}" class="w-full px-3 py-2 bg-black/60 border border-white/15 rounded-xl text-white/80 text-xs" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. PENGATURAN QRIS & PEMBAYARAN VIA GOPAY, DANA, OVO (BISA DIMATIKAN ON/OFF) -->
+                    <div class="space-y-3 pt-3 border-t border-white/10">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                                <label class="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                                    <i data-lucide="qr-code" class="w-4 h-4"></i>
+                                    <span>3. Pengaturan QRIS & Pembayaran via GoPay, DANA, OVO (ON / OFF)</span>
+                                </label>
+                                <p class="text-[11px] text-white/50">Atur gambar QRIS Admin serta nomor GoPay, DANA, OVO. Matikan (OFF) jika hanya ingin menampilkan QRIS saja.</p>
+                            </div>
+                            <label class="flex items-center gap-2 cursor-pointer bg-sky-500/15 border border-sky-500/40 px-3 py-1.5 rounded-xl">
+                                <input type="checkbox" id="adm-vt-ewallets-master" ${payCfg.ewalletsEnabled !== false ? 'checked' : ''} class="accent-sky-400 w-4 h-4 rounded" />
+                                <span class="text-xs font-black text-sky-300">Tampilkan Pembayaran GoPay / DANA / OVO (ON/OFF)</span>
+                            </label>
+                        </div>
+
+                        <!-- Baris Kontrol QRIS & WhatsApp Admin -->
+                        <div class="p-3.5 rounded-xl bg-black/45 border border-white/10 grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+                            <div class="flex items-center gap-3">
+                                <img id="adm-vt-qris-preview" src="${payCfg.qrisUrl || '/qris.png'}" class="w-16 h-16 rounded-lg object-contain bg-black border border-white/15 p-1 shrink-0" onerror="this.src='/qris.png'" />
+                                <div class="space-y-1.5">
+                                    <span class="text-xs font-bold text-white block">Barcode QRIS Aktif</span>
+                                    <input type="file" id="adm-vt-qris-file" accept="image/png,image/jpeg,image/webp" onchange="Profile.handleTrialTabQrisUpload(event)" class="hidden" />
+                                    <button type="button" onclick="gid('adm-vt-qris-file')?.click()" class="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-black font-black text-[11px] flex items-center gap-1 cursor-pointer">
+                                        <i data-lucide="upload" class="w-3 h-3"></i>
+                                        <span>Ganti Foto QRIS</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-white/50 mb-1">Nama Merchant QRIS:</label>
+                                <input type="text" id="adm-vt-qris-holder" value="${Profile.escapeHtml(payCfg.qrisHolder || 'NABIL (MusifyStar Official)')}" class="w-full px-3 py-2 bg-black/60 border border-white/15 rounded-xl text-white text-xs" />
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-white/50 mb-1">URL Gambar QRIS:</label>
+                                <input type="text" id="adm-vt-qris-url" value="${Profile.escapeHtml(payCfg.qrisUrl || '/qris.png')}" class="w-full px-3 py-2 bg-black/60 border border-white/15 rounded-xl text-white font-mono text-xs" />
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-emerald-300 font-bold mb-1">No. WhatsApp Admin (Bukti TF):</label>
+                                <input type="text" id="adm-vt-admin-wa" value="${Profile.escapeHtml(payCfg.adminWhatsapp || '6281234567890')}" placeholder="6281234567890" class="w-full px-3 py-2 bg-black/60 border border-emerald-400/30 rounded-xl text-emerald-300 font-mono font-bold text-xs" />
+                            </div>
+                        </div>
+
+                        <!-- Kartu GoPay, DANA, OVO dengan masing-masing tombol ON/OFF -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="p-3 rounded-xl bg-black/45 border border-sky-500/30 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-black text-sky-400">GoPay</span>
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-white/80">
+                                        <input type="checkbox" id="adm-vt-gopay-on" ${(ew.gopay?.enabled !== false) ? 'checked' : ''} class="accent-sky-400 rounded" />
+                                        <span>Aktif (ON)</span>
+                                    </label>
+                                </div>
+                                <input type="text" id="adm-vt-gopay-num" value="${Profile.escapeHtml(ew.gopay?.number || '081234567890')}" placeholder="Nomor GoPay" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white font-mono text-xs" />
+                                <input type="text" id="adm-vt-gopay-holder" value="${Profile.escapeHtml(ew.gopay?.holder || payCfg.qrisHolder || 'NABIL (MusifyStar Official)')}" placeholder="Atas Nama GoPay" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white/80 text-xs" />
+                            </div>
+
+                            <div class="p-3 rounded-xl bg-black/45 border border-blue-500/30 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-black text-blue-400">DANA</span>
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-white/80">
+                                        <input type="checkbox" id="adm-vt-dana-on" ${(ew.dana?.enabled !== false) ? 'checked' : ''} class="accent-blue-400 rounded" />
+                                        <span>Aktif (ON)</span>
+                                    </label>
+                                </div>
+                                <input type="text" id="adm-vt-dana-num" value="${Profile.escapeHtml(ew.dana?.number || '081234567890')}" placeholder="Nomor DANA" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white font-mono text-xs" />
+                                <input type="text" id="adm-vt-dana-holder" value="${Profile.escapeHtml(ew.dana?.holder || payCfg.qrisHolder || 'NABIL (MusifyStar Official)')}" placeholder="Atas Nama DANA" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white/80 text-xs" />
+                            </div>
+
+                            <div class="p-3 rounded-xl bg-black/45 border border-purple-500/30 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-black text-purple-400">OVO</span>
+                                    <label class="flex items-center gap-1.5 cursor-pointer text-[11px] font-bold text-white/80">
+                                        <input type="checkbox" id="adm-vt-ovo-on" ${(ew.ovo?.enabled !== false) ? 'checked' : ''} class="accent-purple-400 rounded" />
+                                        <span>Aktif (ON)</span>
+                                    </label>
+                                </div>
+                                <input type="text" id="adm-vt-ovo-num" value="${Profile.escapeHtml(ew.ovo?.number || '081234567890')}" placeholder="Nomor OVO" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white font-mono text-xs" />
+                                <input type="text" id="adm-vt-ovo-holder" value="${Profile.escapeHtml(ew.ovo?.holder || payCfg.qrisHolder || 'NABIL (MusifyStar Official)')}" placeholder="Atas Nama OVO" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white/80 text-xs" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-white/10 flex justify-end">
+                        <button type="button" id="adm-vt-save-btn" onclick="Profile.saveAdminVipTrialAndPaymentConfig()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-emerald-400 hover:from-amber-500 hover:to-emerald-500 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition cursor-pointer">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            <span>Simpan Pengaturan Trial VIP, Tagihan Email & QRIS / E-Wallet</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. KONTROL MANUAL: BERIKAN TRIAL / KIRIM TAGIHAN EMAIL KE PENGGUNA TERTENTU -->
+                <div class="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+                    <label class="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <i data-lucide="user-check" class="w-4 h-4"></i>
+                        <span>4. Berikan Trial VIP atau Kirim Tagihan Email (Beserta QRIS) ke Pengguna</span>
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <select id="adm-vt-target-user" class="sm:col-span-2 px-3 py-2.5 bg-black/60 border border-white/15 rounded-xl text-white text-xs">
+                            <option value="">-- Pilih Akun Pengguna Terdaftar --</option>
+                            ${users.map(function(u) {
+                                var st = u.isVipTrial ? ' [TRIAL AKTIF]' : (u.hasUnpaidTrialInvoice ? ' [TRIAL HABIS - TAGIHAN BELUM LUNAS]' : (u.isPremium ? ' [VIP AKTIF]' : ''));
+                                return `<option value="${Profile.escapeHtml(u.id)}">@${Profile.escapeHtml(u.username)} (${Profile.escapeHtml(u.email)})${st}</option>`;
+                            }).join('')}
+                        </select>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="var uid=gid('adm-vt-target-user')?.value; if(!uid){showToast('Pilih pengguna terlebih dahulu!');return;} Profile.adminManageUserTrial(uid, 'grant_trial');" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 font-bold text-xs cursor-pointer">
+                                + Beri Trial
+                            </button>
+                            <button type="button" onclick="var uid=gid('adm-vt-target-user')?.value; if(!uid){showToast('Pilih pengguna terlebih dahulu!');return;} Profile.adminManageUserTrial(uid, 'expire_and_bill');" class="flex-1 py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-xs cursor-pointer">
+                                Akhiri Trial & Kirim Email QRIS
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. KARTU PROFIL PENGGUNA YANG TRIAL VIP-NYA SUDAH HABIS / MENUNGGU KONFIRMASI BUKTI TF WA ADMIN -->
+                <div class="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3.5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <label class="text-xs font-black uppercase tracking-wider text-white/90 flex items-center gap-1.5">
+                                <i data-lucide="users" class="w-4 h-4 text-amber-400"></i>
+                                <span>5. Profil Pengguna Trial VIP & Keputusan Perpanjangan Admin (${trialHistoryUsers.length})</span>
+                            </label>
+                            <p class="text-[11px] text-white/55 mt-0.5">
+                                Tagihan dikirim langsung ke Email pengguna beserta foto QRIS. Jika pengguna sudah kirim bukti TF QRIS ke WhatsApp Admin, klik <strong>Lanjut Perpanjang VIP Otomatis</strong> untuk mengaktifkan VIP pengguna.
+                            </p>
+                        </div>
+                        <button type="button" onclick="Profile.loadAdminVipTrialTab()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-xs font-bold flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                            <span>Refresh Data</span>
+                        </button>
+                    </div>
+
+                    ${trialHistoryUsers.length === 0 ? `
+                    <div class="p-6 rounded-xl bg-black/30 border border-white/5 text-center text-xs text-white/40">
+                        Belum ada pengguna yang mengklaim Percobaan VIP atau memiliki tagihan.
+                    </div>
+                    ` : `
+                    <div class="grid grid-cols-1 gap-3">
+                        ${trialHistoryUsers.map(function(u) {
+                            var inv = u.pendingTrialInvoice || null;
+                            var invStat = inv && inv.status ? String(inv.status).toLowerCase() : '';
+                            var isWaitingWa = Boolean(inv && (inv.waitingAdminApproval || invStat === 'waiting_admin'));
+                            var isTrialStillActive = Boolean(u.isVipTrial && !u.hasUnpaidTrialInvoice && (!u.vipExpiresAt || u.vipExpiresAt > Date.now()));
+                            var remText = '';
+                            if (isTrialStillActive && u.vipExpiresAt) {
+                                var diff = u.vipExpiresAt - Date.now();
+                                remText = diff > 0 ? (Math.ceil(diff / (24 * 3600 * 1000)) + ' hari tersisa') : 'Kedaluwarsa';
+                            }
+                            var cardBorderClass = isWaitingWa
+                                ? 'border-amber-400/60 bg-gradient-to-br from-amber-500/15 via-black/60 to-emerald-500/10 shadow-[0_0_20px_rgba(250,204,21,0.15)]'
+                                : (u.hasUnpaidTrialInvoice
+                                    ? 'border-rose-400/45 bg-gradient-to-br from-rose-500/10 via-black/55 to-black/60'
+                                    : 'border-white/10 bg-black/45');
+
+                            var trialBorderMap = {
+                                'platinum': 'Border Platinum',
+                                'platinum_master': 'Border Platinum & Master',
+                                'platinum_master_legend': 'Border Platinum, Master & Legend',
+                                'all': 'Semua Border VIP (Termasuk Immortal)',
+                                'none': 'Tanpa Border'
+                            };
+                            var userTrialDays = u.trialDurationDays || (inv && parseInt(inv.duration)) || 7;
+                            var userTrialPkgTitle = (inv && inv.packageName) || `Paket ${userTrialDays} Hari VIP`;
+                            var userTrialBorderTitle = u.borderName || u.border || u.lastTrialBorderName || trialBorderMap[String(u.trialBorderAccess || 'platinum').toLowerCase()] || 'Border Platinum';
+
+                            return `
+                            <div class="p-4 rounded-2xl border ${cardBorderClass} space-y-3">
+                                <!-- Bagian Atas: Profil Lengkap Pengguna -->
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                     <div class="flex items-center gap-3 min-w-0">
+                                        <div class="relative shrink-0">
+                                            <img src="${Profile.escapeHtml(u.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User')}" class="w-12 h-12 rounded-full object-cover border-2 border-amber-400/50 bg-black" />
+                                            ${(u.isPremium && !u.hasUnpaidTrialInvoice) ? `<span class="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-amber-400 text-black text-[8px] font-black uppercase">VIP</span>` : `<span class="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[8px] font-black uppercase">HABIS</span>`}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="text-sm font-black text-white">@${Profile.escapeHtml(u.username)}</span>
+                                                <span class="px-2 py-0.5 rounded-md bg-white/10 text-white/75 font-mono text-[10px] font-bold">ID: ${Profile.escapeHtml(u.originalId || u.id)}</span>
+                                                ${isWaitingWa ? `<span class="px-2 py-0.5 rounded-md bg-amber-400 text-black text-[10px] font-black uppercase animate-pulse">📲 SUDAH SCAN QRIS • CEK BUKTI TF WA</span>` : ''}
+                                                ${(!isWaitingWa && u.hasUnpaidTrialInvoice) ? `<span class="px-2 py-0.5 rounded-md bg-rose-500/25 border border-rose-400/40 text-rose-300 text-[10px] font-black">TRIAL HABIS • TAGIHAN EMAIL (Rp ${Number(inv?.amount || 10000).toLocaleString('id-ID')})</span>` : ''}
+                                                ${isTrialStillActive ? `<span class="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold">TRIAL AKTIF • ${remText}</span>` : ''}
+                                                ${(!isTrialStillActive && !u.hasUnpaidTrialInvoice && invStat === 'paid') ? `<span class="px-2 py-0.5 rounded-md bg-emerald-500/25 border border-emerald-400/50 text-emerald-300 text-[10px] font-black">✅ SUDAH DIPERPANJANG VIP (${Profile.escapeHtml(inv.paidMethod || 'QRIS')})</span>` : ''}
+                                                ${(!isTrialStillActive && !u.hasUnpaidTrialInvoice && invStat === 'declined') ? `<span class="px-2 py-0.5 rounded-md bg-white/10 border border-white/20 text-white/60 text-[10px] font-bold">TIDAK LANJUT PERPANJANG</span>` : ''}
+                                            </div>
+                                            <p class="text-xs text-white/65 truncate mt-1">
+                                                Email: <span class="text-amber-300 font-mono">${Profile.escapeHtml(u.email)}</span>
+                                                • Border: <span class="text-white/85 font-semibold">${Profile.escapeHtml((!u.hasUnpaidTrialInvoice && (u.borderName || u.border)) ? (u.borderName || u.border) : (u.lastTrialBorderName || userTrialBorderTitle || 'Default'))}</span>
+                                            </p>
+                                            ${inv ? `
+                                            <p class="text-[11px] text-white/55 mt-0.5">
+                                                No. Tagihan: <span class="text-white font-mono font-bold">${Profile.escapeHtml(inv.invoiceId || '-')}</span>
+                                                • Paket: <span class="text-amber-300 font-bold">${Profile.escapeHtml(inv.packageName || 'Paket 1 Bulan VIP')} (Rp ${Number(inv.amount || 10000).toLocaleString('id-ID')})</span>
+                                                • Status Email: <span class="${inv.emailSent ? 'text-emerald-300' : 'text-rose-300'} font-bold">${inv.emailSent ? 'Terkirim ke Email (+QRIS)' : 'Belum Terkirim'}</span>
+                                                ${inv.userConfirmedMethod ? ` • Metode Pilihan User: <span class="text-sky-300 font-bold">${Profile.escapeHtml(inv.userConfirmedMethod)}</span>` : ''}
+                                            </p>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Bagian Bawah: Pilihan Admin (Durasi Perpanjangan, Pilihan Border & Tombol Aksi) -->
+                                <div class="pt-2.5 border-t border-white/10 flex flex-col xl:flex-row xl:items-center justify-between gap-2.5">
+                                    <div class="flex items-center gap-2.5 flex-wrap">
+                                        <!-- Pilihan Durasi -->
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <label class="text-[11px] font-bold text-white/60">Pilih Durasi VIP:</label>
+                                            <select id="adm-vt-ext-pkg-${Profile.escapeHtml(u.id)}" class="px-2.5 py-1.5 rounded-xl bg-black/70 border border-amber-400/40 text-amber-300 text-xs font-bold focus:outline-none max-w-[230px]">
+                                                <option value="trial_same" selected>⭐ Sesuai Paket Percobaan (${userTrialDays} Hari - ${Profile.escapeHtml(userTrialPkgTitle)})</option>
+                                                <option value="1month">Paket 1 Bulan (30 Hari)</option>
+                                                <option value="1week">Paket Mingguan (7 Hari)</option>
+                                                <option value="5months">Paket 5 Bulan (150 Hari)</option>
+                                                <option value="permanent">Paket Permanen Lifetime (Selamanya)</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Pilihan Border VIP -->
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <label class="text-[11px] font-bold text-white/60">Pilih Border VIP:</label>
+                                            <select id="adm-vt-ext-border-${Profile.escapeHtml(u.id)}" class="px-2.5 py-1.5 rounded-xl bg-black/70 border border-amber-400/40 text-amber-300 text-xs font-bold focus:outline-none max-w-[210px]">
+                                                <option value="trial_border" selected>⭐ Sesuai Border Trial (${Profile.escapeHtml(userTrialBorderTitle)})</option>
+                                                <option value="border_platinum">Border Platinum</option>
+                                                <option value="border_master">Border Master</option>
+                                                <option value="border_legend">Border Legend</option>
+                                                <option value="border_immortal">Border Immortal</option>
+                                                <option value="all">Semua Border VIP (Termasuk Immortal)</option>
+                                                <option value="none">Tanpa Border (Hanya Fitur VIP)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <!-- Tombol 1: Lanjut Perpanjang VIP Otomatis (Jika User Sudah TF & Kirim Bukti ke WA) -->
+                                        <button type="button" onclick="Profile.adminManageUserTrial('${Profile.escapeHtml(u.id)}', 'auto_extend_vip')" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-black font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer">
+                                            <i data-lucide="check-circle-2" class="w-4 h-4 stroke-[2.5]"></i>
+                                            <span>Lanjut Perpanjang VIP Otomatis (Lunas)</span>
+                                        </button>
+
+                                        <!-- Tombol 2: Tidak Lanjut Perpanjang (Hapus Tagihan Tanpa Aktifkan VIP) -->
+                                        <button type="button" onclick="Profile.adminManageUserTrial('${Profile.escapeHtml(u.id)}', 'cancel_renewal')" class="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-200 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition cursor-pointer">
+                                            <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                                            <span>Tidak Lanjut Perpanjang (Hapus Tagihan)</span>
+                                        </button>
+
+                                        ${isTrialStillActive ? `
+                                        <button type="button" onclick="Profile.adminManageUserTrial('${Profile.escapeHtml(u.id)}', 'expire_and_bill')" class="px-2.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-bold text-[11px] cursor-pointer">
+                                            Akhiri Trial & Kirim Email QRIS
+                                        </button>
+                                        ` : `
+                                        <button type="button" onclick="Profile.adminSendUserTrialInvoice('${Profile.escapeHtml(u.id)}')" class="px-2.5 py-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-300 font-bold text-[11px] cursor-pointer">
+                                            Kirim Ulang Email QRIS
+                                        </button>
+                                        `}
+
+                                        <button type="button" onclick="Profile.adminManageUserTrial('${Profile.escapeHtml(u.id)}', 'reset_trial')" class="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white/70 font-bold text-[11px] cursor-pointer">
+                                            Reset Trial
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    `}
+                </div>
+            </div>`;
+
+            if (window.lucide) lucide.createIcons();
+        } catch (err) {
+            container.innerHTML = '<div class="p-6 text-center text-rose-400 text-xs">Terjadi kesalahan saat memuat tab Trial VIP.</div>';
+        }
+    },
+
+    handleTrialTabQrisUpload(event) {
+        var file = event?.target?.files?.[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var base64 = e.target.result;
+            Profile.pendingQrisBase64 = base64;
+            var prev = gid('adm-vt-qris-preview');
+            if (prev) prev.src = base64;
+            if (typeof showToast === 'function') showToast('Foto QRIS baru siap disimpan! Klik tombol Simpan di bawah.');
+        };
+        reader.readAsDataURL(file);
+    },
+
+    async saveAdminVipTrialAndPaymentConfig() {
+        var token = Profile.getAdminToken();
+        if (!token) return;
+
+        var saveBtn = gid('adm-vt-save-btn');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Menyimpan...</span>';
+            if (window.lucide) lucide.createIcons();
+        }
+
+        var qrisHolder = (gid('adm-vt-qris-holder')?.value || 'NABIL (MusifyStar Official)').trim();
+        var qrisUrl = (gid('adm-vt-qris-url')?.value || '/qris.png').trim();
+        var adminWa = (gid('adm-vt-admin-wa')?.value || '6281234567890').trim();
+        var ewMaster = gid('adm-vt-ewallets-master') ? Boolean(gid('adm-vt-ewallets-master').checked) : true;
+
+        var payload = {
+            qrisHolder: qrisHolder,
+            adminWhatsapp: adminWa,
+            ewalletsEnabled: ewMaster,
+            ewallets: {
+                gopay: {
+                    enabled: gid('adm-vt-gopay-on') ? Boolean(gid('adm-vt-gopay-on').checked) : true,
+                    number: (gid('adm-vt-gopay-num')?.value || '081234567890').trim(),
+                    holder: (gid('adm-vt-gopay-holder')?.value || qrisHolder).trim()
+                },
+                dana: {
+                    enabled: gid('adm-vt-dana-on') ? Boolean(gid('adm-vt-dana-on').checked) : true,
+                    number: (gid('adm-vt-dana-num')?.value || '081234567890').trim(),
+                    holder: (gid('adm-vt-dana-holder')?.value || qrisHolder).trim()
+                },
+                ovo: {
+                    enabled: gid('adm-vt-ovo-on') ? Boolean(gid('adm-vt-ovo-on').checked) : true,
+                    number: (gid('adm-vt-ovo-num')?.value || '081234567890').trim(),
+                    holder: (gid('adm-vt-ovo-holder')?.value || qrisHolder).trim()
+                }
+            },
+            vipTrialConfig: {
+                enabled: gid('adm-vt-enabled') ? Boolean(gid('adm-vt-enabled').checked) : true,
+                durationDays: Math.max(1, Math.min(3650, Number(gid('adm-vt-duration')?.value) || 7)),
+                borderAccess: (gid('adm-vt-border-access')?.value || 'platinum').trim(),
+                allowedFeatures: {
+                    liquidGlassIos27: gid('adm-vt-feat-liquid') ? Boolean(gid('adm-vt-feat-liquid').checked) : true,
+                    nameGlow: gid('adm-vt-feat-glow') ? Boolean(gid('adm-vt-feat-glow').checked) : true,
+                    customId: gid('adm-vt-feat-customid') ? Boolean(gid('adm-vt-feat-customid').checked) : true,
+                    vipAvatar: gid('adm-vt-feat-avatar') ? Boolean(gid('adm-vt-feat-avatar').checked) : true,
+                    dynamicIsland: gid('adm-vt-feat-island') ? Boolean(gid('adm-vt-feat-island').checked) : true,
+                    highAudio: gid('adm-vt-feat-audio') ? Boolean(gid('adm-vt-feat-audio').checked) : true,
+                    backgroundPlay: gid('adm-vt-feat-bgplay') ? Boolean(gid('adm-vt-feat-bgplay').checked) : true,
+                    keepScreenAwake: gid('adm-vt-feat-awake') ? Boolean(gid('adm-vt-feat-awake').checked) : true,
+                    swipeGestures: gid('adm-vt-feat-swipe') ? Boolean(gid('adm-vt-feat-swipe').checked) : true,
+                    vipSultanBadge: gid('adm-vt-feat-badge') ? Boolean(gid('adm-vt-feat-badge').checked) : true
+                },
+                autoSendEmailInvoice: gid('adm-vt-auto-email') ? Boolean(gid('adm-vt-auto-email').checked) : true,
+                invoicePackageId: 'pkg_1month',
+                invoicePackageName: (gid('adm-vt-inv-pkg-name')?.value || 'Paket 1 Bulan VIP').trim(),
+                invoiceAmount: Number(gid('adm-vt-inv-amount')?.value) || 10000,
+                invoiceDuration: (gid('adm-vt-inv-duration')?.value || '30 Hari').trim(),
+                invoiceNote: (gid('adm-vt-inv-note')?.value || '').trim()
+            }
+        };
+
+        if (Profile.pendingQrisBase64) {
+            payload.qrisBase64 = Profile.pendingQrisBase64;
+        } else if (qrisUrl) {
+            payload.qrisUrl = qrisUrl;
+        }
+
+        try {
+            var res = await fetch('/api/payment-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-token': token
+                },
+                body: JSON.stringify(payload)
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                Profile.cachedPaymentConfig = data.config;
+                Profile.pendingQrisBase64 = null;
+                if (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.isVipTrial) {
+                    Auth.currentUser.trialAllowedFeatures = Object.assign({}, payload.vipTrialConfig.allowedFeatures);
+                    Auth.currentUser.trialBorderAccess = payload.vipTrialConfig.borderAccess;
+                    if (payload.vipTrialConfig.allowedFeatures.customId === false && Auth.currentUser.customId) {
+                        Auth.currentUser.id = Auth.currentUser.originalId || Auth.currentUser.id;
+                        Auth.currentUser.customId = null;
+                    }
+                    if (payload.vipTrialConfig.allowedFeatures.nameGlow === false) {
+                        Auth.currentUser.nameGlow = '';
+                    }
+                    if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                }
+                Profile.applySettings();
+                if (typeof showToast === 'function') {
+                    showToast('Pengaturan Percobaan VIP, Tagihan Email & QRIS/GoPay/DANA/OVO berhasil disimpan!');
+                }
+                await Profile.loadAdminVipTrialTab();
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal menyimpan pengaturan');
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Pengaturan Trial VIP, Tagihan Email & QRIS / E-Wallet</span>';
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+    },
+
+    async adminSendUserTrialInvoice(userId) {
+        var token = Profile.getAdminToken();
+        if (!token || !userId) return;
+        if (typeof showToast === 'function') showToast('Mengakhiri Trial & mengirim ulang Email Tagihan VIP beserta foto QRIS...');
+        try {
+            var res = await fetch('/api/user-auth?action=admin_send_trial_invoice', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-token': token
+                },
+                body: JSON.stringify({ userId: userId })
+            });
+            var data = await res.json();
+            if (data && data.status && typeof Auth !== 'undefined' && Auth.currentUser) {
+                if (String(Auth.currentUser.id) === String(userId) || String(Auth.currentUser.originalId) === String(userId)) {
+                    if (data.user) {
+                        Object.assign(Auth.currentUser, data.user);
+                        if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                    }
+                    Profile.applySettings();
+                    gid('user-unpaid-trial-invoice-card')?.remove();
+                }
+            }
+            if (typeof showToast === 'function') {
+                showToast(data?.message || (data?.status ? 'Email Tagihan + QRIS berhasil dikirim ulang!' : 'Gagal mengirim email tagihan.'));
+            }
+            await Profile.loadAdminVipTrialTab();
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Gagal menghubungi server.');
+        }
+    },
+
+    async adminManageUserTrial(userId, subAction) {
+        var token = Profile.getAdminToken();
+        if (!token || !userId || !subAction) return;
+        var durationDays = Math.max(1, Math.min(3650, Number(gid('adm-vt-duration')?.value) || 7));
+        var borderAccess = (gid('adm-vt-border-access')?.value || 'platinum').trim();
+        var extendPkgSelect = gid('adm-vt-ext-pkg-' + userId);
+        var extendPackage = extendPkgSelect ? extendPkgSelect.value : 'trial_same';
+        var extendBorderSelect = gid('adm-vt-ext-border-' + userId);
+        var extendBorder = extendBorderSelect ? extendBorderSelect.value : 'trial_border';
+        var allowedFeatures = {
+            liquidGlassIos27: gid('adm-vt-feat-liquid') ? Boolean(gid('adm-vt-feat-liquid').checked) : true,
+            nameGlow: gid('adm-vt-feat-glow') ? Boolean(gid('adm-vt-feat-glow').checked) : true,
+            customId: gid('adm-vt-feat-customid') ? Boolean(gid('adm-vt-feat-customid').checked) : true,
+            vipAvatar: gid('adm-vt-feat-avatar') ? Boolean(gid('adm-vt-feat-avatar').checked) : true,
+            dynamicIsland: gid('adm-vt-feat-island') ? Boolean(gid('adm-vt-feat-island').checked) : true,
+            highAudio: gid('adm-vt-feat-audio') ? Boolean(gid('adm-vt-feat-audio').checked) : true,
+            backgroundPlay: gid('adm-vt-feat-bgplay') ? Boolean(gid('adm-vt-feat-bgplay').checked) : true,
+            keepScreenAwake: gid('adm-vt-feat-awake') ? Boolean(gid('adm-vt-feat-awake').checked) : true,
+            swipeGestures: gid('adm-vt-feat-swipe') ? Boolean(gid('adm-vt-feat-swipe').checked) : true,
+            vipSultanBadge: gid('adm-vt-feat-badge') ? Boolean(gid('adm-vt-feat-badge').checked) : true
+        };
+
+        try {
+            var res = await fetch('/api/user-auth?action=admin_manage_user_trial', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-token': token
+                },
+                body: JSON.stringify({
+                    userId: userId,
+                    subAction: subAction,
+                    durationDays: durationDays,
+                    borderAccess: borderAccess,
+                    allowedFeatures: allowedFeatures,
+                    extendPackage: extendPackage,
+                    extendBorder: extendBorder
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                // Sinkronkan sesi lokal jika Admin sedang menguji di akunnya sendiri agar kartu tagihan merah & pembatasan fitur langsung sinkron
+                if (typeof Auth !== 'undefined' && Auth.currentUser) {
+                    if (String(Auth.currentUser.id) === String(userId) || String(Auth.currentUser.originalId) === String(userId)) {
+                        if (data.user) {
+                            Object.assign(Auth.currentUser, data.user);
+                            if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                        } else if (typeof Auth.checkSession === 'function') {
+                            try { await Auth.checkSession(); } catch(e) {}
+                        }
+                        Profile.applySettings();
+                        gid('user-unpaid-trial-invoice-card')?.remove();
+                    }
+                }
+            }
+            if (typeof showToast === 'function') {
+                showToast(data?.message || 'Status Trial & VIP pengguna berhasil diperbarui!');
+            }
+            await Profile.loadAdminVipTrialTab();
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Gagal memproses aksi Trial pengguna.');
         }
     }
 };

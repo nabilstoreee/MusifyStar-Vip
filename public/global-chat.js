@@ -305,12 +305,17 @@
                 donatur: user ? (user.donatur || null) : null
             });
 
+            var userGlow = (user && user.nameGlow) ? user.nameGlow : '';
+            var renderedSenderName = (typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && userGlow)
+                ? Auth.renderUsernameWithGlow(username, userGlow)
+                : GlobalChat.escapeHtml(username);
+
             return `
             <div class="space-y-1.5">
                 <div class="flex items-center justify-between text-[11px] text-slate-400 px-1 select-none">
                     <span class="flex items-center gap-1.5 truncate flex-wrap">
                         <span class="text-slate-400">Mengirim sebagai:</span>
-                        <b class="text-slate-200 font-semibold truncate">${GlobalChat.escapeHtml(username)}</b>
+                        <b class="text-slate-200 font-semibold truncate">${renderedSenderName}</b>
                         ${senderBadgesHTML}
                     </span>
                     <span id="global-chat-char-count" class="font-mono text-[10px] text-slate-500">0/500</span>
@@ -358,6 +363,7 @@
         _friendActionBusy: false,
         _friendActionSeq: 0,
         _currentModalProfile: null,
+        _userGlowCache: {},
 
         isAdminIdentity(idStr, nameStr) {
             var cid = String(idStr || '').trim();
@@ -447,8 +453,15 @@
                         GlobalChat.friendUpdates = data.friendUpdates;
                     }
                     var reqChanged = GlobalChat.incomingFriendRequests.length !== prevReqCount;
+                    if (!GlobalChat._userGlowCache) GlobalChat._userGlowCache = {};
+                    data.messages.forEach(function(m) {
+                        if (m && m.nameGlow) {
+                            if (m.userId) GlobalChat._userGlowCache[String(m.userId)] = m.nameGlow;
+                            if (m.username) GlobalChat._userGlowCache[String(m.username).toLowerCase().trim()] = m.nameGlow;
+                        }
+                    });
                     var msgSig = data.messages.map(function(m) {
-                        return [m.id, m.username, m.avatar, m.borderUrl, m.borderName, m.equippedBadge, m.message].join(':');
+                        return [m.id, m.username, m.avatar, m.borderUrl, m.borderName, m.equippedBadge, m.nameGlow, m.message].join(':');
                     }).join('|') + '||' + GlobalChat.incomingFriendRequests.length;
                     GlobalChat.messages = data.messages;
                     GlobalChat.lastMessageCount = data.messages.length;
@@ -586,6 +599,16 @@
                 var eqTitle = isMe ? (u.equippedBadgeTitle !== undefined ? u.equippedBadgeTitle : (m.equippedBadgeTitle || '')) : (m.equippedBadgeTitle || '');
                 var eqIcon = isMe ? (u.equippedBadgeIcon !== undefined ? u.equippedBadgeIcon : (m.equippedBadgeIcon || '')) : (m.equippedBadgeIcon || '');
                 var eqColor = isMe ? (u.equippedBadgeColor !== undefined ? u.equippedBadgeColor : (m.equippedBadgeColor || '')) : (m.equippedBadgeColor || '');
+                var userNameGlow = (isMe && u && u.nameGlow)
+                    ? u.nameGlow
+                    : (m.nameGlow || (GlobalChat._userGlowCache && (GlobalChat._userGlowCache[msgUserId] || GlobalChat._userGlowCache[msgUsername])) || '');
+                if (userNameGlow && GlobalChat._userGlowCache) {
+                    if (msgUserId) GlobalChat._userGlowCache[msgUserId] = userNameGlow;
+                    if (msgUsername) GlobalChat._userGlowCache[msgUsername] = userNameGlow;
+                }
+                var renderedDisplayUsername = (typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && userNameGlow)
+                    ? Auth.renderUsernameWithGlow(displayUsername, userNameGlow)
+                    : GlobalChat.escapeHtml(displayUsername);
 
                 // Resolve Badges Sequence: [Admin Checkmark (Admin Only)] [VIP Badge (If VIP Active)] [Rank Badge] [Border/Immortal Badge]
                 var userBadgesHtml = GlobalChat.getUserBadgesHTML({
@@ -612,7 +635,8 @@
                     isAdmin: isMsgAdmin,
                     isVip: userIsVip,
                     vipTier: userVipTier,
-                    vipExpiresAt: userVipExpires
+                    vipExpiresAt: userVipExpires,
+                    nameGlow: userNameGlow
                 });
 
                 // Delete option: Master Admin can delete ANY message, or user can delete their own message
@@ -621,7 +645,7 @@
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                 </button>` : '';
 
-                var openProfileJs = `GlobalChat.showUserProfileModal('${GlobalChat.escapeJs(msgUserId)}', '${GlobalChat.escapeJs(displayUsername)}', '${GlobalChat.escapeJs(userAvatar)}', '${GlobalChat.escapeJs(userBorderUrl)}', '${GlobalChat.escapeJs(userBorderName)}', ${!!isMsgAdmin}, ${!!userIsVip}, '${GlobalChat.escapeJs(userVipTier)}', ${userVipExpires || 0})`;
+                var openProfileJs = `GlobalChat.showUserProfileModal('${GlobalChat.escapeJs(msgUserId)}', '${GlobalChat.escapeJs(displayUsername)}', '${GlobalChat.escapeJs(userAvatar)}', '${GlobalChat.escapeJs(userBorderUrl)}', '${GlobalChat.escapeJs(userBorderName)}', ${!!isMsgAdmin}, ${!!userIsVip}, '${GlobalChat.escapeJs(userVipTier)}', ${userVipExpires || 0}, '${GlobalChat.escapeJs(userNameGlow)}')`;
 
                 // ==========================================
                 // 1. PESAN SAYA (AKUN INI SENDIRI: DI KANAN DENGAN AVATAR & BORDER)
@@ -639,7 +663,7 @@
                         <div class="relative max-w-[85%] sm:max-w-[75%] bg-[#222834] border border-slate-700/70 text-slate-100 rounded-2xl px-4 py-2.5 shadow-md shadow-black/40">
                             <!-- Header Nama & Border Badge (Clickable to view own profile preview) -->
                             <div class="flex items-center justify-between gap-2 mb-1.5 select-none cursor-pointer" onclick="${openProfileJs}" title="Klik untuk lihat tampilan profil & border Anda">
-                                <span class="text-xs font-semibold text-slate-200 hover:text-white transition-colors tracking-tight truncate max-w-[130px] sm:max-w-[170px]">${GlobalChat.escapeHtml(displayUsername)}</span>
+                                <span class="text-xs font-semibold text-slate-200 hover:text-white transition-colors tracking-tight truncate max-w-[130px] sm:max-w-[170px]">${renderedDisplayUsername}</span>
                                 <div class="flex items-center gap-1 shrink-0 flex-nowrap overflow-x-auto hide-scrollbar">
                                     ${userBadgesHtml}
                                 </div>
@@ -677,7 +701,7 @@
                     <div class="relative max-w-[85%] sm:max-w-[75%] bg-[#161a22] border border-slate-800 text-slate-200 rounded-2xl px-4 py-2.5 shadow-md shadow-black/40">
                         <!-- Header Nama Pengirim & Admin Centang Biru & Border Badge -->
                         <div class="flex items-center justify-between gap-2 mb-1.5 select-none cursor-pointer" onclick="${openProfileJs}" title="Klik untuk lihat profil & border ${GlobalChat.escapeHtml(displayUsername)}">
-                            <span class="text-xs font-semibold text-slate-200 hover:text-amber-300 transition-colors tracking-tight truncate max-w-[130px] sm:max-w-[170px]">${GlobalChat.escapeHtml(displayUsername)}</span>
+                            <span class="text-xs font-semibold text-slate-200 hover:text-amber-300 transition-colors tracking-tight truncate max-w-[130px] sm:max-w-[170px]">${renderedDisplayUsername}</span>
                             <div class="flex items-center gap-1 shrink-0 flex-nowrap overflow-x-auto hide-scrollbar">
                                 ${userBadgesHtml}
                             </div>
@@ -776,6 +800,7 @@
                 equippedBadgeTitle: u.equippedBadgeTitle || '',
                 equippedBadgeIcon: u.equippedBadgeIcon || '',
                 equippedBadgeColor: u.equippedBadgeColor || '',
+                nameGlow: u.nameGlow || '',
                 message: text,
                 badge: isMasterAdmin ? 'Admin' : 'Member',
                 isAdmin: isMasterAdmin,
@@ -989,7 +1014,7 @@
                 </div>
             `;
 
-            var clickAction = `GlobalChat.showUserProfileModal('${GlobalChat.escapeJs(data.userId || '')}', '${GlobalChat.escapeJs(username)}', '${GlobalChat.escapeJs(avatar)}', '${GlobalChat.escapeJs(borderUrl)}', '${GlobalChat.escapeJs(data.borderName || '')}', ${!!data.isAdmin}, ${!!data.isVip}, '${GlobalChat.escapeJs(data.vipTier || '')}', ${data.vipExpiresAt || 0})`;
+            var clickAction = `GlobalChat.showUserProfileModal('${GlobalChat.escapeJs(data.userId || '')}', '${GlobalChat.escapeJs(username)}', '${GlobalChat.escapeJs(avatar)}', '${GlobalChat.escapeJs(borderUrl)}', '${GlobalChat.escapeJs(data.borderName || '')}', ${!!data.isAdmin}, ${!!data.isVip}, '${GlobalChat.escapeJs(data.vipTier || '')}', ${data.vipExpiresAt || 0}, '${GlobalChat.escapeJs(data.nameGlow || '')}')`;
 
             return `
             <div class="relative shrink-0 flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform select-none" 
@@ -1381,7 +1406,7 @@
                         <span class="text-slate-400 text-[11px] shrink-0">Username:</span>
                         <div class="flex items-center gap-1.5 min-w-0 justify-end">
                             <span class="inline-flex items-center min-w-0">
-                                <span class="font-black text-white truncate max-w-[140px]">${GlobalChat.escapeHtml(p.username)}</span>
+                                <span class="font-black text-white truncate max-w-[140px]">${(typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && p.nameGlow) ? Auth.renderUsernameWithGlow(p.username, p.nameGlow) : GlobalChat.escapeHtml(p.username)}</span>
                                 ${verifiedHtml}
                             </span>
                             ${vipBadge}
@@ -1415,16 +1440,6 @@
                     <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5">
                         <span class="text-slate-400 text-[11px] shrink-0">Logo Mega Supporter:</span>
                         <div class="flex items-center justify-end">${megaSupporterHtml}</div>
-                    </div>
-                    ` : ''}
-
-                    <!-- 7. Khusus Admin: Status Owner MusifyStar -->
-                    ${isTargetAdmin ? `
-                    <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5">
-                        <span class="text-slate-400 text-[11px] shrink-0">Status:</span>
-                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-600/35 via-rose-500/35 to-amber-500/35 border border-purple-400/60 text-amber-200 font-black text-[10.5px] shadow-sm">
-                            👑 Owner MusifyStar
-                        </span>
                     </div>
                     ` : ''}
 
@@ -1478,7 +1493,22 @@
                     if (Array.isArray(data.friendUpdates)) {
                         GlobalChat.friendUpdates = data.friendUpdates;
                     }
+                    if (!data.profile.nameGlow && GlobalChat._currentModalProfile && GlobalChat._currentModalProfile.nameGlow) {
+                        data.profile.nameGlow = GlobalChat._currentModalProfile.nameGlow;
+                    }
+                    if (data.profile.nameGlow) {
+                        if (!GlobalChat._userGlowCache) GlobalChat._userGlowCache = {};
+                        if (data.profile.id) GlobalChat._userGlowCache[String(data.profile.id)] = data.profile.nameGlow;
+                        if (targetId) GlobalChat._userGlowCache[String(targetId)] = data.profile.nameGlow;
+                        if (data.profile.username) GlobalChat._userGlowCache[String(data.profile.username).toLowerCase().trim()] = data.profile.nameGlow;
+                    }
                     GlobalChat._currentModalProfile = data.profile;
+                    var headerNameEl = document.getElementById('chat-profile-header-username');
+                    if (headerNameEl && data.profile.username) {
+                        headerNameEl.innerHTML = (typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && data.profile.nameGlow)
+                            ? Auth.renderUsernameWithGlow(data.profile.username, data.profile.nameGlow)
+                            : GlobalChat.escapeHtml(data.profile.username);
+                    }
                     var container = document.getElementById('chat-profile-dynamic-body');
                     if (container) {
                         var nextHtml = GlobalChat.renderProfileDetailsContent(data.profile, isSelf);
@@ -1510,7 +1540,7 @@
             return String(firstDigit) + restDigits;
         },
 
-        showUserProfileModal(userId, username, avatar, borderUrl, borderName, isAdmin, isVip, vipTier, vipExpiresAt) {
+        showUserProfileModal(userId, username, avatar, borderUrl, borderName, isAdmin, isVip, vipTier, vipExpiresAt, nameGlow) {
             GlobalChat.closeUserProfileModal();
 
             var me = GlobalChat.getCurrentUser();
@@ -1531,6 +1561,23 @@
                 ? rawInitialId
                 : GlobalChat.derive10DigitId(safeName, isTargetAdmin);
 
+            var matchedMsg = (GlobalChat.messages || []).find(function(m) {
+                return GlobalChat.matchesIdentity(m.userId, m.username, userId || cleanInitialId, safeName) && m.nameGlow;
+            });
+            var initialNameGlow = String(
+                nameGlow ||
+                (isSelf && me && me.nameGlow ? me.nameGlow : '') ||
+                (matchedMsg && matchedMsg.nameGlow ? matchedMsg.nameGlow : '') ||
+                (GlobalChat._userGlowCache && (GlobalChat._userGlowCache[String(userId || '')] || GlobalChat._userGlowCache[String(cleanInitialId || '')] || GlobalChat._userGlowCache[targetName])) ||
+                ''
+            ).trim();
+            if (initialNameGlow) {
+                if (!GlobalChat._userGlowCache) GlobalChat._userGlowCache = {};
+                if (userId) GlobalChat._userGlowCache[String(userId)] = initialNameGlow;
+                if (cleanInitialId) GlobalChat._userGlowCache[String(cleanInitialId)] = initialNameGlow;
+                if (targetName) GlobalChat._userGlowCache[targetName] = initialNameGlow;
+            }
+
             var localFriendInfo = isSelf ? { status: 'none', reqId: '' } : GlobalChat.resolveLocalFriendStatus(cleanInitialId, safeName);
 
             var initialProfile = {
@@ -1547,6 +1594,7 @@
                 equippedBadgeTitle: isSelf && me ? (me.equippedBadgeTitle || '') : (isTargetAdmin ? 'Diamond' : ''),
                 equippedBadgeIcon: isSelf && me ? (me.equippedBadgeIcon || '') : (isTargetAdmin ? 'gem' : ''),
                 equippedBadgeColor: isSelf && me ? (me.equippedBadgeColor || '') : (isTargetAdmin ? '#0284c7' : ''),
+                nameGlow: initialNameGlow,
                 donatur: isSelf && me ? (me.donatur || null) : null,
                 globalStatsRank: isTargetAdmin ? 1 : null,
                 formattedListening: isTargetAdmin ? '0 Hari, 14 Jam, 50 Menit' : 'Memuat durasi...',
@@ -1558,6 +1606,9 @@
 
             var checkmarkSvg = isTargetAdmin ? GlobalChat.getAdminBlueCheckmarkHTML() : '';
             var subTitleText = isTargetAdmin ? 'Owner MusifyStar' : (isVipActive ? 'Member VIP MusifyStar' : 'Member MusifyStar');
+            var headerUsernameHtml = (typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && initialNameGlow)
+                ? Auth.renderUsernameWithGlow(safeName, initialNameGlow)
+                : GlobalChat.escapeHtml(safeName);
 
             var modal = document.createElement('div');
             modal.id = 'chat-user-profile-modal';
@@ -1600,7 +1651,7 @@
                         <!-- Username & Status Header -->
                         <div class="mt-1.5">
                             <h3 class="text-base font-black text-white flex items-center justify-center gap-1.5 flex-wrap">
-                                <span>${GlobalChat.escapeHtml(safeName)}</span>
+                                <span id="chat-profile-header-username">${headerUsernameHtml}</span>
                                 ${checkmarkSvg}
                             </h3>
                             <p class="text-xs ${isTargetAdmin ? 'text-amber-300 font-bold' : 'text-slate-400'} mt-0.5">${subTitleText}</p>

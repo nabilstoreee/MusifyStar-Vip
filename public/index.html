@@ -9,16 +9,27 @@
                 var parsed = raw ? JSON.parse(raw) : null;
                 var backupRaw = localStorage.getItem('musifystar_theme_backup');
                 var backup = backupRaw ? JSON.parse(backupRaw) : null;
-                var cookieHome = null, cookieNav = null;
+                var cookieHome = null, cookieNav = null, cookieLiquid = null;
                 try {
                     var mH = document.cookie.match(/(?:^|;\s*)musify_home_theme=([^;]+)/);
                     if (mH && mH[1]) cookieHome = decodeURIComponent(mH[1]);
                     var mN = document.cookie.match(/(?:^|;\s*)musify_nav_theme=([^;]+)/);
                     if (mN && mN[1]) cookieNav = decodeURIComponent(mN[1]);
+                    var mL27 = document.cookie.match(/(?:^|;\s*)musify_liquid_ios27=([^;]+)/);
+                    var mL26 = document.cookie.match(/(?:^|;\s*)musify_liquid_ios26=([^;]+)/);
+                    if (mL27 && mL27[1]) cookieLiquid = decodeURIComponent(mL27[1]);
+                    else if (mL26 && mL26[1]) cookieLiquid = decodeURIComponent(mL26[1]);
                 } catch(ce) {}
 
                 var homeTheme = (parsed && parsed.homeTheme) || (backup && backup.homeTheme) || cookieHome || 'classic';
                 var navTheme = (parsed && parsed.navTheme) || (backup && backup.navTheme) || cookieNav || 'classic';
+                var liquidIos27 = (parsed && typeof parsed.liquidGlassIos27 === 'boolean')
+                    ? parsed.liquidGlassIos27
+                    : ((parsed && typeof parsed.liquidGlassIos26 === 'boolean')
+                        ? parsed.liquidGlassIos26
+                        : ((backup && typeof backup.liquidGlassIos27 === 'boolean')
+                            ? backup.liquidGlassIos27
+                            : ((backup && typeof backup.liquidGlassIos26 === 'boolean') ? backup.liquidGlassIos26 : (cookieLiquid === '1'))));
 
                 ['classic', 'playful', 'neon', 'spotify', 'apple'].forEach(function(th) {
                     document.documentElement.classList.remove('theme-home-' + th);
@@ -29,6 +40,12 @@
                     document.documentElement.classList.remove('theme-nav-' + th);
                 });
                 document.documentElement.classList.add('theme-nav-' + navTheme);
+
+                if (liquidIos27) {
+                    document.documentElement.classList.add('liquid-glass-ios26', 'liquid-glass-ios27');
+                } else {
+                    document.documentElement.classList.remove('liquid-glass-ios26', 'liquid-glass-ios27');
+                }
             } catch(e) {}
         })();
 
@@ -61,8 +78,8 @@
             try {
                 caches.keys().then(function(keys) {
                     keys.forEach(function(k) {
-                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v114') ||
-                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v114')) {
+                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v120') ||
+                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v120')) {
                             caches.delete(k);
                         }
                     });
@@ -1692,6 +1709,525 @@
             pointer-events: none !important;
             transition: all 0.38s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
+
+        /* ===== EFEK NAMA BERWARNA / GRADIEN ANIMASI (VIP & DONATUR NAME GLOW) ===== */
+        @keyframes vipNameGradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .vip-name-glow {
+            display: inline-block;
+            background-size: 250% 250%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent !important;
+            -webkit-text-fill-color: transparent !important;
+            animation: vipNameGradientFlow 3.6s ease infinite;
+            font-weight: 900 !important;
+        }
+        .vip-name-glow-cyber_neon {
+            background-image: linear-gradient(90deg, #00f5d4, #38bdf8, #f43f5e, #a855f7, #00f5d4);
+            filter: drop-shadow(0 0 6px rgba(0, 245, 212, 0.45));
+        }
+        .vip-name-glow-royal_gold {
+            background-image: linear-gradient(90deg, #fde047, #f59e0b, #fffbeb, #fbbf24, #fde047);
+            filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.5));
+        }
+        .vip-name-glow-crimson_flame {
+            background-image: linear-gradient(90deg, #ff4d4d, #f97316, #facc15, #ef4444, #ff4d4d);
+            filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.5));
+        }
+        .vip-name-glow-emerald_aurora {
+            background-image: linear-gradient(90deg, #34d399, #10b981, #2dd4bf, #a3e635, #34d399);
+            filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.48));
+        }
+        .vip-name-glow-galaxy_amethyst {
+            background-image: linear-gradient(90deg, #c084fc, #ec4899, #818cf8, #f472b6, #c084fc);
+            filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.5));
+        }
+        .vip-name-glow-rainbow_prism {
+            background-image: linear-gradient(90deg, #ff007f, #ff8c00, #ffee00, #00f5d4, #3b82f6, #a855f7, #ff007f);
+            filter: drop-shadow(0 0 6px rgba(236, 72, 153, 0.45));
+        }
+        .vip-name-glow-ice_diamond {
+            background-image: linear-gradient(90deg, #e0f2fe, #38bdf8, #ffffff, #7dd3fc, #e0f2fe);
+            filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.55));
+        }
+        .vip-name-glow-liquid_glass {
+            background-image: linear-gradient(90deg, #ffffff, #7dd3fc, #e0e7ff, #c084fc, #38bdf8, #ffffff);
+            filter: drop-shadow(0 0 8px rgba(125, 211, 252, 0.65));
+        }
+
+        /* ===== MODE LIQUID GLASS iOS 27 (FULL WEBSITE UI VIP) ===== */
+        .liquid-glass-ios26,
+        .liquid-glass-ios27 {
+            --bg-color: #060a14;
+        }
+
+        /* 0A. Ambient Spatial Aurora Background for Main App & All Full-Screen Modals */
+        .liquid-glass-ios26 .app-bg,
+        .liquid-glass-ios26 #user-profile-modal,
+        .liquid-glass-ios26 #musifystar-settings-modal,
+        .liquid-glass-ios26 #border-picker-modal,
+        .liquid-glass-ios26 #avatar-picker-modal,
+        .liquid-glass-ios26 #customid-picker-modal,
+        .liquid-glass-ios26 #rank-badge-modal,
+        .liquid-glass-ios26 #global-stats-modal,
+        .liquid-glass-ios26 #musifystar-vip-packages-modal,
+        .liquid-glass-ios26 #musifystar-qris-payment-modal,
+        .liquid-glass-ios26 #musifystar-donation-modal,
+        .liquid-glass-ios26 #musifystar-feedback-modal,
+        .liquid-glass-ios26 #musifystar-calendar-modal,
+        .liquid-glass-ios26 #musifystar-referral-modal,
+        .liquid-glass-ios26 #musifystar-supporter-modal,
+        .liquid-glass-ios26 #musifystar-admin-modal,
+        .liquid-glass-ios26 #musifystar-admin-dashboard-modal,
+        .liquid-glass-ios26 #musifystar-global-chat-modal,
+        .liquid-glass-ios26 #global-chat-stream,
+        .liquid-glass-ios26 #artist-modal,
+        .liquid-glass-ios26 #album-modal,
+        .liquid-glass-ios26 #library-modal,
+        .liquid-glass-ios27 .app-bg,
+        .liquid-glass-ios27 #user-profile-modal,
+        .liquid-glass-ios27 #musifystar-settings-modal,
+        .liquid-glass-ios27 #border-picker-modal,
+        .liquid-glass-ios27 #avatar-picker-modal,
+        .liquid-glass-ios27 #customid-picker-modal,
+        .liquid-glass-ios27 #rank-badge-modal,
+        .liquid-glass-ios27 #global-stats-modal,
+        .liquid-glass-ios27 #musifystar-vip-packages-modal,
+        .liquid-glass-ios27 #musifystar-qris-payment-modal,
+        .liquid-glass-ios27 #musifystar-donation-modal,
+        .liquid-glass-ios27 #musifystar-feedback-modal,
+        .liquid-glass-ios27 #musifystar-calendar-modal,
+        .liquid-glass-ios27 #musifystar-referral-modal,
+        .liquid-glass-ios27 #musifystar-supporter-modal,
+        .liquid-glass-ios27 #musifystar-admin-modal,
+        .liquid-glass-ios27 #musifystar-admin-dashboard-modal,
+        .liquid-glass-ios27 #musifystar-global-chat-modal,
+        .liquid-glass-ios27 #global-chat-stream,
+        .liquid-glass-ios27 #artist-modal,
+        .liquid-glass-ios27 #album-modal,
+        .liquid-glass-ios27 #library-modal {
+            background:
+                radial-gradient(circle at 14% 16%, rgba(56, 189, 248, 0.42) 0%, transparent 46%),
+                radial-gradient(circle at 86% 22%, rgba(168, 85, 247, 0.38) 0%, transparent 48%),
+                radial-gradient(circle at 50% 84%, rgba(45, 212, 191, 0.30) 0%, transparent 52%),
+                radial-gradient(circle at 22% 72%, rgba(99, 102, 241, 0.30) 0%, transparent 45%),
+                linear-gradient(160deg, #050914 0%, #0b152c 48%, #060a16 100%) !important;
+        }
+
+        /* Keep scrollable body wrappers inside full-screen modals transparent so the iOS 27 aurora background shines through */
+        .liquid-glass-ios26 #user-profile-modal > div.flex-1,
+        .liquid-glass-ios26 #musifystar-settings-modal > div.flex-1,
+        .liquid-glass-ios26 #border-picker-modal > div.flex-1,
+        .liquid-glass-ios26 #avatar-picker-modal > div.flex-1,
+        .liquid-glass-ios26 #customid-picker-modal > div.flex-1,
+        .liquid-glass-ios26 #global-stats-modal > div.flex-1,
+        .liquid-glass-ios26 #musifystar-vip-packages-modal > div.flex-1,
+        .liquid-glass-ios26 #musifystar-donation-modal > div.flex-1,
+        .liquid-glass-ios26 #musifystar-calendar-modal > div.flex-1,
+        .liquid-glass-ios26 #musifystar-referral-modal > div.flex-1,
+        .liquid-glass-ios26 #musifystar-supporter-modal > div.flex-1,
+        .liquid-glass-ios26 #musifystar-feedback-modal > div.flex-1,
+        .liquid-glass-ios26 #musifystar-admin-modal > div.flex-1,
+        .liquid-glass-ios27 #user-profile-modal > div.flex-1,
+        .liquid-glass-ios27 #musifystar-settings-modal > div.flex-1,
+        .liquid-glass-ios27 #border-picker-modal > div.flex-1,
+        .liquid-glass-ios27 #avatar-picker-modal > div.flex-1,
+        .liquid-glass-ios27 #customid-picker-modal > div.flex-1,
+        .liquid-glass-ios27 #global-stats-modal > div.flex-1,
+        .liquid-glass-ios27 #musifystar-vip-packages-modal > div.flex-1,
+        .liquid-glass-ios27 #musifystar-donation-modal > div.flex-1,
+        .liquid-glass-ios27 #musifystar-calendar-modal > div.flex-1,
+        .liquid-glass-ios27 #musifystar-referral-modal > div.flex-1,
+        .liquid-glass-ios27 #musifystar-supporter-modal > div.flex-1,
+        .liquid-glass-ios27 #musifystar-feedback-modal > div.flex-1,
+        .liquid-glass-ios27 #musifystar-admin-modal > div.flex-1 {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        /* 0B. Sticky Top Headers Across All Interior Pages & Full-Screen Modals */
+        .liquid-glass-ios26 #view-home > div.sticky,
+        .liquid-glass-ios26 #view-search .sticky.top-0,
+        .liquid-glass-ios26 #view-library > div.sticky,
+        .liquid-glass-ios26 #view-liked > div.sticky,
+        .liquid-glass-ios26 #view-offline > div.sticky,
+        .liquid-glass-ios26 #view-dev > div.sticky,
+        .liquid-glass-ios26 #user-profile-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-settings-modal > div.shrink-0,
+        .liquid-glass-ios26 #border-picker-modal > div.shrink-0,
+        .liquid-glass-ios26 #avatar-picker-modal > div.shrink-0,
+        .liquid-glass-ios26 #customid-picker-modal > div.shrink-0,
+        .liquid-glass-ios26 #global-stats-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-vip-packages-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-donation-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-calendar-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-referral-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-supporter-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-feedback-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-admin-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-global-chat-modal > div.sticky,
+        .liquid-glass-ios26 #global-chat-bottom-bar,
+        .liquid-glass-ios27 #view-home > div.sticky,
+        .liquid-glass-ios27 #view-search .sticky.top-0,
+        .liquid-glass-ios27 #view-library > div.sticky,
+        .liquid-glass-ios27 #view-liked > div.sticky,
+        .liquid-glass-ios27 #view-offline > div.sticky,
+        .liquid-glass-ios27 #view-dev > div.sticky,
+        .liquid-glass-ios27 #user-profile-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-settings-modal > div.shrink-0,
+        .liquid-glass-ios27 #border-picker-modal > div.shrink-0,
+        .liquid-glass-ios27 #avatar-picker-modal > div.shrink-0,
+        .liquid-glass-ios27 #customid-picker-modal > div.shrink-0,
+        .liquid-glass-ios27 #global-stats-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-vip-packages-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-donation-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-calendar-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-referral-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-supporter-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-feedback-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-admin-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-global-chat-modal > div.sticky,
+        .liquid-glass-ios27 #global-chat-bottom-bar {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(15, 23, 42, 0.44) 55%, rgba(56, 189, 248, 0.16) 100%) !important;
+            backdrop-filter: blur(42px) saturate(230%) !important;
+            -webkit-backdrop-filter: blur(42px) saturate(230%) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.30) !important;
+            box-shadow:
+                0 12px 34px rgba(0, 0, 0, 0.42),
+                inset 0 1px 1px rgba(255, 255, 255, 0.38),
+                inset 0 -1px 1px rgba(56, 189, 248, 0.28) !important;
+        }
+
+        /* 1. All Inner Cards, Song/Video Rows, Profile Panels, Settings Rows & Border Cards (iOS 27 Crystal Prism Glass) */
+        .liquid-glass-ios26 .glass-card,
+        .liquid-glass-ios26 .home-section-card,
+        .liquid-glass-ios26 .glass,
+        .liquid-glass-ios26 .glass-strong,
+        .liquid-glass-ios26 .search-song-row,
+        .liquid-glass-ios26 .search-video-row,
+        .liquid-glass-ios26 .search-video-card,
+        .liquid-glass-ios26 #search-results .rounded-2xl,
+        .liquid-glass-ios26 #home-section-playlist-komunitas > div > div,
+        .liquid-glass-ios26 #view-library .bg-\[\#20222c\],
+        .liquid-glass-ios26 #view-library .rounded-3xl,
+        .liquid-glass-ios26 #view-search .bg-\[\#20222c\],
+        .liquid-glass-ios26 #view-search .bg-\[\#161820\]:not(input),
+        .liquid-glass-ios26 #view-liked .rounded-2xl,
+        .liquid-glass-ios26 #view-liked .rounded-3xl,
+        .liquid-glass-ios26 #view-offline .rounded-2xl,
+        .liquid-glass-ios26 #view-offline .rounded-3xl,
+        .liquid-glass-ios26 #view-dev .rounded-3xl,
+        .liquid-glass-ios26 #view-dev .rounded-2xl,
+        .liquid-glass-ios26 #view-dev .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #user-profile-modal .rounded-3xl,
+        .liquid-glass-ios26 #user-profile-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #user-profile-modal .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #musifystar-settings-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #musifystar-settings-modal .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #border-picker-modal .rounded-3xl,
+        .liquid-glass-ios26 #border-picker-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #border-picker-cards-container button.rounded-xl,
+        .liquid-glass-ios26 #avatar-picker-modal .rounded-3xl,
+        .liquid-glass-ios26 #avatar-picker-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #customid-picker-modal .rounded-3xl,
+        .liquid-glass-ios26 #customid-picker-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #name-glow-picker-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #name-glow-picker-modal .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #global-stats-modal #gs-scroll-container .rounded-3xl,
+        .liquid-glass-ios26 #global-stats-modal #gs-scroll-container .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #global-stats-modal #gs-scroll-container .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #musifystar-vip-packages-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios26 #musifystar-vip-packages-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #musifystar-donation-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #musifystar-calendar-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios26 #musifystar-calendar-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #musifystar-referral-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios26 #musifystar-referral-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #musifystar-supporter-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios26 #musifystar-supporter-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #musifystar-feedback-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios26 #musifystar-feedback-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 .glass-card,
+        .liquid-glass-ios27 .home-section-card,
+        .liquid-glass-ios27 .glass,
+        .liquid-glass-ios27 .glass-strong,
+        .liquid-glass-ios27 .search-song-row,
+        .liquid-glass-ios27 .search-video-row,
+        .liquid-glass-ios27 .search-video-card,
+        .liquid-glass-ios27 #search-results .rounded-2xl,
+        .liquid-glass-ios27 #home-section-playlist-komunitas > div > div,
+        .liquid-glass-ios27 #view-library .bg-\[\#20222c\],
+        .liquid-glass-ios27 #view-library .rounded-3xl,
+        .liquid-glass-ios27 #view-search .bg-\[\#20222c\],
+        .liquid-glass-ios27 #view-search .bg-\[\#161820\]:not(input),
+        .liquid-glass-ios27 #view-liked .rounded-2xl,
+        .liquid-glass-ios27 #view-liked .rounded-3xl,
+        .liquid-glass-ios27 #view-offline .rounded-2xl,
+        .liquid-glass-ios27 #view-offline .rounded-3xl,
+        .liquid-glass-ios27 #view-dev .rounded-3xl,
+        .liquid-glass-ios27 #view-dev .rounded-2xl,
+        .liquid-glass-ios27 #view-dev .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #user-profile-modal .rounded-3xl,
+        .liquid-glass-ios27 #user-profile-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #user-profile-modal .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #musifystar-settings-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #musifystar-settings-modal .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #border-picker-modal .rounded-3xl,
+        .liquid-glass-ios27 #border-picker-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #border-picker-cards-container button.rounded-xl,
+        .liquid-glass-ios27 #avatar-picker-modal .rounded-3xl,
+        .liquid-glass-ios27 #avatar-picker-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #customid-picker-modal .rounded-3xl,
+        .liquid-glass-ios27 #customid-picker-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #name-glow-picker-modal .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #name-glow-picker-modal .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #global-stats-modal #gs-scroll-container .rounded-3xl,
+        .liquid-glass-ios27 #global-stats-modal #gs-scroll-container .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #global-stats-modal #gs-scroll-container .rounded-xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #musifystar-vip-packages-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios27 #musifystar-vip-packages-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #musifystar-donation-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #musifystar-calendar-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios27 #musifystar-calendar-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #musifystar-referral-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios27 #musifystar-referral-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #musifystar-supporter-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios27 #musifystar-supporter-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #musifystar-feedback-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios27 #musifystar-feedback-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10) {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 52%, rgba(56, 189, 248, 0.13) 100%) !important;
+            backdrop-filter: blur(36px) saturate(225%) !important;
+            -webkit-backdrop-filter: blur(36px) saturate(225%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.30) !important;
+            box-shadow:
+                0 12px 32px rgba(0, 0, 0, 0.40),
+                inset 0 1.5px 1px rgba(255, 255, 255, 0.46),
+                inset 0 -1px 2px rgba(56, 189, 248, 0.22) !important;
+        }
+
+        .liquid-glass-ios26 .glass-card:hover,
+        .liquid-glass-ios26 .home-section-card:hover,
+        .liquid-glass-ios26 .search-song-row:hover,
+        .liquid-glass-ios26 .search-video-row:hover,
+        .liquid-glass-ios26 .search-video-card:hover,
+        .liquid-glass-ios26 #view-library .bg-\[\#20222c\]:hover,
+        .liquid-glass-ios26 #view-dev .rounded-xl:hover,
+        .liquid-glass-ios26 #user-profile-modal button.rounded-2xl:hover,
+        .liquid-glass-ios26 #musifystar-settings-modal .rounded-xl:hover,
+        .liquid-glass-ios26 #border-picker-cards-container > div:hover,
+        .liquid-glass-ios27 .glass-card:hover,
+        .liquid-glass-ios27 .home-section-card:hover,
+        .liquid-glass-ios27 .search-song-row:hover,
+        .liquid-glass-ios27 .search-video-row:hover,
+        .liquid-glass-ios27 .search-video-card:hover,
+        .liquid-glass-ios27 #view-library .bg-\[\#20222c\]:hover,
+        .liquid-glass-ios27 #view-dev .rounded-xl:hover,
+        .liquid-glass-ios27 #user-profile-modal button.rounded-2xl:hover,
+        .liquid-glass-ios27 #musifystar-settings-modal .rounded-xl:hover,
+        .liquid-glass-ios27 #border-picker-cards-container > div:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 52%, rgba(56, 189, 248, 0.18) 100%) !important;
+            border-color: rgba(125, 211, 252, 0.60) !important;
+            box-shadow:
+                0 16px 38px rgba(0, 0, 0, 0.50),
+                0 0 24px rgba(56, 189, 248, 0.26),
+                inset 0 1.5px 1.5px rgba(255, 255, 255, 0.58) !important;
+        }
+
+        /* Category & Search Filter Chips (Home, Search, Border Filter Tabs) */
+        .liquid-glass-ios26 .home-chip,
+        .liquid-glass-ios26 .home-chip-btn,
+        .liquid-glass-ios26 .search-cat-chip,
+        .liquid-glass-ios26 .filter-tab,
+        .liquid-glass-ios26 #border-picker-modal [id^="border-cat-tab-"],
+        .liquid-glass-ios27 .home-chip,
+        .liquid-glass-ios27 .home-chip-btn,
+        .liquid-glass-ios27 .search-cat-chip,
+        .liquid-glass-ios27 .filter-tab,
+        .liquid-glass-ios27 #border-picker-modal [id^="border-cat-tab-"] {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05)) !important;
+            border: 1px solid rgba(255, 255, 255, 0.30) !important;
+            backdrop-filter: blur(28px) saturate(215%) !important;
+            -webkit-backdrop-filter: blur(28px) saturate(215%) !important;
+            color: rgba(255, 255, 255, 0.94) !important;
+            border-radius: 9999px !important;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.40) !important;
+        }
+        .liquid-glass-ios26 .home-chip.active,
+        .liquid-glass-ios26 .home-chip-btn.bg-white,
+        .liquid-glass-ios26 .search-cat-chip.bg-white,
+        .liquid-glass-ios26 .filter-tab.active,
+        .liquid-glass-ios27 .home-chip.active,
+        .liquid-glass-ios27 .home-chip-btn.bg-white,
+        .liquid-glass-ios27 .search-cat-chip.bg-white,
+        .liquid-glass-ios27 .filter-tab.active {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.85) 0%, rgba(129, 140, 248, 0.85) 55%, rgba(168, 85, 247, 0.85) 100%) !important;
+            color: #ffffff !important;
+            border-color: rgba(255, 255, 255, 0.72) !important;
+            font-weight: 800 !important;
+            box-shadow:
+                0 8px 26px rgba(56, 189, 248, 0.52),
+                inset 0 1.5px 1.5px rgba(255, 255, 255, 0.70) !important;
+        }
+        .liquid-glass-ios26 header button,
+        .liquid-glass-ios26 #app-header button,
+        .liquid-glass-ios26 #header-wrap button,
+        .liquid-glass-ios26 .header-action-btn,
+        .liquid-glass-ios26 #view-home > div.sticky button:not(.home-chip-btn),
+        .liquid-glass-ios27 header button,
+        .liquid-glass-ios27 #app-header button,
+        .liquid-glass-ios27 #header-wrap button,
+        .liquid-glass-ios27 .header-action-btn,
+        .liquid-glass-ios27 #view-home > div.sticky button:not(.home-chip-btn) {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06)) !important;
+            backdrop-filter: blur(30px) saturate(215%) !important;
+            -webkit-backdrop-filter: blur(30px) saturate(215%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.30) !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.42) !important;
+        }
+        .liquid-glass-ios26 input,
+        .liquid-glass-ios26 select,
+        .liquid-glass-ios26 textarea,
+        .liquid-glass-ios26 #search-input,
+        .liquid-glass-ios27 input,
+        .liquid-glass-ios27 select,
+        .liquid-glass-ios27 textarea,
+        .liquid-glass-ios27 #search-input {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(15, 23, 42, 0.45)) !important;
+            backdrop-filter: blur(32px) saturate(215%) !important;
+            -webkit-backdrop-filter: blur(32px) saturate(215%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.30) !important;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.34), 0 8px 24px rgba(0, 0, 0, 0.32) !important;
+        }
+
+        /* 2. Bottom Navigation Bar Liquid Glass iOS 27 */
+        .liquid-glass-ios26 .magic-nav-dock,
+        .liquid-glass-ios27 .magic-nav-dock {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(15, 23, 42, 0.46) 55%, rgba(56, 189, 248, 0.16) 100%) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.36) !important;
+            box-shadow:
+                0 16px 42px rgba(0, 0, 0, 0.58),
+                0 0 30px rgba(56, 189, 248, 0.28),
+                inset 0 1.5px 1.5px rgba(255, 255, 255, 0.58),
+                inset 0 -1px 2px rgba(56, 189, 248, 0.28) !important;
+            backdrop-filter: blur(40px) saturate(230%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(230%) !important;
+        }
+        .liquid-glass-ios26 .magic-circle,
+        .liquid-glass-ios27 .magic-circle {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.94), rgba(129, 140, 248, 0.94), rgba(168, 85, 247, 0.90)) !important;
+            border: 1px solid rgba(255, 255, 255, 0.70) !important;
+            box-shadow:
+                0 0 26px rgba(56, 189, 248, 0.88),
+                0 6px 16px rgba(0, 0, 0, 0.45),
+                inset 0 1.5px 1.5px rgba(255, 255, 255, 0.75) !important;
+        }
+        .liquid-glass-ios26 .magic-circle-icon i,
+        .liquid-glass-ios26 .magic-circle-icon svg,
+        .liquid-glass-ios27 .magic-circle-icon i,
+        .liquid-glass-ios27 .magic-circle-icon svg {
+            stroke: #ffffff !important;
+        }
+        .liquid-glass-ios26 .magic-indicator-label,
+        .liquid-glass-ios27 .magic-indicator-label {
+            color: #7dd3fc !important;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.92) !important;
+            font-weight: 800 !important;
+        }
+
+        /* 3. Dynamic Island, Mini Player & Full Player Liquid Glass iOS 27 */
+        .liquid-glass-ios26 #dynamic-island-pill,
+        .liquid-glass-ios27 #dynamic-island-pill {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(12, 19, 36, 0.62) 55%, rgba(56, 189, 248, 0.18) 100%) !important;
+            backdrop-filter: blur(40px) saturate(230%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(230%) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.36) !important;
+            box-shadow:
+                0 16px 40px rgba(0, 0, 0, 0.68),
+                0 0 26px rgba(56, 189, 248, 0.28),
+                inset 0 1.5px 1.5px rgba(255, 255, 255, 0.55) !important;
+        }
+        .liquid-glass-ios26 #mini-player-inner,
+        .liquid-glass-ios27 #mini-player-inner {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.17) 0%, rgba(15, 23, 42, 0.48) 60%, rgba(56, 189, 248, 0.16) 100%) !important;
+            backdrop-filter: blur(40px) saturate(225%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(225%) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.34) !important;
+            box-shadow:
+                0 18px 44px rgba(0, 0, 0, 0.62),
+                0 0 26px rgba(56, 189, 248, 0.24),
+                inset 0 1.5px 1.5px rgba(255, 255, 255, 0.54) !important;
+        }
+        .liquid-glass-ios26 #mini-play-btn,
+        .liquid-glass-ios27 #mini-play-btn {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.90), rgba(129, 140, 248, 0.90)) !important;
+            backdrop-filter: blur(18px) !important;
+            -webkit-backdrop-filter: blur(18px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.60) !important;
+            box-shadow: 0 4px 18px rgba(56, 189, 248, 0.58), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
+            color: #ffffff !important;
+        }
+        .liquid-glass-ios26 #mini-like-btn,
+        .liquid-glass-ios26 #mini-close-btn,
+        .liquid-glass-ios27 #mini-like-btn,
+        .liquid-glass-ios27 #mini-close-btn {
+            background: rgba(255, 255, 255, 0.15) !important;
+            backdrop-filter: blur(18px) !important;
+            -webkit-backdrop-filter: blur(18px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.30) !important;
+            border-radius: 9999px !important;
+        }
+        .liquid-glass-ios26 #full-player,
+        .liquid-glass-ios27 #full-player {
+            backdrop-filter: blur(40px) saturate(215%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(215%) !important;
+        }
+        .liquid-glass-ios26 #full-player #full-play-btn-wrap,
+        .liquid-glass-ios27 #full-player #full-play-btn-wrap {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(224, 242, 254, 0.90)) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.88) !important;
+            box-shadow: 0 10px 34px rgba(56, 189, 248, 0.58), 0 0 22px rgba(255, 255, 255, 0.68) !important;
+            color: #060913 !important;
+        }
+        .liquid-glass-ios26 #full-player #full-lyrics-view,
+        .liquid-glass-ios26 #full-player #full-floating-volume-bar,
+        .liquid-glass-ios27 #full-player #full-lyrics-view,
+        .liquid-glass-ios27 #full-player #full-floating-volume-bar {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(15, 23, 42, 0.48)) !important;
+            backdrop-filter: blur(38px) saturate(220%) !important;
+            -webkit-backdrop-filter: blur(38px) saturate(220%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.32) !important;
+            box-shadow: 0 16px 42px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.45) !important;
+        }
+
+        /* 4. Popup Dialogs & Dropdowns Liquid Glass iOS 27 */
+        .liquid-glass-ios26 #header-auth-dropdown-wrapper > div:last-child,
+        .liquid-glass-ios26 #musifystar-streaming-quality-modal > div,
+        .liquid-glass-ios26 #musifystar-data-usage-modal > div,
+        .liquid-glass-ios26 #name-glow-picker-modal > div:last-child,
+        .liquid-glass-ios26 #chat-user-profile-modal > div:last-child,
+        .liquid-glass-ios26 #import-spotify-playlist-modal > div:last-child,
+        .liquid-glass-ios26 #import-youtube-playlist-modal > div:last-child,
+        .liquid-glass-ios27 #header-auth-dropdown-wrapper > div:last-child,
+        .liquid-glass-ios27 #musifystar-streaming-quality-modal > div,
+        .liquid-glass-ios27 #musifystar-data-usage-modal > div,
+        .liquid-glass-ios27 #name-glow-picker-modal > div:last-child,
+        .liquid-glass-ios27 #chat-user-profile-modal > div:last-child,
+        .liquid-glass-ios27 #import-spotify-playlist-modal > div:last-child,
+        .liquid-glass-ios27 #import-youtube-playlist-modal > div:last-child {
+            background: linear-gradient(145deg, rgba(30, 48, 82, 0.62) 0%, rgba(12, 20, 40, 0.72) 60%, rgba(56, 189, 248, 0.18) 100%) !important;
+            backdrop-filter: blur(44px) saturate(225%) !important;
+            -webkit-backdrop-filter: blur(44px) saturate(225%) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.34) !important;
+            box-shadow:
+                0 24px 60px rgba(0, 0, 0, 0.72),
+                0 0 38px rgba(56, 189, 248, 0.24),
+                inset 0 1.5px 1.5px rgba(255, 255, 255, 0.48) !important;
+        }
     </style>
 </head>
 <body class="h-[100dvh] w-full bg-transparent text-white font-sans overflow-hidden flex flex-col">
@@ -1730,23 +2266,23 @@
     <div id="yt-player" style="position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;"></div>
     <audio id="audio-player" preload="auto" style="display:none;"></audio>
 
-    <script src="/player.js?v=101"></script>
-    <script src="/auth.js?v=102"></script>
+    <script src="/player.js?v=120"></script>
+    <script src="/auth.js?v=120"></script>
     <script src="/home.js?v=101"></script>
-    <script src="/search.js?v=101"></script>
+    <script src="/search.js?v=120"></script>
     <script src="/liked.js?v=101"></script>
     <script src="/library.js?v=101"></script>
-    <script src="/profile.js?v=102"></script>
+    <script src="/profile.js?v=120"></script>
     <script src="/miniplayer.js?v=101"></script>
     <script src="/fullplayer.js?v=101"></script>
     <script src="/artist.js?v=101"></script>
     <script src="/album.js?v=101"></script>
     <script src="/islamic-clock.js?v=101"></script>
-    <script src="/global-chat.js?v=101"></script>
-    <script src="/global-stats.js?v=101"></script>
+    <script src="/global-chat.js?v=120"></script>
+    <script src="/global-stats.js?v=116"></script>
     <script src="/admin-chat.js?v=101"></script>
     <script src="/dynamic-island.js?v=101"></script>
-    <script src="/app.js?v=102"></script>
+    <script src="/app.js?v=120"></script>
     <script>(function () {
   document.addEventListener('visibilitychange', function () {
     document.documentElement.classList.toggle('tab-hidden', document.hidden);

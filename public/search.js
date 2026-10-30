@@ -560,7 +560,7 @@ var Search = {
         var vid = t.videoId || t.id;
 
         return `
-        <div onclick="Search.playSong(${idx})" onpointerdown="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" onpointerenter="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" data-idx="${idx}" class="search-song-row group flex items-center gap-3 p-1.5 pr-3.5 sm:p-2 sm:pr-4 rounded-full border ${rowBg} cursor-pointer active:scale-95 transition-all duration-200 backdrop-blur-md select-none">
+        <div onclick="Search.playSong(${idx})" onpointerdown="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" onpointerenter="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" data-idx="${idx}" class="search-song-row glass-card group flex items-center gap-3 p-1.5 pr-3.5 sm:p-2 sm:pr-4 rounded-full border ${rowBg} cursor-pointer active:scale-95 transition-all duration-200 backdrop-blur-md select-none">
             <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden shrink-0 shadow-sm border border-white/20 bg-black/40 relative">
                 <img src="${toWebp(t.cover || t.thumbnail || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
             </div>
@@ -648,12 +648,12 @@ var Search = {
             playIconHtml = '<div class="w-10 h-10 rounded-full bg-black/60 group-hover:bg-white/90 group-hover:text-black text-white flex items-center justify-center transition-all shadow-md backdrop-blur-sm"><svg class="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>';
         }
 
-        var rowBg = isPlay ? 'bg-[#343a4e] border-white/40 shadow-lg' : (isCur ? 'bg-[#2e3344] border-white/30' : 'bg-[#1a1c24] border-white/10 hover:bg-[#242834]');
+        var rowBg = isPlay ? 'bg-white/20 border-white/40 shadow-lg' : (isCur ? 'bg-white/15 border-white/30' : 'bg-[#1a1c24] border-white/10 hover:bg-[#242834]');
         var titleColor = isCur ? 'text-yellow-300 font-bold' : 'text-white font-semibold';
         var vid = v.videoId || v.id;
 
         return `
-        <div onclick="Search.playVideo(${idx})" onpointerdown="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" onpointerenter="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" data-idx="${idx}" class="search-video-row group flex items-center gap-3 p-2.5 rounded-2xl border ${rowBg} cursor-pointer active:scale-[0.98] transition-all">
+        <div onclick="Search.playVideo(${idx})" onpointerdown="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" onpointerenter="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" data-idx="${idx}" class="search-video-row glass-card group flex items-center gap-3 p-2.5 rounded-2xl border ${rowBg} cursor-pointer active:scale-[0.98] transition-all backdrop-blur-md">
             <div class="relative w-28 aspect-video rounded-xl overflow-hidden shrink-0 shadow-md">
                 <img src="${toWebp(v.cover || v.thumbnail || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
                 <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono text-white/90">${es(String(v.duration || 'Video').replace('.', ':'))}</span>
@@ -690,11 +690,11 @@ var Search = {
             playIconHtml = '<div class="w-9 h-9 rounded-full bg-black/60 group-hover:bg-white/90 group-hover:text-black text-white flex items-center justify-center transition-all shadow-md backdrop-blur-sm"><svg class="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg></div>';
         }
 
-        var cardBg = isPlay ? 'bg-[#343a4e] border-white/40 shadow-lg' : (isCur ? 'bg-[#2e3344] border-white/30' : 'bg-[#1a1c24] border-white/10 hover:bg-[#242834]');
+        var cardBg = isPlay ? 'bg-white/20 border-white/40 shadow-lg' : (isCur ? 'bg-white/15 border-white/30' : 'bg-[#1a1c24] border-white/10 hover:bg-[#242834]');
         var titleColor = isCur ? 'text-yellow-300 font-bold' : 'text-white font-semibold';
 
         return `
-        <div onclick="Search.playVideo(${idx})" data-idx="${idx}" class="search-video-card flex-shrink-0 w-48 group p-2.5 rounded-2xl border ${cardBg} cursor-pointer active:scale-95 transition-all flex flex-col">
+        <div onclick="Search.playVideo(${idx})" data-idx="${idx}" class="search-video-card glass-card flex-shrink-0 w-48 group p-2.5 rounded-2xl border ${cardBg} cursor-pointer active:scale-95 transition-all flex flex-col backdrop-blur-md">
             <div class="relative w-full aspect-video rounded-xl overflow-hidden mb-2 shadow-md">
                 <img src="${toWebp(v.cover || v.thumbnail || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
                 <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono text-white/90">${es(String(v.duration || 'Video').replace('.', ':'))}</span>
@@ -709,7 +709,7 @@ var Search = {
 
     renderAlbumItem(a) {
         return `
-        <div onclick="Album.open('${a.id}', '${esJs(a.cover || FI)}', '${esJs(a.title)}')" class="p-2.5 rounded-2xl bg-[#1a1c24] border border-white/10 hover:bg-[#242834] cursor-pointer active:scale-95 transition-all group flex flex-col">
+        <div onclick="Album.open('${a.id}', '${esJs(a.cover || FI)}', '${esJs(a.title)}')" class="glass-card p-2.5 rounded-2xl bg-[#1a1c24] border border-white/10 hover:bg-[#242834] cursor-pointer active:scale-95 transition-all group flex flex-col backdrop-blur-md">
             <div class="w-full aspect-square mb-2.5 rounded-xl overflow-hidden shadow-md">
                 <img src="${toWebp(a.cover || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
             </div>
@@ -720,7 +720,7 @@ var Search = {
 
     renderAlbumCard(a) {
         return `
-        <div onclick="Album.open('${a.id}', '${esJs(a.cover || FI)}', '${esJs(a.title)}')" class="flex-shrink-0 w-36 group p-2.5 rounded-2xl bg-[#1a1c24] border border-white/10 hover:bg-[#242834] cursor-pointer active:scale-95 transition-all flex flex-col">
+        <div onclick="Album.open('${a.id}', '${esJs(a.cover || FI)}', '${esJs(a.title)}')" class="glass-card flex-shrink-0 w-36 group p-2.5 rounded-2xl bg-[#1a1c24] border border-white/10 hover:bg-[#242834] cursor-pointer active:scale-95 transition-all flex flex-col backdrop-blur-md">
             <div class="w-full aspect-square mb-2 rounded-xl overflow-hidden shadow-md">
                 <img src="${toWebp(a.cover || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
             </div>
@@ -731,7 +731,7 @@ var Search = {
 
     renderArtistItem(art) {
         return `
-        <div onclick="Artist.open('${art.id}', '${esJs(art.title)}')" class="p-3 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/20 hover:border-white/35 backdrop-blur-md cursor-pointer active:scale-95 transition-all text-center flex flex-col items-center justify-center group shadow-sm select-none">
+        <div onclick="Artist.open('${art.id}', '${esJs(art.title)}')" class="glass-card p-3 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/20 hover:border-white/35 backdrop-blur-md cursor-pointer active:scale-95 transition-all text-center flex flex-col items-center justify-center group shadow-sm select-none">
             <div class="relative w-20 h-20 mb-2 rounded-full overflow-hidden border-2 border-white/20 shadow-md group-hover:scale-105 transition-transform duration-300 bg-black/40">
                 <img src="${toWebp(art.cover || FI)}" class="w-full h-full object-cover" onerror="handleImgError(this)" />
             </div>
@@ -742,7 +742,7 @@ var Search = {
 
     renderArtistCard(art) {
         return `
-        <div onclick="Artist.open('${art.id}', '${esJs(art.title)}')" class="flex-shrink-0 w-32 group p-2.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/20 hover:border-white/35 backdrop-blur-md cursor-pointer active:scale-95 transition-all flex flex-col items-center text-center shadow-sm select-none">
+        <div onclick="Artist.open('${art.id}', '${esJs(art.title)}')" class="glass-card flex-shrink-0 w-32 group p-2.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/20 hover:border-white/35 backdrop-blur-md cursor-pointer active:scale-95 transition-all flex flex-col items-center text-center shadow-sm select-none">
             <div class="relative w-16 h-16 mb-2 rounded-full overflow-hidden border-2 border-white/20 shadow-md group-hover:scale-105 transition-transform duration-300 bg-black/40">
                 <img src="${toWebp(art.cover || FI)}" class="w-full h-full object-cover" onerror="handleImgError(this)" />
             </div>
@@ -753,7 +753,7 @@ var Search = {
 
     renderPlaylistItem(pl) {
         return `
-        <div onclick="Album.open('${pl.id}', '${esJs(pl.cover || FI)}', '${esJs(pl.title)}')" class="p-2.5 rounded-2xl bg-[#1a1c24] border border-white/10 hover:bg-[#242834] cursor-pointer active:scale-95 transition-all group flex flex-col">
+        <div onclick="Album.open('${pl.id}', '${esJs(pl.cover || FI)}', '${esJs(pl.title)}')" class="glass-card p-2.5 rounded-2xl bg-[#1a1c24] border border-white/10 hover:bg-[#242834] cursor-pointer active:scale-95 transition-all group flex flex-col backdrop-blur-md">
             <div class="w-full aspect-square mb-2.5 rounded-xl overflow-hidden shadow-md">
                 <img src="${toWebp(pl.cover || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
             </div>
@@ -764,7 +764,7 @@ var Search = {
 
     renderPlaylistCard(pl) {
         return `
-        <div onclick="Album.open('${pl.id}', '${esJs(pl.cover || FI)}', '${esJs(pl.title)}')" class="flex-shrink-0 w-36 group p-2.5 rounded-2xl bg-[#1a1c24] border border-white/10 hover:bg-[#242834] cursor-pointer active:scale-95 transition-all flex flex-col">
+        <div onclick="Album.open('${pl.id}', '${esJs(pl.cover || FI)}', '${esJs(pl.title)}')" class="glass-card flex-shrink-0 w-36 group p-2.5 rounded-2xl bg-[#1a1c24] border border-white/10 hover:bg-[#242834] cursor-pointer active:scale-95 transition-all flex flex-col backdrop-blur-md">
             <div class="w-full aspect-square mb-2 rounded-xl overflow-hidden shadow-md">
                 <img src="${toWebp(pl.cover || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
             </div>
@@ -817,14 +817,14 @@ var Search = {
                 }
 
                 if (isPlay) {
-                    el.classList.add('bg-[#343a4e]', 'border-white/40', 'shadow-lg');
-                    el.classList.remove('bg-white/[0.03]', 'bg-[#2e3344]', 'border-white/5', 'border-white/30');
+                    el.classList.add('bg-white/20', 'border-white/40', 'shadow-lg');
+                    el.classList.remove('bg-white/[0.08]', 'bg-white/15', 'border-white/20', 'border-white/30');
                 } else if (isCur) {
-                    el.classList.add('bg-[#2e3344]', 'border-white/30');
-                    el.classList.remove('bg-white/[0.03]', 'bg-[#343a4e]', 'border-white/5', 'border-white/40', 'shadow-lg');
+                    el.classList.add('bg-white/15', 'border-white/30');
+                    el.classList.remove('bg-white/[0.08]', 'bg-white/20', 'border-white/20', 'border-white/40', 'shadow-lg');
                 } else {
-                    el.classList.add('bg-white/[0.03]', 'border-white/5');
-                    el.classList.remove('bg-[#343a4e]', 'bg-[#2e3344]', 'border-white/40', 'border-white/30', 'shadow-lg');
+                    el.classList.add('bg-white/[0.08]', 'border-white/20');
+                    el.classList.remove('bg-white/20', 'bg-white/15', 'border-white/40', 'border-white/30', 'shadow-lg');
                 }
             });
         }
@@ -887,14 +887,14 @@ var Search = {
                 }
 
                 if (isPlay) {
-                    el.classList.add('bg-[#343a4e]', 'border-white/40', 'shadow-lg');
-                    el.classList.remove('bg-[#1a1c24]', 'bg-[#2e3344]', 'border-white/10', 'border-white/30');
+                    el.classList.add('bg-white/20', 'border-white/40', 'shadow-lg');
+                    el.classList.remove('bg-[#1a1c24]', 'bg-white/15', 'border-white/10', 'border-white/30');
                 } else if (isCur) {
-                    el.classList.add('bg-[#2e3344]', 'border-white/30');
-                    el.classList.remove('bg-[#1a1c24]', 'bg-[#343a4e]', 'border-white/10', 'border-white/40', 'shadow-lg');
+                    el.classList.add('bg-white/15', 'border-white/30');
+                    el.classList.remove('bg-[#1a1c24]', 'bg-white/20', 'border-white/10', 'border-white/40', 'shadow-lg');
                 } else {
                     el.classList.add('bg-[#1a1c24]', 'border-white/10');
-                    el.classList.remove('bg-[#343a4e]', 'bg-[#2e3344]', 'border-white/40', 'border-white/30', 'shadow-lg');
+                    el.classList.remove('bg-white/20', 'bg-white/15', 'border-white/40', 'border-white/30', 'shadow-lg');
                 }
             });
         }

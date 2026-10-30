@@ -82,6 +82,7 @@
                     equippedBadgeTitle: myUser.equippedBadgeTitle || item.equippedBadgeTitle || '',
                     equippedBadgeIcon: myUser.equippedBadgeIcon || item.equippedBadgeIcon || '',
                     equippedBadgeColor: myUser.equippedBadgeColor || item.equippedBadgeColor || '',
+                    nameGlow: myUser.nameGlow || item.nameGlow || '',
                     donatur: myUser.donatur || item.donatur || null,
                     isMe: true
                 };
@@ -104,6 +105,7 @@
                 equippedBadgeTitle: item.equippedBadgeTitle || '',
                 equippedBadgeIcon: item.equippedBadgeIcon || '',
                 equippedBadgeColor: item.equippedBadgeColor || '',
+                nameGlow: item.nameGlow || '',
                 donatur: item.donatur || null,
                 isMe: false
             };
@@ -140,6 +142,7 @@
                                 it.equippedBadgeTitle = user.equippedBadgeTitle || '';
                                 it.equippedBadgeIcon = user.equippedBadgeIcon || '';
                                 it.equippedBadgeColor = user.equippedBadgeColor || '';
+                                it.nameGlow = user.nameGlow || '';
                             }
                         });
                     }
@@ -171,6 +174,7 @@
                     x.formattedDuration,
                     x.totalPlays,
                     x.equippedBadge,
+                    x.nameGlow || '',
                     x.isOnline ? 1 : 0
                 ].join(':');
             }).join('|');
@@ -486,7 +490,7 @@
                                     <!-- Row 2: Username + Verified Blue Checkmark & VIP Badge -->
                                     <div class="flex items-center gap-1.5 flex-wrap leading-tight">
                                         <span class="inline-flex items-center max-w-full">
-                                            <h4 class="text-white font-black text-xs sm:text-sm truncate leading-none">@${myInfo.username}</h4>
+                                            <h4 class="text-white font-black text-xs sm:text-sm truncate leading-none">${(typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && myInfo.nameGlow) ? Auth.renderUsernameWithGlow('@' + myInfo.username, myInfo.nameGlow) : ('@' + myInfo.username)}</h4>
                                             ${this.getVerifiedIconHTML(myInfo, 13)}
                                         </span>
                                         ${myInfo.isVip ? (typeof Auth !== 'undefined' && Auth.getVipBadgeHTML ? Auth.getVipBadgeHTML('text-[7.5px]') : '') : ''}
@@ -590,7 +594,7 @@
                                 </div>
                                 <div class="flex items-center gap-1 flex-wrap leading-tight pt-0.5">
                                     <span class="inline-flex items-center max-w-full">
-                                        <h5 class="text-white font-black text-xs truncate max-w-[85px] sm:max-w-[110px] leading-none">${uInfo.username}</h5>
+                                        <h5 class="text-white font-black text-xs truncate max-w-[85px] sm:max-w-[110px] leading-none">${(typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && uInfo.nameGlow) ? Auth.renderUsernameWithGlow(uInfo.username, uInfo.nameGlow) : uInfo.username}</h5>
                                         ${self.getVerifiedIconHTML(uInfo, 12)}
                                     </span>
                                     ${uInfo.isVip && typeof Auth !== 'undefined' && Auth.getVipBadgeHTML ? Auth.getVipBadgeHTML('text-[7px]') : ''}
@@ -650,7 +654,7 @@
                             </div>
                             <div class="relative z-20 flex flex-col items-center w-full px-0.5 space-y-1">
                                 <div class="inline-flex items-center justify-center max-w-full">
-                                    <h5 class="text-[11px] font-black text-white truncate leading-none" style="font-size: 11px;">${u2.username}</h5>
+                                    <h5 class="text-[11px] font-black text-white truncate leading-none" style="font-size: 11px;">${(typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && u2.nameGlow) ? Auth.renderUsernameWithGlow(u2.username, u2.nameGlow) : u2.username}</h5>
                                     ${this.getVerifiedIconHTML(u2, 12)}
                                 </div>
                                 ${u2.isVip ? `
@@ -711,7 +715,7 @@
                             </div>
                             <div class="relative z-20 flex flex-col items-center w-full px-0.5 space-y-1">
                                 <div class="inline-flex items-center justify-center max-w-full">
-                                    <h5 class="text-xs sm:text-[13px] font-black text-white truncate leading-none">${u1.username}</h5>
+                                    <h5 class="text-xs sm:text-[13px] font-black text-white truncate leading-none">${(typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && u1.nameGlow) ? Auth.renderUsernameWithGlow(u1.username, u1.nameGlow) : u1.username}</h5>
                                     ${this.getVerifiedIconHTML(u1, 13)}
                                 </div>
                                 ${u1.isVip ? `
@@ -749,7 +753,7 @@
                             </div>
                             <div class="relative z-20 flex flex-col items-center w-full px-0.5 space-y-1">
                                 <div class="inline-flex items-center justify-center max-w-full">
-                                    <h5 class="text-[11px] font-black text-white truncate leading-none" style="font-size: 11px;">${u3.username}</h5>
+                                    <h5 class="text-[11px] font-black text-white truncate leading-none" style="font-size: 11px;">${(typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && u3.nameGlow) ? Auth.renderUsernameWithGlow(u3.username, u3.nameGlow) : u3.username}</h5>
                                     ${this.getVerifiedIconHTML(u3, 12)}
                                 </div>
                                 ${u3.isVip ? `
@@ -843,7 +847,7 @@
                                 <div class="min-w-0 flex-1 relative z-20 flex flex-col justify-center space-y-0.5">
                                     <div class="flex items-center gap-1.5 flex-wrap leading-tight">
                                         <span class="inline-flex items-center max-w-full">
-                                            <h5 class="text-white font-bold text-xs truncate max-w-[125px] leading-none">${ui.username}</h5>
+                                            <h5 class="text-white font-bold text-xs truncate max-w-[125px] leading-none">${(typeof Auth !== 'undefined' && Auth.renderUsernameWithGlow && ui.nameGlow) ? Auth.renderUsernameWithGlow(ui.username, ui.nameGlow) : ui.username}</h5>
                                             ${self.getVerifiedIconHTML(ui, 12)}
                                         </span>
                                         <span class="px-1.5 py-0.5 rounded bg-white/10 text-white/80 font-mono font-bold" style="font-size: 8px;">JUARA ${r}</span>
