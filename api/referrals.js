@@ -5,6 +5,45 @@ const storage = require('./storage.js');
 const REFERRAL_CONFIG_FILE = 'referral_config.json';
 const USERS_FILE = 'users.json';
 
+const DEFAULT_POINT_EXCHANGE_PACKAGES = [
+    {
+        id: 'pkg_trial_7d',
+        title: 'Trial VIP 7 Hari',
+        pointsRequired: 450,
+        durationDays: 7,
+        durationText: '7 Hari',
+        isPermanent: false,
+        border: 'Platinum',
+        borderId: 'border_platinum',
+        benefits: [
+            'Akses Penuh Fitur VIP MusifyStar',
+            'Kualitas Audio Ultra HD 320kbps',
+            'Border Profil Eksklusif Platinum',
+            'Dynamic Island Mini Player & Bebas Iklan',
+            'Putar Latar Belakang & Layar Tetap Menyala'
+        ],
+        active: true
+    },
+    {
+        id: 'pkg_vip_permanent',
+        title: 'Trial VIP Permanen (Lifetime)',
+        pointsRequired: 50000,
+        durationDays: 0,
+        durationText: 'Permanen (Selamanya)',
+        isPermanent: true,
+        border: 'Semua Border VIP (Termasuk Immortal)',
+        borderId: 'border_immortal',
+        benefits: [
+            'Status Member VIP Selamanya Tanpa Batas Waktu',
+            'Bebas Pasang Semua Border Profil VIP (Platinum, Master, Legend & Immortal)',
+            'Efek Nama Berwarna / VIP Glow',
+            'Dynamic Island Mini Player & Audio Ultra HD 320kbps',
+            'Bebas Akses Seluruh Fitur VIP MusifyStar Tanpa Langganan Lagi'
+        ],
+        active: true
+    }
+];
+
 const DEFAULT_REFERRAL_CONFIG = {
     isActive: true,
     enabled: true,
@@ -51,7 +90,11 @@ const DEFAULT_REFERRAL_CONFIG = {
     inviteeBorderCustomText: 'Platinum',
     inviteeAllowedBorders: ['border_platinum', 'platinum'],
     inviteeBonusPoints: 50,
-    // 4. Pengaturan Format Kode Referral (Bisa Cuma Angka, Cuma Huruf, Campur Huruf & Angka, atau Ketik Bebas Persis)
+
+    // 4. Katalog Penukaran Poin dengan Hadiah VIP / Trial (Bisa Diatur & Ditambah Admin)
+    pointExchangePackages: DEFAULT_POINT_EXCHANGE_PACKAGES,
+
+    // 5. Pengaturan Format Kode Referral (Bisa Cuma Angka, Cuma Huruf, Campur Huruf & Angka, atau Ketik Bebas Persis)
     codeFormat: 'alphanumeric', // 'numeric' | 'alpha' | 'alphanumeric' | 'username_num' | 'custom'
     codePrefix: '',             // Kosong secara default agar tidak menambah karakter di depan/belakang tanpa diminta
     customGlobalCode: '',       // Jika diisi (misal: MUSIFYSTAR-STUDIO-MUSIK), kode dipakai PERSIS tanpa tambahan angka acak
@@ -453,7 +496,11 @@ async function readReferralConfigAsync() {
         if (!data || typeof data !== 'object') {
             return { ...DEFAULT_REFERRAL_CONFIG };
         }
-        return { ...DEFAULT_REFERRAL_CONFIG, ...data };
+        const cfg = { ...DEFAULT_REFERRAL_CONFIG, ...data };
+        if (!Array.isArray(cfg.pointExchangePackages) || cfg.pointExchangePackages.length === 0) {
+            cfg.pointExchangePackages = [...DEFAULT_POINT_EXCHANGE_PACKAGES];
+        }
+        return cfg;
     } catch (e) {
         return { ...DEFAULT_REFERRAL_CONFIG };
     }
@@ -465,7 +512,11 @@ function readReferralConfigSync() {
         if (!data || typeof data !== 'object') {
             return { ...DEFAULT_REFERRAL_CONFIG };
         }
-        return { ...DEFAULT_REFERRAL_CONFIG, ...data };
+        const cfg = { ...DEFAULT_REFERRAL_CONFIG, ...data };
+        if (!Array.isArray(cfg.pointExchangePackages) || cfg.pointExchangePackages.length === 0) {
+            cfg.pointExchangePackages = [...DEFAULT_POINT_EXCHANGE_PACKAGES];
+        }
+        return cfg;
     } catch (e) {
         return { ...DEFAULT_REFERRAL_CONFIG };
     }
@@ -1062,8 +1113,10 @@ async function handler(req, res) {
                     vipMaxInvites: vipLimInfo.maxInvites,
                     vipMaxInvitesText: vipLimInfo.rawText,
                     vipMaxInvitesLabel: vipLimInfo.label,
-                    vipIsUnlimited: vipLimInfo.isUnlimited
+                    vipIsUnlimited: vipLimInfo.isUnlimited,
+                    pointExchangePackages: (Array.isArray(config.pointExchangePackages) && config.pointExchangePackages.length > 0) ? config.pointExchangePackages : DEFAULT_POINT_EXCHANGE_PACKAGES
                 },
+                pointExchangePackages: (Array.isArray(config.pointExchangePackages) && config.pointExchangePackages.length > 0) ? config.pointExchangePackages : DEFAULT_POINT_EXCHANGE_PACKAGES,
                 donaturCatalog: DONATUR_BADGES_CATALOG,
                 supporterBadgesCatalog: DONATUR_BADGES_CATALOG,
                 supporters: supportersList.slice(0, 50),
@@ -1277,6 +1330,133 @@ async function handler(req, res) {
             });
         }
 
+        // 3B. USER ACTION: REDEEM / TUKAR POIN REFERRAL JADI HADIAH VIP (TRIAL / PERMANEN)
+        if (action === 'redeem_points' || action === 'exchange_points') {
+            if (method !== 'POST') {
+                return res.status(405).json({ status: false, message: 'Metode harus POST' });
+            }
+            const targetUserId = String(body.userId || body.id || '').trim();
+            const targetUsername = String(body.username || '').trim().toLowerCase();
+            const packageId = String(body.packageId || body.pkgId || '').trim();
+
+            if (!packageId) {
+                return res.status(400).json({ status: false, message: 'Pilih paket penukaran poin terlebih dahulu!' });
+            }
+
+            const uIdx = usersDb.users.findIndex(u =>
+                (targetUserId && (String(u.id) === targetUserId || String(u.originalId) === targetUserId)) ||
+                (targetUsername && u.username && u.username.toLowerCase() === targetUsername)
+            );
+            if (uIdx === -1) {
+                return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu untuk menukarkan poin!' });
+            }
+
+            const user = usersDb.users[uIdx];
+            const packages = (Array.isArray(config.pointExchangePackages) && config.pointExchangePackages.length > 0)
+                ? config.pointExchangePackages
+                : DEFAULT_POINT_EXCHANGE_PACKAGES;
+
+            const targetPkg = packages.find(p => String(p.id) === packageId);
+            if (!targetPkg) {
+                return res.status(404).json({ status: false, message: 'Paket penukaran poin tidak ditemukan!' });
+            }
+
+            if (targetPkg.active === false) {
+                return res.status(400).json({ status: false, message: 'Paket penukaran ini sedang dinonaktifkan oleh Admin.' });
+            }
+
+            const pointsNeeded = Number(targetPkg.pointsRequired) || 0;
+            const currentPoints = Number(user.referralPoints) || 0;
+            if (currentPoints < pointsNeeded) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Poin Referral Anda belum mencukupi! Diperlukan ${pointsNeeded} Poin (Poin Anda saat ini: ${currentPoints} Poin).`
+                });
+            }
+
+            // Potong poin referral
+            user.referralPoints = Math.max(0, currentPoints - pointsNeeded);
+
+            // Aktifkan / Perpanjang Status VIP
+            user.isPremium = true;
+            user.is_premium = true;
+
+            const isPermanent = Boolean(
+                targetPkg.isPermanent ||
+                Number(targetPkg.durationDays) === 0 ||
+                String(targetPkg.durationText || '').toLowerCase().includes('permanen')
+            );
+
+            if (isPermanent) {
+                user.vipTier = 'permanent';
+                user.vipDuration = 'Permanen';
+                user.vipExpiresAt = null;
+            } else {
+                const days = Math.max(1, Number(targetPkg.durationDays) || 7);
+                const addMs = days * 24 * 60 * 60 * 1000;
+                if (user.vipExpiresAt && user.vipExpiresAt > Date.now()) {
+                    user.vipExpiresAt += addMs;
+                } else {
+                    user.vipExpiresAt = Date.now() + addMs;
+                }
+                user.vipTier = (days >= 30) ? '1month' : 'trial';
+                user.vipDuration = `${days} Hari`;
+            }
+
+            // Tetapkan Border Profil Sesuai Paket
+            const bId = String(targetPkg.borderId || '').trim();
+            const bName = String(targetPkg.border || targetPkg.borderName || '').trim();
+            if (isPermanent || bId === 'border_immortal' || bName.toLowerCase().includes('semua')) {
+                user.referralBorderRestricted = false;
+                user.referralAllowedBorders = ['all', 'border_platinum', 'border_master', 'border_legend', 'border_immortal'];
+                if (!user.border) {
+                    user.border = 'border_immortal';
+                    user.borderName = 'Immortal';
+                    user.borderUrl = '/borders/Imortal.png';
+                }
+            } else if (bId && bId !== 'none') {
+                user.border = bId;
+                user.borderName = bName || 'Platinum';
+                user.borderUrl = STANDARD_BORDERS_MAP[bId]?.url || '/borders/Platinum.png';
+                user.referralBorderRestricted = true;
+                user.referralAllowedBorders = [bId, bId.replace('border_', '')];
+            }
+
+            user.vipSource = 'point_exchange';
+            user.redeemedPackages = user.redeemedPackages || [];
+            user.redeemedPackages.push({
+                id: 'rdm_' + Date.now(),
+                packageId: targetPkg.id,
+                title: targetPkg.title,
+                pointsUsed: pointsNeeded,
+                redeemedAt: Date.now()
+            });
+
+            usersDb.users[uIdx] = user;
+            await storage.writeDataAsync(USERS_FILE, usersDb);
+
+            return res.json({
+                status: true,
+                message: `🎉 Selamat! Berhasil menukar ${pointsNeeded} Poin dengan "${targetPkg.title}"! Status VIP Anda telah berhasil diaktifkan.`,
+                remainingPoints: user.referralPoints,
+                package: targetPkg,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    isPremium: true,
+                    vipTier: user.vipTier,
+                    vipExpiresAt: user.vipExpiresAt,
+                    vipDuration: user.vipDuration,
+                    border: user.border,
+                    borderName: user.borderName,
+                    borderUrl: user.borderUrl,
+                    referralPoints: user.referralPoints,
+                    referralBorderRestricted: Boolean(user.referralBorderRestricted),
+                    referralAllowedBorders: user.referralAllowedBorders || []
+                }
+            });
+        }
+
         // 4. ADMIN ACTIONS (REQUIRE ADMIN TOKEN)
         const rawAuthHeader = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim();
         const adminToken = req.headers['x-admin-token'] || rawAuthHeader || body.adminToken || req.query.adminToken;
@@ -1360,6 +1540,31 @@ async function handler(req, res) {
                 inviteeAllowedBorders: invBorderInfo.allowedBorders,
                 inviteeBonusPoints: Math.max(0, parseInt(body.inviteeBonusPoints, 10) || 50),
 
+                // Katalog Penukaran Poin dengan Hadiah VIP
+                pointExchangePackages: Array.isArray(body.pointExchangePackages) ? body.pointExchangePackages.map((p, idx) => {
+                    const pPts = Math.max(0, parseInt(p.pointsRequired, 10) || 0);
+                    const pDays = (p.durationDays !== undefined && p.durationDays !== null) ? parseInt(p.durationDays, 10) : (String(p.durationText || '').toLowerCase().includes('permanen') ? 0 : 7);
+                    const isPerm = pDays === 0 || Boolean(p.isPermanent) || String(p.durationText || '').toLowerCase().includes('permanen');
+                    let benefitsArr = [];
+                    if (Array.isArray(p.benefits)) {
+                        benefitsArr = p.benefits.map(b => String(b).trim()).filter(Boolean);
+                    } else if (typeof p.benefits === 'string') {
+                        benefitsArr = p.benefits.split(/\r?\n/).map(b => b.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+                    }
+                    return {
+                        id: String(p.id || 'pkg_' + (idx + 1) + '_' + Date.now()).trim(),
+                        title: String(p.title || 'Paket VIP').trim(),
+                        pointsRequired: pPts,
+                        durationDays: isPerm ? 0 : (pDays || 7),
+                        durationText: isPerm ? 'Permanen (Selamanya)' : (p.durationText || `${pDays || 7} Hari`),
+                        isPermanent: isPerm,
+                        border: String(p.border || 'Platinum').trim(),
+                        borderId: String(p.borderId || 'border_platinum').trim(),
+                        benefits: benefitsArr.length > 0 ? benefitsArr : ['Buka Semua Akses Fitur VIP MusifyStar'],
+                        active: p.active !== false
+                    };
+                }) : (config.pointExchangePackages || DEFAULT_POINT_EXCHANGE_PACKAGES),
+
                 // Format Kode Referral (Cuma Angka, Cuma Huruf, Campur Huruf & Angka, Username+Angka, atau Kode Ketikan Persis)
                 codeFormat: String(body.codeFormat || config.codeFormat || 'alphanumeric').toLowerCase().trim(),
                 codePrefix: (body.codePrefix !== undefined) ? String(body.codePrefix).trim().toUpperCase() : (config.codePrefix !== undefined ? config.codePrefix : ''),
@@ -1407,6 +1612,43 @@ async function handler(req, res) {
                     extendVipDurationLabel: extDurInfo.label,
                     extendVipBorderLabel: extBorderInfo.label
                 }
+            });
+        }
+
+        // 4B. SAVE ADMIN POINT EXCHANGE PACKAGES (TUKAR POIN JADI VIP)
+        if (action === 'admin_save_exchange_packages' || action === 'admin_save_point_packages') {
+            const rawPackages = Array.isArray(body.packages || body.pointExchangePackages) ? (body.packages || body.pointExchangePackages) : [];
+            const sanitizedPackages = rawPackages.map((p, idx) => {
+                const pPts = Math.max(0, parseInt(p.pointsRequired, 10) || 0);
+                const pDays = (p.durationDays !== undefined && p.durationDays !== null) ? parseInt(p.durationDays, 10) : (String(p.durationText || '').toLowerCase().includes('permanen') ? 0 : 7);
+                const isPerm = pDays === 0 || Boolean(p.isPermanent) || String(p.durationText || '').toLowerCase().includes('permanen');
+                let benefitsArr = [];
+                if (Array.isArray(p.benefits)) {
+                    benefitsArr = p.benefits.map(b => String(b).trim()).filter(Boolean);
+                } else if (typeof p.benefits === 'string') {
+                    benefitsArr = p.benefits.split(/\r?\n/).map(b => b.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+                }
+                return {
+                    id: String(p.id || 'pkg_' + (idx + 1) + '_' + Date.now()).trim(),
+                    title: String(p.title || 'Paket VIP').trim(),
+                    pointsRequired: pPts,
+                    durationDays: isPerm ? 0 : (pDays || 7),
+                    durationText: isPerm ? 'Permanen (Selamanya)' : (p.durationText || `${pDays || 7} Hari`),
+                    isPermanent: isPerm,
+                    border: String(p.border || 'Platinum').trim(),
+                    borderId: String(p.borderId || 'border_platinum').trim(),
+                    benefits: benefitsArr.length > 0 ? benefitsArr : ['Buka Semua Akses Fitur VIP MusifyStar'],
+                    active: p.active !== false
+                };
+            });
+
+            config.pointExchangePackages = sanitizedPackages.length > 0 ? sanitizedPackages : DEFAULT_POINT_EXCHANGE_PACKAGES;
+            await writeReferralConfigAsync(config);
+
+            return res.json({
+                status: true,
+                message: 'Katalog Paket Penukaran Poin VIP berhasil diperbarui!',
+                pointExchangePackages: config.pointExchangePackages
             });
         }
 
