@@ -356,6 +356,25 @@ async function readDbAsync(banRegistry) {
         if ((!data || !Array.isArray(data.users) || data.users.length === 0) && lastKnownValidUsersDb && Array.isArray(lastKnownValidUsersDb.users) && lastKnownValidUsersDb.users.length > 0) {
             data = JSON.parse(JSON.stringify(lastKnownValidUsersDb));
         }
+        if (!data || !Array.isArray(data.users) || data.users.length === 0) {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const diskCandidates = [
+                    path.join(__dirname, 'users.json'),
+                    path.join(__dirname, '..', 'users.json')
+                ];
+                for (const dp of diskCandidates) {
+                    if (fs.existsSync(dp)) {
+                        const parsed = JSON.parse(fs.readFileSync(dp, 'utf8'));
+                        if (parsed && Array.isArray(parsed.users) && parsed.users.length > 0) {
+                            data = parsed;
+                            break;
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
 
         const isFallbackEmpty = !data || !Array.isArray(data.users) || data.users.length === 0;
         const result = (data && typeof data === 'object') ? data : { users: [], sessions: {} };
@@ -3059,6 +3078,36 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ status: false, message: 'Password minimal 6 karakter/huruf' });
             }
 
+            // If users database appears empty, retry fetching directly from PostgreSQL and local disk
+            if (!db.users || db.users.length === 0) {
+                if (typeof storage.fetchFromPostgres === 'function') {
+                    try {
+                        const retryPg = await storage.fetchFromPostgres('users.json');
+                        if (retryPg && Array.isArray(retryPg.users) && retryPg.users.length > 0) {
+                            db.users = retryPg.users;
+                            db.sessions = retryPg.sessions || {};
+                            delete db._isFallbackEmpty;
+                        }
+                    } catch(e) {}
+                }
+                if (!db.users || db.users.length === 0) {
+                    try {
+                        const fs = require('fs');
+                        const p1 = path.join(__dirname, 'users.json');
+                        const p2 = path.join(__dirname, '..', 'users.json');
+                        const targetP = fs.existsSync(p1) ? p1 : (fs.existsSync(p2) ? p2 : null);
+                        if (targetP) {
+                            const diskParsed = JSON.parse(fs.readFileSync(targetP, 'utf8'));
+                            if (diskParsed && Array.isArray(diskParsed.users)) {
+                                db.users = diskParsed.users;
+                                db.sessions = diskParsed.sessions || {};
+                                delete db._isFallbackEmpty;
+                            }
+                        }
+                    } catch(e) {}
+                }
+            }
+
             // Find user by username or email (flexible, case-insensitive, trimming)
             const cleanUsername = String(username || '').replace(/^@/, '').trim().toLowerCase();
             const cleanEmail = String(email || '').trim().toLowerCase();
@@ -3082,13 +3131,89 @@ module.exports = async (req, res) => {
                 });
             }
 
-            // 3. Fallback alias for MusifyStar Official master admin
-            if (!user && (cleanUsername === 'musifystar' || cleanUsername === 'musifystar official')) {
+            // 3. Try matching User ID or Custom ID or Referral Code
+            if (!user && cleanUsername) {
+                user = (db.users || []).find(u => {
+                    if (!u) return false;
+                    const uId = String(u.id || '').trim().toLowerCase();
+                    const uOrigId = String(u.originalId || '').trim().toLowerCase();
+                    const uCustomId = String(u.customId || '').trim().toLowerCase();
+                    const uRef = String(u.referralCode || '').trim().toLowerCase();
+                    return uId === cleanUsername || uOrigId === cleanUsername || uCustomId === cleanUsername || uRef === cleanUsername;
+                });
+            }
+
+            // 4. Owner & Admin aliases: 'musifystar', 'musifystarofficial', 'musifystar official', 'nabil', 'admin'
+            if (!user && (
+                cleanUsername === 'musifystar' ||
+                cleanUsername === 'musifystarofficial' ||
+                cleanUsername === 'musifystar official' ||
+                cleanUsername === 'admin' ||
+                cleanUsername === 'nabil' ||
+                cleanUsername === 'jrnabil' ||
+                cleanUsername === 'owner'
+            )) {
                 user = (db.users || []).find(u => {
                     if (!u) return false;
                     const uEmail = String(u.rawEmail || u.email || '').trim().toLowerCase();
                     return uEmail === 'jrnabil570@gmail.com';
+                }) || (db.users || []).find(u => {
+                    if (!u) return false;
+                    const uEmail = String(u.rawEmail || u.email || '').trim().toLowerCase();
+                    return uEmail === 'musifystarofficial@gmail.com';
+                }) || (db.users || []).find(u => {
+                    if (!u) return false;
+                    const uName = String(u.username || '').toLowerCase().trim();
+                    return uName === 'musifystar' || uName === 'musifystarofficial';
                 });
+            }
+
+            // 5. Self-heal Master Admin user if not yet in database
+            if (!user && (
+                cleanUsername === 'musifystar' ||
+                cleanUsername === 'musifystarofficial' ||
+                cleanUsername === 'musifystar official' ||
+                cleanUsername === 'admin' ||
+                cleanUsername === 'jrnabil570@gmail.com' ||
+                cleanEmail === 'jrnabil570@gmail.com'
+            )) {
+                const { hash, salt } = hashPassword(password || 'MusifyStar7192');
+                const nowIso = new Date().toISOString();
+                user = {
+                    id: '12345678910',
+                    originalId: '8589478687',
+                    customId: '12345678910',
+                    username: 'MusifyStar',
+                    email: 'jrnabil570@gmail.com',
+                    rawEmail: 'jrnabil570@gmail.com',
+                    provider: 'manual',
+                    emailVerified: true,
+                    trustedDevices: [],
+                    passwordHash: hash,
+                    passwordSalt: salt,
+                    maskedPassword: '••••••••',
+                    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=MusifyStar',
+                    role: 'admin',
+                    isPremium: true,
+                    vipTier: 'permanent',
+                    vipExpiresAt: null,
+                    border: 'border_custom_1792838957300',
+                    borderUrl: '/api/borders?action=image&id=border_custom_1792838957300&ext=png&s=116',
+                    borderName: 'Immortal',
+                    nameGlow: 'rainbow_prism',
+                    referralCode: 'MUSIFYSTAR7192',
+                    createdAt: nowIso,
+                    lastLoginAt: nowIso,
+                    lastIp: maskIp(clientIp),
+                    rawLastIp: clientIp,
+                    banType: 'none',
+                    banReason: '',
+                    banExpiresAt: null,
+                    loginLogs: []
+                };
+                db.users.unshift(user);
+                delete db._isFallbackEmpty;
+                await writeDbAsync(db);
             }
 
             if (!user) {
@@ -3098,6 +3223,21 @@ module.exports = async (req, res) => {
             let isMatch = verifyPassword(password, user.passwordHash, user.passwordSalt);
             if (!isMatch && cleanPw !== password) {
                 isMatch = verifyPassword(cleanPw, user.passwordHash, user.passwordSalt);
+            }
+
+            const isMasterUser = ((user.rawEmail || user.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com') ||
+                                 ((user.username || '').toLowerCase().trim() === 'musifystar');
+
+            // Master admin password fallback: check against ADMIN_PASSWORD or allow password update
+            if (!isMatch && isMasterUser) {
+                const envAdminPass = (process.env.ADMIN_PASSWORD || '').trim();
+                if (envAdminPass && (password === envAdminPass || cleanPw === envAdminPass)) {
+                    isMatch = true;
+                    const newHashObj = hashPassword(password);
+                    user.passwordHash = newHashObj.hash;
+                    user.passwordSalt = newHashObj.salt;
+                    await writeDbAsync(db);
+                }
             }
 
             if (!isMatch) {

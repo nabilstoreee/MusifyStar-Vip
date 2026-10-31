@@ -219,6 +219,18 @@ async function writeToPostgres(key, data) {
         if (res.rows && res.rows[0] && res.rows[0].updated_at) {
             memoryUpdatedAt.set(key, new Date(res.rows[0].updated_at).getTime());
         }
+
+        // Save local disk backup for cold-start instant retrieval
+        try {
+            const diskPaths = [
+                path.join(__dirname, key),
+                path.join(__dirname, '..', key)
+            ];
+            for (const dp of diskPaths) {
+                try { fs.writeFileSync(dp, JSON.stringify(payloadToSave, null, 2)); } catch(e){}
+            }
+        } catch(e) {}
+
         return true;
     } catch (err) {
         console.error(`[Supabase PostgreSQL] Error saving key "${key}":`, sanitizeLog(err));
