@@ -3246,6 +3246,11 @@ var Profile = {
                         <span>Referral & Badge Donatur</span>
                         <span class="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider">VIP</span>
                     </button>
+                    <button id="admin-tab-btn-pointexchange" onclick="Profile.setAdminTab('pointexchange')" class="px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-400/40 hover:text-white whitespace-nowrap shadow-sm shadow-amber-500/20">
+                        <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+                        <span>Kelola Katalog Penukaran Poin VIP</span>
+                        <span class="text-[9px] bg-gradient-to-r from-amber-400 to-yellow-300 text-black px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider">BARU</span>
+                    </button>
                     <button id="admin-tab-btn-bans" onclick="Profile.setAdminTab('bans')" class="px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-white/5 hover:bg-white/10 text-white/70 hover:text-white whitespace-nowrap">
                         <i data-lucide="shield-alert" class="w-4 h-4 text-rose-400"></i>
                         <span>Atur Sanksi & Ban</span>
@@ -3441,6 +3446,16 @@ var Profile = {
                     </div>
                 </div>
 
+                <!-- TAB 18: KELOLA KATALOG PENUKARAN POIN VIP VIEW -->
+                <div id="admin-view-pointexchange" class="hidden space-y-4">
+                    <div id="admin-pointexchange-container" class="space-y-4">
+                        <div class="text-center py-12 text-white/50 space-y-2">
+                            <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-amber-400"></i>
+                            <p class="text-xs">Memuat Katalog Penukaran Poin VIP...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- TAB 18: PERCOBAAN VIP PENGGUNA BARU (TRIAL VIP) & TAGIHAN EMAIL + QRIS / GOPAY / DANA / OVO -->
                 <div id="admin-view-viptrial" class="hidden space-y-4">
                     <div id="admin-viptrial-container" class="space-y-4">
@@ -3502,6 +3517,7 @@ var Profile = {
         var btnBorders = gid('admin-tab-btn-borders');
         var btnCustomIds = gid('admin-tab-btn-customids');
         var btnReferrals = gid('admin-tab-btn-referrals');
+        var btnPointExchange = gid('admin-tab-btn-pointexchange');
         var btnSiteUpdate = gid('admin-tab-btn-siteupdate');
         var viewAnalytics = gid('admin-view-analytics');
         var viewGlobalStats = gid('admin-view-globalstats');
@@ -3521,6 +3537,7 @@ var Profile = {
         var viewBorders = gid('admin-view-borders');
         var viewCustomIds = gid('admin-view-customids');
         var viewReferrals = gid('admin-view-referrals');
+        var viewPointExchange = gid('admin-view-pointexchange');
         var viewSiteUpdate = gid('admin-view-siteupdate');
 
         var activeBtnClass = 'px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-md shadow-rose-500/20 whitespace-nowrap';
@@ -3546,6 +3563,7 @@ var Profile = {
         if (btnBorders) btnBorders.className = tab === 'borders' ? activeVipBtnClass : inactiveVipBtnClass;
         if (btnCustomIds) btnCustomIds.className = tab === 'customids' ? activeVipBtnClass : inactiveVipBtnClass;
         if (btnReferrals) btnReferrals.className = tab === 'referrals' ? activeVipBtnClass : inactiveVipBtnClass;
+        if (btnPointExchange) btnPointExchange.className = tab === 'pointexchange' ? activeVipBtnClass : inactiveVipBtnClass;
         if (btnSiteUpdate) btnSiteUpdate.className = tab === 'siteupdate' ? activeBtnClass : inactiveBtnClass;
 
         if (viewAnalytics) viewAnalytics.classList.toggle('hidden', tab !== 'analytics');
@@ -3566,6 +3584,7 @@ var Profile = {
         if (viewBorders) viewBorders.classList.toggle('hidden', tab !== 'borders');
         if (viewCustomIds) viewCustomIds.classList.toggle('hidden', tab !== 'customids');
         if (viewReferrals) viewReferrals.classList.toggle('hidden', tab !== 'referrals');
+        if (viewPointExchange) viewPointExchange.classList.toggle('hidden', tab !== 'pointexchange');
         if (viewSiteUpdate) viewSiteUpdate.classList.toggle('hidden', tab !== 'siteupdate');
 
         if (tab === 'analytics') {
@@ -3604,6 +3623,8 @@ var Profile = {
             Profile.loadAdminCustomIdsTab();
         } else if (tab === 'referrals') {
             Profile.loadAdminReferralsTab();
+        } else if (tab === 'pointexchange') {
+            Profile.loadAdminPointExchangeTab();
         } else if (tab === 'siteupdate') {
             Profile.renderAdminSiteUpdateTab();
         }
@@ -3647,6 +3668,8 @@ var Profile = {
             Profile.loadAdminVouchersTab();
         } else if (Profile.adminActiveTab === 'referrals') {
             Profile.loadAdminReferralsTab();
+        } else if (Profile.adminActiveTab === 'pointexchange') {
+            Profile.loadAdminPointExchangeTab();
         } else if (Profile.adminActiveTab === 'bans') {
             Profile.loadAdminBansList();
         } else if (Profile.adminActiveTab === 'payment') {
@@ -16660,33 +16683,9 @@ var Profile = {
                             <span class="text-[10px] text-white/50 block">Teman Diundang (${isUserVip ? 'Kuota VIP' : 'Kuota Gratis'})</span>
                             <span class="text-sm font-black font-mono ${isLimitReached ? 'text-rose-400' : 'text-emerald-300'} mt-0.5 block">${isUnlimited ? (refCount + ' / Tanpa Batas') : (refCount + '/' + maxInvites + ' Teman')}</span>
                         </div>
-                        <div class="p-2.5 rounded-xl bg-black/35 border border-white/10 text-center">
-                            <span class="text-[10px] text-white/50 block">Poin Referral Terkumpul</span>
-                            <span class="text-sm font-black font-mono text-amber-300 mt-0.5 block">${refPoints} Poin</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detail Keuntungan & Aturan VIP Referral (Sesuai Pengaturan Admin) -->
-                <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2.5 text-xs">
-                    <h4 class="font-extrabold text-white flex items-center gap-1.5 text-xs">
-                        <i data-lucide="crown" class="w-4 h-4 text-amber-400"></i>
-                        <span>Keuntungan & Batas Mengajak Teman (Diatur Admin)</span>
-                    </h4>
-                    <div class="space-y-2 text-[11px] text-white/75 leading-relaxed">
-                        <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-2">
-                            <i data-lucide="zap" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
-                            <div>
-                                <span class="font-bold text-emerald-300 block">Pengguna Gratis (Belum VIP):</span>
-                                <span>Langsung dapat <strong>VIP (${Profile.escapeHtml(newVipDurText)})</strong> + <strong>+${cfg.pointsPerReferral || 100} Poin</strong> & Border Profil <strong class="text-amber-300">${Profile.escapeHtml(newVipBorderLabel)}</strong>. Batas undang teman: <strong>${freeMax <= 0 ? 'Tanpa Batas' : (freeMax + '/' + freeMax + ' Teman')}</strong>.</span>
-                            </div>
-                        </div>
-                        <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2">
-                            <i data-lucide="clock" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
-                            <div>
-                                <span class="font-bold text-amber-300 block">Pengguna VIP (Perpanjang Masa Aktif VIP):</span>
-                                <span>Masa aktif / trial VIP otomatis diperpanjang <strong>+${Profile.escapeHtml(extVipDurText)}</strong> + <strong>+${cfg.pointsPerReferral || 100} Poin</strong> (Border: <strong>${Profile.escapeHtml(extVipBorderLabel)}</strong>). Batas undang teman: <strong>${vipMax <= 0 ? 'Tanpa Batas (Bebas)' : (vipMax + '/' + vipMax + ' Teman')}</strong>.</span>
-                            </div>
+                        <div onclick="Profile.openPointExchangeModal()" class="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/15 via-black/45 to-amber-900/10 border border-amber-400/35 hover:border-amber-400 hover:scale-[1.02] cursor-pointer text-center transition-all group active:scale-95 shadow-md shadow-amber-500/10" title="Klik untuk membuka Halaman Tukar Poin VIP">
+                            <span class="text-[10px] text-white/50 block">Poin Referral</span>
+                            <span class="text-sm font-black font-mono text-amber-300 mt-0.5 block group-hover:text-amber-200">${refPoints} Poin</span>
                         </div>
                     </div>
                 </div>
@@ -16802,6 +16801,346 @@ var Profile = {
             if (btn) {
                 btn.disabled = false;
                 btn.innerText = 'Klaim Kode';
+            }
+        }
+    },
+
+    scrollToPointRedeem() {
+        this.openPointExchangeModal();
+    },
+
+    async openPointExchangeModal() {
+        var existing = gid('musifystar-point-exchange-modal');
+        if (existing) existing.remove();
+
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+        if (!u) {
+            if (typeof showToast === 'function') showToast('Silakan masuk atau daftar akun terlebih dahulu.');
+            if (typeof Auth !== 'undefined' && Auth.openLoginModal) Auth.openLoginModal('login');
+            return;
+        }
+
+        // Poin Penukaran VIP selalu menggunakan gaya Liquid Glass iOS 27 Kristal Mewah
+        var isLiquid = true;
+
+        var modal = document.createElement('div');
+        modal.id = 'musifystar-point-exchange-modal';
+        modal.className = 'fixed inset-0 z-[10060] flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in liquid-glass-ios27 bg-[#050914]/85 backdrop-blur-2xl text-white';
+        modal.innerHTML = `
+            <!-- Ambient Aurora Glowing Mesh Background -->
+            <div class="pointer-events-none absolute -top-32 -left-32 w-80 h-80 bg-cyan-500/20 rounded-full blur-3xl z-0"></div>
+            <div class="pointer-events-none absolute -bottom-32 -right-32 w-80 h-80 bg-amber-500/15 rounded-full blur-3xl z-0"></div>
+            <div class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl z-0"></div>
+
+            <!-- Sticky Liquid Glass iOS 27 Header -->
+            <div class="pt-5 sm:pt-6 pb-3.5 px-4 shrink-0 border-b border-white/15 bg-white/[0.05] backdrop-blur-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center justify-between relative z-20">
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="gid('musifystar-point-exchange-modal')?.remove(); if(!gid('musifystar-referral-modal')) Profile.openReferralModal();" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 shadow-md text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer" title="Kembali ke Referral">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </button>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-black flex items-center justify-center font-black shadow-md shadow-amber-500/25 shrink-0">
+                            <i data-lucide="coins" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base sm:text-lg font-black text-white leading-tight">Tukar Poin Jadi VIP</h3>
+                                <span class="text-[9px] px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 border border-cyan-400/40 font-black uppercase tracking-wider font-mono shadow-sm">iOS 27 Glass</span>
+                            </div>
+                            <p class="text-[11px] text-white/60">Pilihan penukaran poin referral dengan akses Trial VIP</p>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="gid('musifystar-point-exchange-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 active:scale-95 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer" title="Tutup">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable Body with Frost Glass -->
+            <div id="point-exchange-modal-body" class="flex-1 overflow-y-auto overscroll-contain hide-scrollbar p-4 sm:p-6 max-w-2xl mx-auto w-full pb-32 space-y-4 relative z-10">
+                <div class="text-center py-12 text-white/50 space-y-2">
+                    <i data-lucide="loader-2" class="w-7 h-7 animate-spin mx-auto text-amber-400"></i>
+                    <p class="text-xs">Memuat katalog penukaran poin...</p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        await Profile.renderPointExchangeModalBody();
+    },
+
+    async renderPointExchangeModalBody() {
+        var bodyEl = gid('point-exchange-modal-body');
+        if (!bodyEl) return;
+
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
+        var headers = {};
+        if (typeof Auth !== 'undefined' && Auth.token) {
+            headers['Authorization'] = 'Bearer ' + Auth.token;
+        }
+
+        var isLiquid = true;
+
+        try {
+            var url = '/api/referrals?action=info&userId=' + encodeURIComponent(u.id || '') + '&username=' + encodeURIComponent(u.username || '') + '&email=' + encodeURIComponent(u.email || u.rawEmail || '');
+            var res = await fetch(url, { headers: headers, cache: 'no-store' });
+            var data = await res.json();
+            var cfg = (data && data.config) ? data.config : {};
+            var myInfo = (data && data.myReferral) ? data.myReferral : null;
+            var refPoints = (myInfo && myInfo.referralPoints !== undefined) ? myInfo.referralPoints : (u.referralPoints || 0);
+
+            var pkgs = (data && Array.isArray(data.pointExchangePackages) && data.pointExchangePackages.length > 0)
+                ? data.pointExchangePackages
+                : ((cfg && Array.isArray(cfg.pointExchangePackages) && cfg.pointExchangePackages.length > 0)
+                    ? cfg.pointExchangePackages
+                    : [
+                        {
+                            id: 'pkg_trial_7d',
+                            title: 'Trial VIP 7 Hari',
+                            pointsRequired: 450,
+                            durationDays: 7,
+                            durationText: '7 Hari',
+                            border: 'Platinum',
+                            benefits: [
+                                'Akses Penuh Fitur VIP MusifyStar',
+                                'Kualitas Audio Ultra HD 320kbps',
+                                'Border Profil Eksklusif Platinum',
+                                'Dynamic Island Mini Player & Bebas Iklan',
+                                'Putar Latar Belakang & Layar Tetap Menyala'
+                            ],
+                            active: true
+                        },
+                        {
+                            id: 'pkg_vip_permanent',
+                            title: 'Trial VIP Permanen (Lifetime)',
+                            pointsRequired: 50000,
+                            durationDays: 0,
+                            durationText: 'Permanen (Selamanya)',
+                            isPermanent: true,
+                            border: 'Semua Border VIP (Termasuk Immortal)',
+                            benefits: [
+                                'Status Member VIP Selamanya Tanpa Batas Waktu',
+                                'Bebas Pasang Semua Border Profil VIP (Platinum, Master, Legend & Immortal)',
+                                'Efek Nama Berwarna / VIP Glow',
+                                'Dynamic Island Mini Player & Audio Ultra HD 320kbps',
+                                'Bebas Akses Seluruh Fitur VIP MusifyStar Tanpa Langganan Lagi'
+                            ],
+                            active: true
+                        }
+                    ]);
+
+            var activePkgs = pkgs.filter(function(p) { return p.active !== false; });
+
+            bodyEl.innerHTML = `
+                <!-- Ringkasan Poin Pengguna - Liquid Glass iOS 27 Kristal Gold -->
+                <div class="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/25 via-yellow-400/15 to-purple-500/15 border border-amber-300/40 shadow-[0_12px_40px_rgba(245,158,11,0.22)] backdrop-blur-2xl glass-card relative overflow-hidden flex items-center justify-between gap-3">
+                    <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/15 via-transparent to-transparent opacity-60"></div>
+                    <div class="space-y-0.5 relative z-10">
+                        <span class="text-[10px] font-black text-amber-300 uppercase tracking-wider block">Poin Referral Tersedia</span>
+                        <h4 class="text-2xl sm:text-3xl font-black font-mono text-white drop-shadow-md">${refPoints} <span class="text-xs text-amber-300 font-sans font-bold">Poin</span></h4>
+                        <p class="text-[11px] text-white/70 leading-tight">Dapatkan tambahan poin dengan mengajak teman mendaftar.</p>
+                    </div>
+                    <div class="relative z-10 w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-black shadow-lg shadow-amber-500/30 flex items-center justify-center shrink-0">
+                        <i data-lucide="coins" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Daftar Paket Penukaran Poin -->
+                <div class="space-y-3.5 pt-1">
+                    ${activePkgs.map(function(pkg) {
+                        var hasEnough = Number(refPoints) >= Number(pkg.pointsRequired);
+                        var isPerm = Boolean(pkg.isPermanent || Number(pkg.durationDays) === 0 || String(pkg.durationText || '').toLowerCase().includes('permanen'));
+                        var benefitsList = Array.isArray(pkg.benefits) ? pkg.benefits : [];
+                        var escapedTitle = Profile.escapeHtml(pkg.title);
+                        var bName = Profile.escapeHtml(pkg.border || pkg.borderName || 'Platinum');
+
+                        var cardClass = `p-5 rounded-3xl bg-white/[0.07] backdrop-blur-2xl border ${hasEnough ? 'border-amber-400/60 shadow-[0_15px_40px_rgba(245,158,11,0.25)] ring-1 ring-amber-400/30' : 'border-white/15 shadow-[0_15px_35px_rgba(0,0,0,0.45)]'} space-y-4 transition-all glass-card relative overflow-hidden group`;
+
+                        return `
+                        <div class="${cardClass}">
+                            <div class="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/10 to-transparent"></div>
+                            <div class="relative z-10 flex items-start justify-between gap-2 flex-wrap">
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-sm sm:text-base font-black text-white flex items-center gap-1.5 drop-shadow-sm">
+                                            <i data-lucide="${isPerm ? 'crown' : 'sparkles'}" class="w-4 h-4 text-amber-400"></i>
+                                            ${escapedTitle}
+                                        </span>
+                                        ${isPerm
+                                            ? `<span class="text-[9px] px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-rose-400 text-black font-black uppercase tracking-wider shadow-sm">Permanen Lifetime</span>`
+                                            : `<span class="text-[9px] px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 shadow-sm font-bold font-mono">${Profile.escapeHtml(pkg.durationText || (pkg.durationDays + ' Hari'))}</span>`
+                                        }
+                                    </div>
+                                    <span class="text-[11px] text-white/60 block">Border: <strong class="text-amber-300 font-bold">${bName}</strong></span>
+                                </div>
+                                <span class="text-xs font-black font-mono text-amber-300 bg-amber-400/20 border border-amber-400/45 shadow-[0_0_15px_rgba(245,158,11,0.25)] px-3.5 py-1.5 rounded-2xl shadow-sm">
+                                    ${pkg.pointsRequired} Poin
+                                </span>
+                            </div>
+
+                            <!-- Informasi Fitur VIP yang Didapat -->
+                            <div class="relative z-10 p-3.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 space-y-2">
+                                <span class="text-[10.5px] font-extrabold text-amber-300/90 block uppercase tracking-wider">Informasi VIP yang Didapat:</span>
+                                <ul class="space-y-1.5 text-xs text-white/85 leading-relaxed">
+                                    ${benefitsList.map(function(b) {
+                                        return `<li class="flex items-start gap-2">
+                                            <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+                                            <span>${Profile.escapeHtml(b)}</span>
+                                        </li>`;
+                                    }).join('')}
+                                </ul>
+                            </div>
+
+                            <!-- Tombol Tukar Poin -->
+                            <div class="relative z-10 pt-0.5">
+                                <button type="button" onclick="Profile.redeemPointsConfirm('${pkg.id}', '${Profile.escapeJs(pkg.title)}', ${pkg.pointsRequired}, ${refPoints})" class="w-full py-3.5 px-4 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-lg ${hasEnough
+                                    ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:brightness-110 text-black shadow-amber-500/30'
+                                    : 'bg-white/10 hover:bg-white/15 text-white/60 border border-white/15'
+                                }">
+                                    <i data-lucide="${hasEnough ? 'gift' : 'lock'}" class="w-4 h-4 ${hasEnough ? 'fill-black' : ''}"></i>
+                                    <span>${pkg.pointsRequired} Poin (Ingin Tukar?)${!hasEnough ? ` — Poin Belum Cukup (${refPoints}/${pkg.pointsRequired})` : ''}</span>
+                                </button>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } catch (err) {
+            bodyEl.innerHTML = `<div class="text-center py-8 text-rose-400 text-xs">Gagal memuat paket penukaran poin. Silakan coba lagi.</div>`;
+        }
+    },
+
+    redeemPointsConfirm(packageId, title, pointsRequired, currentPoints) {
+        var cur = Number(currentPoints || 0);
+        var req = Number(pointsRequired || 0);
+        if (cur < req) {
+            if (typeof showToast === 'function') {
+                showToast(`Poin Anda belum mencukupi! Diperlukan ${req} Poin (Poin saat ini: ${cur} Poin). Yuk ajak teman mendaftar untuk dapat poin!`);
+            }
+            return;
+        }
+
+        var isLiquid = true;
+
+        var existing = gid('musifystar-redeem-confirm-modal');
+        if (existing) existing.remove();
+
+        var modal = document.createElement('div');
+        modal.id = 'musifystar-redeem-confirm-modal';
+        modal.className = `fixed inset-0 z-[10080] bg-black/70 backdrop-blur-xl flex items-center justify-center p-4 animate-fade-in select-none`;
+        modal.innerHTML = `
+            <div class="w-full max-w-sm rounded-3xl bg-[#090e1c]/90 backdrop-blur-2xl border border-amber-400/50 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.7)] glass-card space-y-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-black flex items-center justify-center font-black shrink-0 shadow-lg shadow-amber-500/25">
+                        <i data-lucide="gift" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black text-white leading-tight">Konfirmasi Tukar Poin</h3>
+                        <p class="text-[11px] text-white/60">Tukar Poin Referral dengan Akses VIP</p>
+                    </div>
+                </div>
+
+                <div class="p-3.5 rounded-2xl bg-black/45 backdrop-blur-md border border-white/15 space-y-2 text-xs">
+                    <div class="flex items-center justify-between text-white/80">
+                        <span>Paket Dipilih:</span>
+                        <span class="font-extrabold text-amber-300 text-right">${Profile.escapeHtml(title)}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-white/80">
+                        <span>Biaya Poin:</span>
+                        <span class="font-black font-mono text-amber-300">${req} Poin</span>
+                    </div>
+                    <div class="flex items-center justify-between text-white/80">
+                        <span>Poin Saat Ini:</span>
+                        <span class="font-mono text-white/95">${cur} Poin</span>
+                    </div>
+                    <div class="pt-2 border-t border-white/10 flex items-center justify-between font-bold">
+                        <span class="text-white/65">Sisa Poin Nanti:</span>
+                        <span class="font-mono text-emerald-300 font-extrabold">${cur - req} Poin</span>
+                    </div>
+                </div>
+
+                <p class="text-[11px] text-white/70 leading-relaxed text-center">
+                    Apakah Anda yakin ingin menukarkan <strong>${req} Poin</strong> dengan <strong>${Profile.escapeHtml(title)}</strong>?
+                </p>
+
+                <div class="grid grid-cols-2 gap-2.5 pt-1">
+                    <button type="button" onclick="gid('musifystar-redeem-confirm-modal')?.remove()" class="py-3 px-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white/85 font-bold text-xs cursor-pointer active:scale-95 transition-all">
+                        Batal
+                    </button>
+                    <button type="button" onclick="Profile.executeRedeemPoints('${packageId}', this)" id="btn-execute-redeem" class="py-3 px-3 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:brightness-110 text-black font-black text-xs cursor-pointer active:scale-95 transition-all shadow-md shadow-amber-500/25">
+                        Ya, Tukar Sekarang!
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    },
+
+    async executeRedeemPoints(packageId, btnEl) {
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+        if (!u) {
+            if (typeof showToast === 'function') showToast('Silakan login terlebih dahulu!');
+            return;
+        }
+
+        var headers = { 'Content-Type': 'application/json' };
+        if (typeof Auth !== 'undefined' && Auth.token) {
+            headers['Authorization'] = 'Bearer ' + Auth.token;
+        }
+
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerText = 'Memproses...';
+        }
+
+        try {
+            var res = await fetch('/api/referrals?action=redeem_points', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    packageId: packageId,
+                    userId: u.id,
+                    username: u.username
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                gid('musifystar-redeem-confirm-modal')?.remove();
+                if (typeof showToast === 'function') showToast(data.message || '🎉 Berhasil menukar poin dengan Hadiah VIP!');
+
+                // Update currentUser locally
+                if (data.user) {
+                    if (typeof Auth !== 'undefined') {
+                        Auth.currentUser = Object.assign(Auth.currentUser || {}, data.user);
+                        try {
+                            localStorage.setItem('musifystar_auth_user', JSON.stringify(Auth.currentUser));
+                        } catch(e) {}
+                    }
+                }
+
+                if (typeof Auth !== 'undefined' && Auth.checkSession) {
+                    await Auth.checkSession();
+                }
+
+                if (Profile.renderProfileHeader) Profile.renderProfileHeader();
+                if (Profile.refreshReferralModalBody) await Profile.refreshReferralModalBody();
+                if (Profile.renderPointExchangeModalBody) await Profile.renderPointExchangeModalBody();
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal menukarkan poin.');
+                if (btnEl) {
+                    btnEl.disabled = false;
+                    btnEl.innerText = 'Ya, Tukar Sekarang!';
+                }
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerText = 'Ya, Tukar Sekarang!';
             }
         }
     },
@@ -17011,6 +17350,45 @@ var Profile = {
 
             Profile._adminReferralConfigCache = cfg;
             Profile._adminReferralUsersCache = users;
+            Profile._adminExchangePackages = (cfg && Array.isArray(cfg.pointExchangePackages) && cfg.pointExchangePackages.length > 0)
+                ? JSON.parse(JSON.stringify(cfg.pointExchangePackages))
+                : [
+                    {
+                        id: 'pkg_trial_7d',
+                        title: 'Trial VIP 7 Hari',
+                        pointsRequired: 450,
+                        durationDays: 7,
+                        durationText: '7 Hari',
+                        border: 'Platinum',
+                        borderId: 'border_platinum',
+                        benefits: [
+                            'Akses Penuh Fitur VIP MusifyStar',
+                            'Kualitas Audio Ultra HD 320kbps',
+                            'Border Profil Eksklusif Platinum',
+                            'Dynamic Island Mini Player & Bebas Iklan',
+                            'Putar Latar Belakang & Layar Tetap Menyala'
+                        ],
+                        active: true
+                    },
+                    {
+                        id: 'pkg_vip_permanent',
+                        title: 'Trial VIP Permanen (Lifetime)',
+                        pointsRequired: 50000,
+                        durationDays: 0,
+                        durationText: 'Permanen (Selamanya)',
+                        isPermanent: true,
+                        border: 'Semua Border VIP (Termasuk Immortal)',
+                        borderId: 'border_immortal',
+                        benefits: [
+                            'Status Member VIP Selamanya Tanpa Batas Waktu',
+                            'Bebas Pasang Semua Border Profil VIP (Platinum, Master, Legend & Immortal)',
+                            'Efek Nama Berwarna / VIP Glow',
+                            'Dynamic Island Mini Player & Audio Ultra HD 320kbps',
+                            'Bebas Akses Seluruh Fitur VIP MusifyStar Tanpa Langganan Lagi'
+                        ],
+                        active: true
+                    }
+                ];
             var adminUserObj = users.find(function(x) { return x && String(x.email || '').toLowerCase() === 'jrnabil570@gmail.com'; }) || users[0];
             var currentExactCode = (adminUserObj && adminUserObj.referralCode) ? adminUserObj.referralCode : (cfg.adminTemplateCode || 'MUSIFYSTAR7192');
 
@@ -17462,6 +17840,23 @@ var Profile = {
                         </div>
                     </div>
 
+                    <!-- SHORTCUT KE TAB MANDIRI: KELOLA KATALOG PENUKARAN POIN VIP -->
+                    <div class="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-transparent border border-amber-400/35 flex items-center justify-between flex-wrap gap-3 shadow-xl">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-black flex items-center justify-center font-black shadow-md shadow-amber-500/25 shrink-0">
+                                <i data-lucide="coins" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-sm sm:text-base font-black text-white">Kelola Katalog Penukaran Poin VIP</h4>
+                                <p class="text-[11px] text-white/60">Katalog penukaran poin VIP telah dipisahkan ke Tab Khusus Mandiri di menu tab atas.</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="Profile.setAdminTab('pointexchange')" class="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-md">
+                            <i data-lucide="arrow-right-circle" class="w-4 h-4"></i>
+                            <span>Buka Tab Kelola Katalog Penukaran Poin</span>
+                        </button>
+                    </div>
+
                     <!-- BAGIAN 4: ATUR FORMAT & GANTI KODE REFERRAL BEBAS (NOMOR ACAK BERBEDA TIAP PENGGUNA) -->
                     <div class="p-5 sm:p-6 rounded-3xl bg-[#0f131d] border border-purple-500/35 space-y-4 shadow-2xl">
                         <div class="flex items-center justify-between flex-wrap gap-2 border-b border-white/10 pb-3.5">
@@ -17601,6 +17996,322 @@ var Profile = {
             if (typeof lucide !== 'undefined') lucide.createIcons();
         } catch (err) {
             container.innerHTML = `<div class="text-center py-8 text-red-400 text-xs">Gagal memuat pengaturan Referral & Donatur.</div>`;
+        }
+    },
+
+    // =========================================================================
+    // ADMIN TAB KHUSUS MANDIRI: KELOLA KATALOG PENUKARAN POIN VIP
+    // =========================================================================
+    async loadAdminPointExchangeTab() {
+        var container = gid('admin-pointexchange-container');
+        if (!container) return;
+
+        var adminTok = Profile.getAdminToken();
+        var headers = { 'Content-Type': 'application/json' };
+        if (adminTok) {
+            headers['Authorization'] = 'Bearer ' + adminTok;
+            headers['X-Admin-Token'] = adminTok;
+        }
+
+        container.innerHTML = `
+            <div class="text-center py-12 text-white/50 space-y-2">
+                <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-amber-400"></i>
+                <p class="text-xs">Memuat katalog penukaran poin VIP...</p>
+            </div>
+        `;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        try {
+            var res = await fetch('/api/referrals?action=info', { headers: headers, cache: 'no-store' }).catch(function() { return null; });
+            var refData = res ? await res.json().catch(function() { return {}; }) : {};
+            var cfg = (refData && refData.config) ? refData.config : {};
+
+            Profile._adminExchangePackages = (cfg && Array.isArray(cfg.pointExchangePackages) && cfg.pointExchangePackages.length > 0)
+                ? JSON.parse(JSON.stringify(cfg.pointExchangePackages))
+                : [
+                    {
+                        id: 'pkg_trial_7d',
+                        title: 'Trial VIP 7 Hari',
+                        pointsRequired: 450,
+                        durationDays: 7,
+                        durationText: '7 Hari',
+                        border: 'Platinum',
+                        borderId: 'border_platinum',
+                        benefits: [
+                            'Akses Penuh Fitur VIP MusifyStar',
+                            'Kualitas Audio Ultra HD 320kbps',
+                            'Border Profil Eksklusif Platinum',
+                            'Dynamic Island Mini Player & Bebas Iklan',
+                            'Putar Latar Belakang & Layar Tetap Menyala'
+                        ],
+                        active: true
+                    },
+                    {
+                        id: 'pkg_vip_permanent',
+                        title: 'Trial VIP Permanen (Lifetime)',
+                        pointsRequired: 50000,
+                        durationDays: 0,
+                        durationText: 'Permanen (Selamanya)',
+                        isPermanent: true,
+                        border: 'Semua Border VIP (Termasuk Immortal)',
+                        borderId: 'border_immortal',
+                        benefits: [
+                            'Status Member VIP Selamanya Tanpa Batas Waktu',
+                            'Bebas Pasang Semua Border Profil VIP (Platinum, Master, Legend & Immortal)',
+                            'Efek Nama Berwarna / VIP Glow',
+                            'Dynamic Island Mini Player & Audio Ultra HD 320kbps',
+                            'Bebas Akses Seluruh Fitur VIP MusifyStar Tanpa Langganan Lagi'
+                        ],
+                        active: true
+                    }
+                ];
+
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <!-- BANNER HEADER TAB MANDIRI -->
+                    <div class="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-purple-500/10 border border-amber-400/35 flex items-center justify-between flex-wrap gap-4 shadow-2xl">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-black flex items-center justify-center font-black shadow-lg shadow-amber-500/25 shrink-0">
+                                <i data-lucide="coins" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="text-base sm:text-lg font-black text-white tracking-tight">Pusat Kelola Katalog Penukaran Poin VIP</h3>
+                                    <span class="text-[9.5px] px-2.5 py-0.5 rounded-full bg-amber-400 text-black font-black uppercase tracking-wider shadow-sm">TAB KHUSUS MANDIRI</span>
+                                </div>
+                                <p class="text-xs text-white/60 mt-0.5 leading-relaxed">Atur paket hadiah VIP yang dapat ditukar pengguna dengan poin referral (judul, poin, durasi, border, keuntungan & status on/off).</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="Profile.addAdminExchangePackage()" class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-md">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                            <span>+ Tambah Paket Baru</span>
+                        </button>
+                    </div>
+
+                    <!-- CONTAINER DAFTAR PAKET -->
+                    <div class="p-5 sm:p-6 rounded-3xl bg-[#0f131d] border border-amber-500/35 space-y-4 shadow-2xl">
+                        <div class="flex items-center justify-between flex-wrap gap-2 border-b border-white/10 pb-3.5">
+                            <div>
+                                <h4 class="text-sm sm:text-base font-black text-white">Daftar Paket Penukaran Poin Aktif</h4>
+                                <p class="text-[11px] text-white/55">Bebas ubah durasi hari/permanen, kuota poin, pilihan border profil, dan daftar keuntungan.</p>
+                            </div>
+                            <span class="text-xs font-mono font-bold text-amber-300 bg-amber-400/15 border border-amber-400/30 px-3 py-1 rounded-xl">
+                                Total: ${Profile._adminExchangePackages.length} Paket
+                            </span>
+                        </div>
+
+                        <!-- Package rows rendered by Profile.renderAdminExchangePackagesList() -->
+                        <div id="adm-exchange-packages-container" class="space-y-3"></div>
+
+                        <div class="pt-3 flex items-center justify-between gap-3 flex-wrap border-t border-white/10">
+                            <button type="button" onclick="Profile.addAdminExchangePackage()" class="py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all">
+                                <i data-lucide="plus" class="w-3.5 h-3.5 text-amber-400"></i>
+                                <span>+ Tambah Paket</span>
+                            </button>
+                            <button type="button" onclick="Profile.saveAdminExchangePackages()" id="adm-save-packages-btn" class="py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:opacity-95 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer active:scale-95 transition-all shadow-lg shadow-amber-500/20">
+                                <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                                <span>Simpan Seluruh Perubahan Katalog Penukaran Poin</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            Profile.renderAdminExchangePackagesList();
+        } catch (err) {
+            container.innerHTML = `<div class="text-center py-8 text-rose-400 text-xs">Gagal memuat katalog penukaran poin.</div>`;
+        }
+    },
+
+    renderAdminExchangePackagesList() {
+        var container = gid('adm-exchange-packages-container');
+        if (!container) return;
+        var pkgs = Profile._adminExchangePackages || [];
+        if (pkgs.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-6 px-4 rounded-2xl bg-white/[0.02] border border-white/10 text-white/50 text-xs">
+                    Belum ada paket penukaran poin. Klik <strong>+ Tambah Paket</strong> di atas untuk membuat paket baru.
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = pkgs.map(function(pkg, idx) {
+            var isPerm = Boolean(pkg.isPermanent || Number(pkg.durationDays) === 0 || String(pkg.durationText || '').toLowerCase().includes('permanen'));
+            var benefitsStr = Array.isArray(pkg.benefits) ? pkg.benefits.join('\n') : (pkg.benefits || '');
+
+            return `
+            <div class="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-3.5 hover:border-amber-400/40 transition-all">
+                <div class="flex items-center justify-between gap-2 border-b border-white/10 pb-2.5 flex-wrap">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-amber-400/20 border border-amber-400/40 text-amber-300 font-mono font-black text-xs flex items-center justify-center">${idx + 1}</span>
+                        <span class="text-xs font-black text-white">${Profile.escapeHtml(pkg.title || 'Paket Baru')}</span>
+                        ${isPerm ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-400 text-black font-black uppercase">Permanen</span>' : ''}
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer bg-black/40 px-2.5 py-1 rounded-lg border border-white/10 text-xs">
+                            <input type="checkbox" onchange="Profile.updateAdminExchangePackageField(${idx}, 'active', this.checked)" ${pkg.active !== false ? 'checked' : ''} class="w-3.5 h-3.5 accent-amber-400 rounded cursor-pointer">
+                            <span class="text-[11px] font-bold ${pkg.active !== false ? 'text-emerald-300' : 'text-white/40'}">${pkg.active !== false ? 'Aktif' : 'Nonaktif'}</span>
+                        </label>
+                        <button type="button" onclick="Profile.deleteAdminExchangePackage(${idx})" class="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 cursor-pointer transition-all active:scale-95" title="Hapus Paket">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                    <div class="space-y-1">
+                        <label class="text-[10.5px] font-bold text-white/75 block">Nama / Judul Paket:</label>
+                        <input type="text" value="${Profile.escapeHtml(pkg.title || '')}" oninput="Profile.updateAdminExchangePackageField(${idx}, 'title', this.value)" placeholder="Misal: Trial VIP 7 Hari" class="w-full py-2 px-3 rounded-xl bg-black/75 border border-white/15 focus:border-amber-400 text-xs text-white font-bold outline-none">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10.5px] font-bold text-amber-300/90 block">Poin Dibutuhkan:</label>
+                        <input type="number" value="${Number(pkg.pointsRequired) || 0}" min="0" oninput="Profile.updateAdminExchangePackageField(${idx}, 'pointsRequired', parseInt(this.value, 10) || 0)" placeholder="Misal: 450" class="w-full py-2 px-3 rounded-xl bg-black/75 border border-white/15 focus:border-amber-400 text-xs text-white font-mono font-black outline-none">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10.5px] font-bold text-white/75 block">Durasi VIP (Hari / 0=Permanen):</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="number" value="${isPerm ? 0 : (Number(pkg.durationDays) || 7)}" min="0" oninput="Profile.updateAdminExchangePackageDuration(${idx}, parseInt(this.value, 10) || 0)" placeholder="Hari (0=Permanen)" class="w-full py-2 px-3 rounded-xl bg-black/75 border border-white/15 focus:border-amber-400 text-xs text-white font-mono font-bold outline-none">
+                            <button type="button" onclick="Profile.updateAdminExchangePackageDuration(${idx}, 0)" class="px-2 py-2 rounded-xl text-[10px] font-black cursor-pointer active:scale-95 shrink-0 ${isPerm ? 'bg-amber-400 text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}" title="Set Permanen">♾️</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10.5px] font-bold text-white/75 block">Border Profil VIP:</label>
+                        <select onchange="Profile.updateAdminExchangePackageBorder(${idx}, this.value)" class="w-full py-2 px-3 rounded-xl bg-black/75 border border-white/15 focus:border-amber-400 text-xs text-white font-semibold outline-none cursor-pointer">
+                            <option value="Platinum" ${(pkg.border === 'Platinum' || pkg.borderId === 'border_platinum') ? 'selected' : ''}>Platinum</option>
+                            <option value="Master" ${(pkg.border === 'Master' || pkg.borderId === 'border_master') ? 'selected' : ''}>Master</option>
+                            <option value="Legend" ${(pkg.border === 'Legend' || pkg.borderId === 'border_legend') ? 'selected' : ''}>Legend</option>
+                            <option value="Semua Border VIP (Termasuk Immortal)" ${(pkg.border?.includes('Semua') || pkg.borderId === 'border_immortal') ? 'selected' : ''}>Semua Border VIP (Immortal)</option>
+                            <option value="Tanpa Border" ${(pkg.border === 'Tanpa Border' || pkg.borderId === 'none') ? 'selected' : ''}>Tanpa Border</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10.5px] font-bold text-white/75 block">Informasi Keuntungan VIP yang Didapat (Satu Baris per Keuntungan):</label>
+                    <textarea rows="3" oninput="Profile.updateAdminExchangePackageBenefits(${idx}, this.value)" placeholder="Kualitas Audio Ultra HD 320kbps&#10;Border Profil Eksklusif&#10;Bebas Semua Tema & Tanpa Iklan" class="w-full py-2 px-3 rounded-xl bg-black/75 border border-white/15 focus:border-amber-400 text-xs text-white leading-relaxed outline-none font-sans">${Profile.escapeHtml(benefitsStr)}</textarea>
+                </div>
+            </div>
+            `;
+        }).join('');
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    },
+
+    updateAdminExchangePackageField(idx, field, val) {
+        if (!Profile._adminExchangePackages || !Profile._adminExchangePackages[idx]) return;
+        Profile._adminExchangePackages[idx][field] = val;
+    },
+
+    updateAdminExchangePackageDuration(idx, days) {
+        if (!Profile._adminExchangePackages || !Profile._adminExchangePackages[idx]) return;
+        var pkg = Profile._adminExchangePackages[idx];
+        if (days === 0) {
+            pkg.durationDays = 0;
+            pkg.durationText = 'Permanen (Selamanya)';
+            pkg.isPermanent = true;
+        } else {
+            pkg.durationDays = days;
+            pkg.durationText = days + ' Hari';
+            pkg.isPermanent = false;
+        }
+        Profile.renderAdminExchangePackagesList();
+    },
+
+    updateAdminExchangePackageBorder(idx, borderVal) {
+        if (!Profile._adminExchangePackages || !Profile._adminExchangePackages[idx]) return;
+        var pkg = Profile._adminExchangePackages[idx];
+        pkg.border = borderVal;
+        if (borderVal.includes('Semua') || borderVal.toLowerCase().includes('immortal')) {
+            pkg.borderId = 'border_immortal';
+        } else if (borderVal === 'Platinum') {
+            pkg.borderId = 'border_platinum';
+        } else if (borderVal === 'Master') {
+            pkg.borderId = 'border_master';
+        } else if (borderVal === 'Legend') {
+            pkg.borderId = 'border_legend';
+        } else {
+            pkg.borderId = 'none';
+        }
+    },
+
+    updateAdminExchangePackageBenefits(idx, text) {
+        if (!Profile._adminExchangePackages || !Profile._adminExchangePackages[idx]) return;
+        var lines = String(text || '').split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+        Profile._adminExchangePackages[idx].benefits = lines;
+    },
+
+    addAdminExchangePackage() {
+        Profile._adminExchangePackages = Profile._adminExchangePackages || [];
+        var newIdx = Profile._adminExchangePackages.length + 1;
+        Profile._adminExchangePackages.push({
+            id: 'pkg_custom_' + Date.now(),
+            title: 'Paket VIP Baru #' + newIdx,
+            pointsRequired: 500,
+            durationDays: 7,
+            durationText: '7 Hari',
+            isPermanent: false,
+            border: 'Platinum',
+            borderId: 'border_platinum',
+            benefits: [
+                'Akses Penuh Fitur VIP MusifyStar',
+                'Kualitas Audio Ultra HD 320kbps',
+                'Border Profil Eksklusif Platinum',
+                'Dynamic Island Mini Player & Bebas Iklan'
+            ],
+            active: true
+        });
+        Profile.renderAdminExchangePackagesList();
+        if (typeof showToast === 'function') showToast('Paket baru berhasil ditambahkan! Silakan sesuaikan judul, poin, & keuntungannya.');
+    },
+
+    deleteAdminExchangePackage(idx) {
+        if (!Profile._adminExchangePackages || !Profile._adminExchangePackages[idx]) return;
+        var pkgTitle = Profile._adminExchangePackages[idx].title || 'Paket ini';
+        Profile._adminExchangePackages.splice(idx, 1);
+        Profile.renderAdminExchangePackagesList();
+        if (typeof showToast === 'function') showToast(`Paket "${pkgTitle}" telah dihapus dari daftar.`);
+    },
+
+    async saveAdminExchangePackages() {
+        var btn = gid('adm-save-packages-btn');
+        var adminTok = Profile.getAdminToken();
+        var headers = { 'Content-Type': 'application/json' };
+        if (adminTok) {
+            headers['Authorization'] = 'Bearer ' + adminTok;
+            headers['X-Admin-Token'] = adminTok;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = 'Menyimpan...';
+        }
+        try {
+            var res = await fetch('/api/referrals?action=admin_save_exchange_packages', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    pointExchangePackages: Profile._adminExchangePackages || []
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                if (typeof showToast === 'function') showToast('✅ Katalog Paket Penukaran Poin VIP berhasil disimpan!');
+                Profile.renderAdminExchangePackagesList();
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal menyimpan katalog paket penukaran.');
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="save" class="w-3.5 h-3.5"></i><span>Simpan Katalog Paket Penukaran Poin</span>';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
         }
     },
 
@@ -17812,7 +18523,8 @@ var Profile = {
             codeFormat: codeFormat,
             codePrefix: codePrefix,
             customGlobalCode: customGlobalCode,
-            codeLength: codeLength
+            codeLength: codeLength,
+            pointExchangePackages: Profile._adminExchangePackages || []
         };
 
         var adminTok = Profile.getAdminToken();

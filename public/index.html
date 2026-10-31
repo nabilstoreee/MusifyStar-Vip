@@ -86,6 +86,17 @@
                 });
             } catch (e) {}
         }
+        // Prevent unhandled promise rejections for background ServiceWorker update fetch errors
+        window.addEventListener('unhandledrejection', function(event) {
+            if (event && event.reason) {
+                var reasonMsg = String(event.reason.message || event.reason || '');
+                if (reasonMsg.includes('ServiceWorker') || reasonMsg.includes('sw.js') || reasonMsg.includes('Failed to update a ServiceWorker')) {
+                    if (typeof event.preventDefault === 'function') event.preventDefault();
+                    console.warn('[PWA] Handled background ServiceWorker update notice:', reasonMsg);
+                }
+            }
+        });
+
         if ('serviceWorker' in navigator) {
             // Hindari double-reload: catat apakah halaman saat load sudah dikontrol Service Worker
             var hadController = !!navigator.serviceWorker.controller;
@@ -117,9 +128,8 @@
             });
 
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function(reg) {
                     window.musifySwRegistration = reg;
-                    try { reg.update(); } catch(e){}
 
                     reg.addEventListener('updatefound', function() {
                         var newWorker = reg.installing;
@@ -133,7 +143,7 @@
                     });
                     console.log('PWA SW Registered:', reg.scope);
                 }).catch(function(err) {
-                    console.error('PWA SW Register failed:', err);
+                    console.warn('PWA SW Register notice:', err && err.message ? err.message : err);
                 });
             });
 
@@ -195,8 +205,10 @@
                             if (data.buildTimestamp) localStorage.setItem('musify_last_reloaded_build', String(data.buildTimestamp));
                         } catch(e){}
 
-                        if (window.musifySwRegistration) {
-                            try { window.musifySwRegistration.update(); } catch(e){}
+                        if (window.musifySwRegistration && typeof window.musifySwRegistration.update === 'function') {
+                            try {
+                                window.musifySwRegistration.update().catch(function() {});
+                            } catch(e) {}
                         }
                         if (typeof showToast === 'function') {
                             showToast('🚀 Memperbarui MusifyStar ke ' + data.version + '...');
@@ -1780,6 +1792,7 @@
         .liquid-glass-ios26 #musifystar-feedback-modal,
         .liquid-glass-ios26 #musifystar-calendar-modal,
         .liquid-glass-ios26 #musifystar-referral-modal,
+        .liquid-glass-ios26 #musifystar-point-exchange-modal,
         .liquid-glass-ios26 #musifystar-supporter-modal,
         .liquid-glass-ios26 #musifystar-admin-modal,
         .liquid-glass-ios26 #musifystar-admin-dashboard-modal,
@@ -1802,6 +1815,7 @@
         .liquid-glass-ios27 #musifystar-feedback-modal,
         .liquid-glass-ios27 #musifystar-calendar-modal,
         .liquid-glass-ios27 #musifystar-referral-modal,
+        .liquid-glass-ios27 #musifystar-point-exchange-modal,
         .liquid-glass-ios27 #musifystar-supporter-modal,
         .liquid-glass-ios27 #musifystar-admin-modal,
         .liquid-glass-ios27 #musifystar-admin-dashboard-modal,
@@ -1829,6 +1843,7 @@
         .liquid-glass-ios26 #musifystar-donation-modal > div.flex-1,
         .liquid-glass-ios26 #musifystar-calendar-modal > div.flex-1,
         .liquid-glass-ios26 #musifystar-referral-modal > div.flex-1,
+        .liquid-glass-ios26 #musifystar-point-exchange-modal > div.flex-1,
         .liquid-glass-ios26 #musifystar-supporter-modal > div.flex-1,
         .liquid-glass-ios26 #musifystar-feedback-modal > div.flex-1,
         .liquid-glass-ios26 #musifystar-admin-modal > div.flex-1,
@@ -1842,6 +1857,7 @@
         .liquid-glass-ios27 #musifystar-donation-modal > div.flex-1,
         .liquid-glass-ios27 #musifystar-calendar-modal > div.flex-1,
         .liquid-glass-ios27 #musifystar-referral-modal > div.flex-1,
+        .liquid-glass-ios27 #musifystar-point-exchange-modal > div.flex-1,
         .liquid-glass-ios27 #musifystar-supporter-modal > div.flex-1,
         .liquid-glass-ios27 #musifystar-feedback-modal > div.flex-1,
         .liquid-glass-ios27 #musifystar-admin-modal > div.flex-1 {
@@ -1867,6 +1883,7 @@
         .liquid-glass-ios26 #musifystar-donation-modal > div.shrink-0,
         .liquid-glass-ios26 #musifystar-calendar-modal > div.shrink-0,
         .liquid-glass-ios26 #musifystar-referral-modal > div.shrink-0,
+        .liquid-glass-ios26 #musifystar-point-exchange-modal > div.shrink-0,
         .liquid-glass-ios26 #musifystar-supporter-modal > div.shrink-0,
         .liquid-glass-ios26 #musifystar-feedback-modal > div.shrink-0,
         .liquid-glass-ios26 #musifystar-admin-modal > div.shrink-0,
@@ -1888,6 +1905,7 @@
         .liquid-glass-ios27 #musifystar-donation-modal > div.shrink-0,
         .liquid-glass-ios27 #musifystar-calendar-modal > div.shrink-0,
         .liquid-glass-ios27 #musifystar-referral-modal > div.shrink-0,
+        .liquid-glass-ios27 #musifystar-point-exchange-modal > div.shrink-0,
         .liquid-glass-ios27 #musifystar-supporter-modal > div.shrink-0,
         .liquid-glass-ios27 #musifystar-feedback-modal > div.shrink-0,
         .liquid-glass-ios27 #musifystar-admin-modal > div.shrink-0,
@@ -1948,6 +1966,8 @@
         .liquid-glass-ios26 #musifystar-calendar-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
         .liquid-glass-ios26 #musifystar-referral-modal > div.flex-1 .rounded-3xl,
         .liquid-glass-ios26 #musifystar-referral-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios26 #musifystar-point-exchange-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios26 #musifystar-point-exchange-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
         .liquid-glass-ios26 #musifystar-supporter-modal > div.flex-1 .rounded-3xl,
         .liquid-glass-ios26 #musifystar-supporter-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
         .liquid-glass-ios26 #musifystar-feedback-modal > div.flex-1 .rounded-3xl,
@@ -1996,6 +2016,12 @@
         .liquid-glass-ios27 #musifystar-calendar-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
         .liquid-glass-ios27 #musifystar-referral-modal > div.flex-1 .rounded-3xl,
         .liquid-glass-ios27 #musifystar-referral-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        .liquid-glass-ios27 #musifystar-point-exchange-modal > div.flex-1 .rounded-3xl,
+        .liquid-glass-ios27 #musifystar-point-exchange-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        #musifystar-point-exchange-modal.liquid-glass-ios27 > div.flex-1 .rounded-3xl,
+        #musifystar-point-exchange-modal.liquid-glass-ios27 > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
+        #musifystar-point-exchange-modal > div.flex-1 .rounded-3xl,
+        #musifystar-point-exchange-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
         .liquid-glass-ios27 #musifystar-supporter-modal > div.flex-1 .rounded-3xl,
         .liquid-glass-ios27 #musifystar-supporter-modal > div.flex-1 .rounded-2xl:not(.w-6):not(.w-7):not(.w-8):not(.w-9):not(.w-10),
         .liquid-glass-ios27 #musifystar-feedback-modal > div.flex-1 .rounded-3xl,
@@ -2212,13 +2238,15 @@
         .liquid-glass-ios26 #chat-user-profile-modal > div:last-child,
         .liquid-glass-ios26 #import-spotify-playlist-modal > div:last-child,
         .liquid-glass-ios26 #import-youtube-playlist-modal > div:last-child,
+        .liquid-glass-ios26 #musifystar-redeem-confirm-modal > div,
         .liquid-glass-ios27 #header-auth-dropdown-wrapper > div:last-child,
         .liquid-glass-ios27 #musifystar-streaming-quality-modal > div,
         .liquid-glass-ios27 #musifystar-data-usage-modal > div,
         .liquid-glass-ios27 #name-glow-picker-modal > div:last-child,
         .liquid-glass-ios27 #chat-user-profile-modal > div:last-child,
         .liquid-glass-ios27 #import-spotify-playlist-modal > div:last-child,
-        .liquid-glass-ios27 #import-youtube-playlist-modal > div:last-child {
+        .liquid-glass-ios27 #import-youtube-playlist-modal > div:last-child,
+        .liquid-glass-ios27 #musifystar-redeem-confirm-modal > div {
             background: linear-gradient(145deg, rgba(30, 48, 82, 0.62) 0%, rgba(12, 20, 40, 0.72) 60%, rgba(56, 189, 248, 0.18) 100%) !important;
             backdrop-filter: blur(44px) saturate(225%) !important;
             -webkit-backdrop-filter: blur(44px) saturate(225%) !important;

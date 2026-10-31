@@ -5,7 +5,6 @@ const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/verified_sections.json',
   '/logo.png',
   '/banner.png',
   '/app.js',
@@ -68,6 +67,11 @@ self.addEventListener('fetch', (event) => {
 
   // Ignore non-GET requests or chrome-extension URLs
   if (request.method !== 'GET' || !url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // Never intercept sw.js itself to avoid update race conditions
+  if (url.pathname === '/sw.js') {
     return;
   }
 
