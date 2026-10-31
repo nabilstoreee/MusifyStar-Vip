@@ -135,7 +135,7 @@ var Profile = {
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Administrator
                             </span>` : (uIsVip ? `
                             <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-gradient-to-r from-amber-400/20 to-yellow-500/20 text-amber-300 border border-amber-400/40 shadow-sm shadow-amber-500/10 font-mono">
-                                👑 VIP Member
+                                Member Vip
                             </span>` : `
                             <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/10 text-white/80 border border-white/15">
                                 Member Aktif
@@ -251,7 +251,7 @@ var Profile = {
                 <button onclick="Profile.openDonationModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-transparent hover:from-amber-500/25 hover:to-emerald-500/25 border border-amber-500/30 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Donasi & Dukung Pengembang MusifyStar">
                     <span class="flex items-center gap-2.5">
                         <i data-lucide="heart" class="w-4 h-4 text-amber-400 fill-amber-400/30"></i>
-                        <span>Donasi Pengembang (QRIS)</span>
+                        <span>Donasi Pengembang</span>
                     </span>
                     <div class="flex items-center gap-1.5">
                         <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">QRIS</span>
@@ -259,11 +259,12 @@ var Profile = {
                     </div>
                 </button>
 
+                ${hasUser ? `
                 <!-- Tombol Pengatur Kualitas Streaming (Hemat Kuota vs High Audio Quality) -->
                 <button onclick="Profile.openStreamingQualityModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-sky-500/15 via-indigo-500/15 to-transparent hover:from-sky-500/25 hover:to-indigo-500/25 border border-sky-400/35 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Atur Hemat Kuota Seluler vs High Audio Quality Wi-Fi">
                     <span class="flex items-center gap-2.5">
                         <i data-lucide="sliders" class="w-4 h-4 text-sky-400"></i>
-                        <span>Pengatur Kualitas Streaming (Kuota vs Wi-Fi)</span>
+                        <span>Pengatur Kualitas</span>
                     </span>
                     <div class="flex items-center gap-1.5">
                         <span id="profile-streaming-quality-badge" class="text-[10px] font-mono font-extrabold text-sky-300 bg-sky-500/15 border border-sky-400/30 px-2 py-0.5 rounded-full">${Profile.getAudioQualityBitrateInfo ? Profile.getAudioQualityBitrateInfo().shortLabel : '128 kbps'}</span>
@@ -271,12 +272,11 @@ var Profile = {
                     </div>
                 </button>
 
-                ${hasUser ? `
                 <!-- Tombol Riwayat Musik (Kalender Mendengarkan) -->
                 <button onclick="Profile.openListeningCalendarModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-cyan-500/15 via-sky-500/15 to-transparent hover:from-cyan-500/25 hover:to-sky-500/25 border border-cyan-500/30 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Lihat riwayat lagu di tanggal tertentu atau bulan lalu">
                     <span class="flex items-center gap-2.5">
                         <i data-lucide="calendar-days" class="w-4 h-4 text-cyan-400"></i>
-                        <span>Riwayat Musik (Kalender Mendengarkan)</span>
+                        <span>Riwayat Musik</span>
                     </span>
                     <div class="flex items-center gap-1.5">
                         <span class="text-[10px] text-cyan-300 font-medium">Bulan Lalu & Ini</span>
@@ -307,13 +307,12 @@ var Profile = {
                         <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                     </div>
                 </button>
-                ` : ''}
 
                 <!-- Tombol Efek Nama Berwarna / Gradien Animasi (VIP Name Glow) -->
-                <button onclick="Auth.openNameGlowPickerModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-fuchsia-500/15 via-amber-500/15 to-transparent hover:from-fuchsia-500/25 hover:to-amber-500/25 border border-fuchsia-400/35 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Pilihan warna teks username bergaya neon/gradien bergerak khusus VIP & Donatur">
+                <button onclick="Auth.openNameGlowPickerModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-fuchsia-500/15 via-amber-500/15 to-transparent hover:from-fuchsia-500/25 hover:to-amber-500/25 border border-fuchsia-400/35 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Pilihan warna teks username bergaya neon/gradien bergerak khusus VIP">
                     <span class="flex items-center gap-2.5">
                         <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i>
-                        <span>Efek Nama Berwarna / Gradien Animasi (VIP)</span>
+                        <span>Efek Nama Berwarna</span>
                     </span>
                     <div class="flex items-center gap-1.5">
                         <span class="text-[10px] font-extrabold text-amber-200 bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 rounded-full">Name Glow</span>
@@ -325,7 +324,7 @@ var Profile = {
                 <button onclick="Profile.openSupporterBadgesModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-transparent hover:from-pink-500/25 hover:to-purple-500/25 border border-pink-400/35 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Lencana kehormatan spesial untuk pendukung setia MusifyStar">
                     <span class="flex items-center gap-2.5">
                         <i data-lucide="award" class="w-4 h-4 text-pink-400"></i>
-                        <span>Badge Khusus Donatur / Top Supporter</span>
+                        <span>Badge Top Supporter</span>
                     </span>
                     <div class="flex items-center gap-1.5">
                         <span class="text-[10px] font-extrabold text-pink-300 bg-pink-500/15 border border-pink-400/30 px-2 py-0.5 rounded-full">Kehormatan</span>
@@ -334,14 +333,14 @@ var Profile = {
                 </button>
 
                 <!-- Tombol Pengaturan Aplikasi (Khusus saat Logged In) -->
-                ${hasUser ? `
                 <button onclick="Profile.openSettingsModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-slate-500/15 via-indigo-500/15 to-transparent hover:from-slate-500/25 hover:to-indigo-500/25 border border-white/15 text-white font-semibold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-sm cursor-pointer" title="Pengaturan Aplikasi & Preferensi">
                     <span class="flex items-center gap-2.5">
                         <i data-lucide="settings" class="w-4 h-4 text-indigo-300"></i>
                         <span>Pengaturan Aplikasi</span>
                     </span>
                     <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
-                </button>` : ''}
+                </button>
+                ` : ''}
             </div>
 
             <!-- 4. SEKSI INFORMASI & APLIKASI MUSIFYSTAR (DIPINDAHKAN KE BAWAH PENGATURAN APLIKASI) -->
@@ -608,8 +607,8 @@ var Profile = {
             'platinum': 'Border Platinum',
             'platinum_master': 'Border Platinum & Master',
             'platinum_master_legend': 'Border Platinum, Master & Legend',
-            'all': 'Semua Border VIP (Termasuk Immortal)',
-            'none': 'Fitur VIP (Tanpa Border)'
+            'all': 'Semua Border VIP Termasuk Immortal',
+            'none': 'Fitur VIP Tanpa Border'
         };
         var trialBorderLabel = borderAccessLabelMap[String(trialCfg.borderAccess || 'platinum').toLowerCase()] || 'Border Platinum';
         var trialDaysNum = Number(trialCfg.durationDays) || 7;
@@ -655,7 +654,7 @@ var Profile = {
                 <div class="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1.5 text-xs text-white/80">
                     <div class="flex items-center gap-2">
                         <i data-lucide="shield-check" class="w-4 h-4 text-amber-400 shrink-0"></i>
-                        <span>Akses Border Trial: <strong class="text-amber-300">${Profile.escapeHtml(trialBorderLabel)}</strong> (Diatur Admin)</span>
+                        <span>Akses Border Trial: <strong class="text-amber-300">${Profile.escapeHtml(trialBorderLabel)}</strong></span>
                     </div>
                     <div class="flex items-center gap-2">
                         <i data-lucide="sparkles" class="w-4 h-4 text-cyan-400 shrink-0"></i>
@@ -668,7 +667,7 @@ var Profile = {
                 </div>
                 <button type="button" id="btn-claim-vip-trial" onclick="Profile.claimFreeVipTrial()" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-400 via-teal-400 to-amber-400 hover:from-emerald-500 hover:to-amber-500 active:scale-95 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer">
                     <i data-lucide="zap" class="w-4 h-4 fill-black"></i>
-                    <span>Klaim Percobaan VIP ${trialDaysNum} Hari Sekarang (Rp 0)</span>
+                    <span>Klaim Percobaan VIP ${trialDaysNum} Rp0</span>
                 </button>
             </div>`;
         }
@@ -774,7 +773,7 @@ var Profile = {
             <div class="p-4 rounded-2xl bg-[#11131a] border border-white/10 space-y-3">
                 <div class="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                     <i data-lucide="shield-check" class="w-4 h-4 text-amber-400"></i>
-                    <span>KEUNTUNGAN MEMBER VIP</span>
+                    <span>Keuntungan Member Vip</span>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -895,7 +894,7 @@ var Profile = {
         } catch(e) {}
 
         var cleanNum = String(adminWa).replace(/[^0-9]/g, '');
-        if (!cleanNum) cleanNum = '6281234567890';
+        if (!cleanNum) cleanNum = '6285702526159';
         if (cleanNum.startsWith('0')) cleanNum = '62' + cleanNum.substring(1);
 
         var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
@@ -932,9 +931,9 @@ var Profile = {
 
         var ewEnabled = config ? (config.ewalletsEnabled !== false) : true;
         var ew = (config && config.ewallets) ? config.ewallets : {
-            gopay: { enabled: true, number: '081234567890', holder: qrisHolder },
-            dana: { enabled: true, number: '081234567890', holder: qrisHolder },
-            ovo: { enabled: true, number: '081234567890', holder: qrisHolder }
+            gopay: { enabled: true, number: '085702526159', holder: qrisHolder },
+            dana: { enabled: true, number: '085702526159', holder: qrisHolder },
+            ovo: { enabled: true, number: '085702526159', holder: qrisHolder }
         };
 
         var availableMethods = [
@@ -945,9 +944,9 @@ var Profile = {
                 availableMethods.push({
                     id: 'GOPAY',
                     label: 'GoPay',
-                    sub: ew.gopay.number || '081234567890',
+                    sub: ew.gopay.number || '085702526159',
                     holder: ew.gopay.holder || qrisHolder,
-                    number: ew.gopay.number || '081234567890',
+                    number: ew.gopay.number || '085702526159',
                     color: 'sky',
                     icon: 'wallet'
                 });
@@ -956,9 +955,9 @@ var Profile = {
                 availableMethods.push({
                     id: 'DANA',
                     label: 'DANA',
-                    sub: ew.dana.number || '081234567890',
+                    sub: ew.dana.number || '085702526159',
                     holder: ew.dana.holder || qrisHolder,
-                    number: ew.dana.number || '081234567890',
+                    number: ew.dana.number || '085702526159',
                     color: 'blue',
                     icon: 'wallet'
                 });
@@ -967,9 +966,9 @@ var Profile = {
                 availableMethods.push({
                     id: 'OVO',
                     label: 'OVO',
-                    sub: ew.ovo.number || '081234567890',
+                    sub: ew.ovo.number || '085702526159',
                     holder: ew.ovo.holder || qrisHolder,
-                    number: ew.ovo.number || '081234567890',
+                    number: ew.ovo.number || '085702526159',
                     color: 'purple',
                     icon: 'wallet'
                 });
@@ -1078,7 +1077,7 @@ var Profile = {
         var adminWa = (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.adminWhatsapp) ? Profile.cachedPaymentConfig.adminWhatsapp : '6281234567890';
         adminWa = String(adminWa).replace(/[^0-9]/g, '');
         if (adminWa.startsWith('0')) adminWa = '62' + adminWa.slice(1);
-        if (!adminWa) adminWa = '6281234567890';
+        if (!adminWa) adminWa = '6285702526159';
 
         var waText = encodeURIComponent(
             `Halo Admin MusifyStar! Saya sudah melakukan pembayaran / Scan ${payMethod} untuk perpanjangan VIP:\n\n` +
@@ -2338,7 +2337,7 @@ var Profile = {
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <h4 class="text-xs font-semibold text-white">Putar di Latar Belakang</h4>
-                                    ${(isVipTrialUser && !allowBgPlay) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                    ${(isVipTrialUser && !allowBgPlay) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">No Akses</span>` : ''}
                                 </div>
                                 <p class="text-[11px] text-white/50 leading-snug mt-0.5">Musik tetap berputar saat aplikasi diminimalkan atau layar mati</p>
                             </div>
@@ -2377,9 +2376,9 @@ var Profile = {
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-1.5 flex-wrap">
                                         <h4 class="text-xs font-semibold text-white">Pengatur Kualitas Streaming</h4>
-                                        ${(isVipTrialUser && !allowHighAudio) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 320kbps DIKUNCI ADMIN</span>` : ''}
+                                        ${(isVipTrialUser && !allowHighAudio) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">No Akses</span>` : ''}
                                     </div>
-                                    <p class="text-[11px] text-white/50 leading-snug mt-0.5">Mode Hemat Kuota Seluler (64 kbps) vs High Audio Wi-Fi (320 kbps)</p>
+                                    <p class="text-[11px] text-white/50 leading-snug mt-0.5">Mode Hemat Kuota Seluler 64 kbps High Audio Wi-Fi 320 kbps</p>
                                 </div>
                             </div>
                             <button onclick="Profile.openStreamingQualityModal()" class="px-2.5 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/35 text-sky-300 text-[10.5px] font-bold shrink-0 cursor-pointer active:scale-95 transition-all">
@@ -2388,10 +2387,10 @@ var Profile = {
                         </div>
                         <div class="relative">
                             <select onchange="Profile.changeAudioQuality(this.value, this)" class="w-full py-2 px-3 pr-8 rounded-lg bg-black/40 border border-white/20 text-xs font-medium text-white appearance-none focus:outline-none focus:border-indigo-500 cursor-pointer transition-all">
-                                <option value="auto" ${s.audioQuality === 'auto' ? 'selected' : ''} class="bg-[#161922] text-white">Otomatis Pintar (Hemat saat Seluler / Tinggi saat Wi-Fi)</option>
-                                <option value="saver" ${s.audioQuality === 'saver' ? 'selected' : ''} class="bg-[#161922] text-white">Hemat Kuota Ekstra (64 kbps · ~0.48 MB/mnt)</option>
-                                <option value="standard" ${s.audioQuality === 'standard' ? 'selected' : ''} class="bg-[#161922] text-white">Standar Stabil (128 kbps · ~0.96 MB/mnt)</option>
-                                <option value="high" ${(s.audioQuality === 'high' && allowHighAudio) ? 'selected' : ''} class="bg-[#161922] text-white">High Audio Quality HD (320 kbps · ~2.40 MB/mnt) ${!allowHighAudio ? (isVipTrialUser ? '🔒 Dikunci Admin (Trial)' : '🔒 VIP') : ''}</option>
+                                <option value="auto" ${s.audioQuality === 'auto' ? 'selected' : ''} class="bg-[#161922] text-white">Otomatis Pintar Hemat saat Seluler / Tinggi saat Wi-Fi</option>
+                                <option value="saver" ${s.audioQuality === 'saver' ? 'selected' : ''} class="bg-[#161922] text-white">Hemat Kuota Ekstra 64 kbps · 0.48 MB/mnt</option>
+                                <option value="standard" ${s.audioQuality === 'standard' ? 'selected' : ''} class="bg-[#161922] text-white">Standar Stabil 128 kbps · 0.96 MB/mnt</option>
+                                <option value="high" ${(s.audioQuality === 'high' && allowHighAudio) ? 'selected' : ''} class="bg-[#161922] text-white">High Audio Quality HD 320 kbps · 2.40 MB/mnt ${!allowHighAudio ? (isVipTrialUser ? 'No Akses' : '🔒 VIP') : ''}</option>
                             </select>
                             <div class="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-white/60">
                                 <i data-lucide="chevron-down" class="w-4 h-4"></i>
@@ -2415,8 +2414,8 @@ var Profile = {
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <h4 class="text-xs font-extrabold text-white">Liquid Glass iOS 27 (Full UI)</h4>
-                                    <span class="text-[9px] px-1.5 py-0.5 rounded-full font-extrabold bg-amber-400/20 text-amber-200 border border-amber-400/40 font-mono">👑 VIP</span>
-                                    ${(isVipTrialUser && !allowLiquid) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded-full font-extrabold bg-amber-400/20 text-amber-200 border border-amber-400/40 font-mono">VIP</span>
+                                    ${(isVipTrialUser && !allowLiquid) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">No Akses</span>` : ''}
                                     <span id="setting-liquid-glass-status-badge" class="${(s.liquidGlassIos26 && allowLiquid) ? 'text-[9px] px-2 py-0.5 rounded-full font-extrabold bg-sky-400/20 text-sky-200 border border-sky-400/40 font-mono' : 'text-[9px] px-2 py-0.5 rounded-full font-bold bg-white/10 text-white/60 border border-white/15 font-mono'}">${(s.liquidGlassIos26 && allowLiquid) ? 'ON · LIQUID GLASS iOS 27' : 'OFF · TAMPILAN SEMULA'}</span>
                                 </div>
                                 <p class="text-[11px] text-white/60 leading-snug mt-0.5">Ubah seluruh isi dalam website MusifyStar (Beranda, Pencarian, Library, Lagu Disukai, Profil, Chat Global, Dynamic Island, Player & Semua Modal) menjadi kaca cair kristal iOS 27. Matikan (OFF) untuk kembali ke semula.</p>
@@ -2445,7 +2444,7 @@ var Profile = {
                         </div>
                         <div class="relative">
                             <select onchange="Profile.changeHomeTheme(this.value, this)" class="w-full py-2 px-3 pr-8 rounded-lg bg-black/40 border border-white/20 text-xs font-medium text-white appearance-none focus:outline-none focus:border-indigo-500 cursor-pointer transition-all">
-                                <option value="apple" ${(s.homeTheme === 'apple') ? 'selected' : ''} class="bg-[#161922] text-white">🍎 Apple Music Glass (iOS Style)</option>
+                                <option value="apple" ${(s.homeTheme === 'apple') ? 'selected' : ''} class="bg-[#161922] text-white">Apple Music Glass iOS Style</option>
                                 <option value="classic" ${(s.homeTheme === 'classic' || !s.homeTheme) ? 'selected' : ''} class="bg-[#161922] text-white">Classic Dark (Default)</option>
                                 <option value="playful" ${s.homeTheme === 'playful' ? 'selected' : ''} class="bg-[#161922] text-white">Playful Vibe</option>
                                 <option value="neon" ${s.homeTheme === 'neon' ? 'selected' : ''} class="bg-[#161922] text-white">Cyber Neon Glow</option>
@@ -2473,7 +2472,7 @@ var Profile = {
                         </div>
                         <div class="relative">
                             <select onchange="Profile.changeNavTheme(this.value, this)" class="w-full py-2 px-3 pr-8 rounded-lg bg-black/40 border border-white/20 text-xs font-medium text-white appearance-none focus:outline-none focus:border-indigo-500 cursor-pointer transition-all">
-                                <option value="apple" ${(s.navTheme === 'apple') ? 'selected' : ''} class="bg-[#161922] text-white">🍎 Apple Music Glass (iOS Style)</option>
+                                <option value="apple" ${(s.navTheme === 'apple') ? 'selected' : ''} class="bg-[#161922] text-white">Apple Music Glass iOS Style</option>
                                 <option value="classic" ${(s.navTheme === 'classic' || !s.navTheme) ? 'selected' : ''} class="bg-[#161922] text-white">Classic Dock (Default)</option>
                                 <option value="liquid" ${s.navTheme === 'liquid' ? 'selected' : ''} class="bg-[#161922] text-white">Liquid Glass Glow</option>
                                 <option value="newclassic" ${s.navTheme === 'newclassic' ? 'selected' : ''} class="bg-[#161922] text-white">Modern Capsule</option>
@@ -2495,7 +2494,7 @@ var Profile = {
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <h4 class="text-xs font-semibold text-white">Dynamic Island Mini Player</h4>
-                                    ${(isVipTrialUser && !allowIsland) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                    ${(isVipTrialUser && !allowIsland) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">No Akses</span>` : ''}
                                 </div>
                                 <p class="text-[11px] text-white/50 leading-snug mt-0.5">Island melayang interaktif di atas layar ala iOS saat musik diputar</p>
                             </div>
@@ -2516,7 +2515,7 @@ var Profile = {
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <h4 class="text-xs font-semibold text-white">Layar Tetap Menyala (Keep Screen Awake)</h4>
-                                    ${(isVipTrialUser && !allowAwake) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                    ${(isVipTrialUser && !allowAwake) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">No Akses</span>` : ''}
                                 </div>
                                 <p class="text-[11px] text-white/50 leading-snug mt-0.5">Mencegah layar HP mati/terkunci saat memutar lagu</p>
                             </div>
@@ -2555,7 +2554,7 @@ var Profile = {
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <h4 class="text-xs font-semibold text-white">Gestur Usap Layar (Swipe Gestures)</h4>
-                                    ${(isVipTrialUser && !allowSwipe) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">🔒 DIKUNCI ADMIN (TRIAL)</span>` : ''}
+                                    ${(isVipTrialUser && !allowSwipe) ? `<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/35 font-bold">No Akses</span>` : ''}
                                 </div>
                                 <p class="text-[11px] text-white/50 leading-snug mt-0.5">Usap cover player untuk ganti lagu atau tutup player</p>
                             </div>
@@ -14633,7 +14632,7 @@ var Profile = {
                         <i data-lucide="lock" class="w-3 h-3 text-rose-400"></i>
                         <span>Custom ID VIP:</span>
                     </span>
-                    <span class="text-rose-300 font-extrabold text-[9.5px]">DIKUNCI ADMIN (TRIAL)</span>
+                    <span class="text-rose-300 font-extrabold text-[9.5px]">No Akses</span>
                 </div>
                 <p class="text-[9.5px] text-white/60 leading-snug">
                     Fitur Custom ID VIP tidak dibuka oleh Admin selama masa Percobaan VIP (Free Trial). Upgrade ke VIP Penuh untuk memakai Custom ID!
@@ -14737,9 +14736,9 @@ var Profile = {
                 <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-400/40 text-rose-300 flex items-center justify-center mx-auto">
                     <i data-lucide="lock" class="w-5 h-5"></i>
                 </div>
-                <h4 class="text-xs font-black text-rose-300">Custom ID VIP Dikunci Admin (Paket Trial)</h4>
+                <h4 class="text-xs font-black text-rose-300">No Akses Custom ID VIP</h4>
                 <p class="text-[11px] text-white/65 leading-relaxed">
-                    Fitur Custom ID VIP tidak diaktifkan oleh Admin untuk paket Percobaan VIP (Free Trial). Upgrade ke paket VIP Penuh untuk menggunakan Custom ID keren!
+                    Fitur Custom ID VIP tidak diaktifkan oleh Admin untuk paket Percobaan VIP Free Trial. Upgrade ke paket VIP Penuh untuk menggunakan Custom ID keren!
                 </p>
                 <button type="button" onclick="Profile.openVipPackagesModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-black text-xs cursor-pointer">
                     Upgrade ke VIP Penuh
