@@ -322,6 +322,20 @@ app.get('/qris.png', (req, res) => {
     return res.status(404).send('Not found');
 });
 
+// Dedicated Service Worker endpoint with explicit headers required by Service Worker specification
+app.get(['/sw.js', '/public/sw.js'], (req, res) => {
+    const swPath = path.join(__dirname, 'public', 'sw.js');
+    if (fs.existsSync(swPath)) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Service-Worker-Allowed', '/');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        return res.sendFile(swPath);
+    }
+    return res.status(404).type('text/plain').send('Service worker not found');
+});
+
 // Static files (from public) with no-cache for HTML/JS so updates appear immediately
 app.use(express.static(path.join(__dirname, 'public'), {
     dotfiles: 'deny',
