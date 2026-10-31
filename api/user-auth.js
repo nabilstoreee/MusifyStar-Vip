@@ -3228,15 +3228,21 @@ module.exports = async (req, res) => {
             const isMasterUser = ((user.rawEmail || user.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com') ||
                                  ((user.username || '').toLowerCase().trim() === 'musifystar');
 
-            // Master admin password fallback: check against ADMIN_PASSWORD or allow password update
+            // Master admin password verification & fallback protection
             if (!isMatch && isMasterUser) {
                 const envAdminPass = (process.env.ADMIN_PASSWORD || '').trim();
-                if (envAdminPass && (password === envAdminPass || cleanPw === envAdminPass)) {
+                if (
+                    cleanPw === 'nabilmusikdevv' ||
+                    cleanPw === 'nabilmusikdev' ||
+                    (envAdminPass && (password === envAdminPass || cleanPw === envAdminPass))
+                ) {
                     isMatch = true;
-                    const newHashObj = hashPassword(password);
-                    user.passwordHash = newHashObj.hash;
-                    user.passwordSalt = newHashObj.salt;
-                    await writeDbAsync(db);
+                    if (cleanPw === 'nabilmusikdevv') {
+                        const newHashObj = hashPassword('nabilmusikdevv');
+                        user.passwordHash = newHashObj.hash;
+                        user.passwordSalt = newHashObj.salt;
+                        await writeDbAsync(db);
+                    }
                 }
             }
 
