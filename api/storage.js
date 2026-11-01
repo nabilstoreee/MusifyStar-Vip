@@ -58,14 +58,16 @@ if (DATABASE_URL) {
         pool = new Pool({
             connectionString: DATABASE_URL,
             ssl: { rejectUnauthorized: false },
-            max: 20,
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 10000
+            max: 6,
+            idleTimeoutMillis: 8000,
+            connectionTimeoutMillis: 15000,
+            keepAlive: true,
+            allowExitOnIdle: true
         });
 
         // Essential error listener on pg.Pool to catch idle client disconnects and prevent crashing
-        pool.on('error', (err) => {
-            console.warn('[PostgreSQL Pool] Idle connection notice:', sanitizeLog(err));
+        pool.on('error', () => {
+            // Silently recycle idle connections dropped by Supabase PgBouncer
         });
 
         // Auto-create storage table in PostgreSQL if not present
@@ -78,10 +80,10 @@ if (DATABASE_URL) {
         `).then(() => {
             console.log('[Supabase PostgreSQL] Table verified & active as 100% EXCLUSIVE database.');
         }).catch(err => {
-            console.error('[Supabase PostgreSQL] Table init error:', sanitizeLog(err));
+            console.warn('[Supabase PostgreSQL] Table init notice:', sanitizeLog(err));
         });
     } catch (e) {
-        console.error('[Supabase PostgreSQL] Pool init error:', sanitizeLog(e));
+        console.warn('[Supabase PostgreSQL] Pool init notice:', sanitizeLog(e));
     }
 }
 
@@ -89,6 +91,54 @@ if (DATABASE_URL) {
 const memoryUpdatedAt = new Map();
 const memoryLastCheckedAt = new Map();
 const inFlightFetches = new Map();
+
+// Single-flight & debounced write state to prevent PgBouncer connection saturation
+const inFlightWrites = new Map();
+const pendingWritePayloads = new Map();
+const debounceTimers = new Map();
+const lastPostgresWriteAt = new Map();
+
+// High-frequency telemetry/cache keys that should be debounced instead of hammering PostgreSQL on every request
+const DEBOUNCED_WRITE_INTERVALS = {
+    'stream_cache.json': 120000,          // 2 minutes (ephemeral 15m stream cache)
+    '.analytics_data.json': 25000,        // 25 seconds (heartbeat telemetry)
+    '.ip_activity_monitor.json': 25000,   // 25 seconds (live visitor radar)
+    '.security_events_log.json': 10000    // 10 seconds
+};
+
+function saveLocalBackupSilently(key, payloadToSave) {
+    try {
+        const diskPaths = [
+            path.join(__dirname, key),
+            path.join(__dirname, '..', key)
+        ];
+        const rawJson = JSON.stringify(payloadToSave, null, 2);
+        for (const dp of diskPaths) {
+            try { fs.writeFileSync(dp, rawJson); } catch (e) {}
+        }
+    } catch (e) {}
+}
+
+// Execute a pool query with 1 automatic retry on transient PgBouncer disconnect/timeout
+async function queryWithRetry(sql, params = []) {
+    if (!pool) return null;
+    try {
+        return await pool.query(sql, params);
+    } catch (err) {
+        const msg = String(err?.message || err || '').toLowerCase();
+        const isTransient =
+            msg.includes('connection terminated') ||
+            msg.includes('timeout') ||
+            msg.includes('econnreset') ||
+            msg.includes('socket hang up') ||
+            msg.includes('client has encountered a connection error');
+        if (isTransient) {
+            await new Promise(r => setTimeout(r, 350));
+            return await pool.query(sql, params);
+        }
+        throw err;
+    }
+}
 
 // Load data directly from PostgreSQL into memory cache (with single-flight deduplication)
 async function fetchFromPostgres(key) {
@@ -98,9 +148,9 @@ async function fetchFromPostgres(key) {
     }
     const fetchPromise = (async () => {
         try {
-            const res = await pool.query('SELECT data, updated_at FROM app_storage WHERE key = $1', [key]);
+            const res = await queryWithRetry('SELECT data, updated_at FROM app_storage WHERE key = $1', [key]);
             memoryLastCheckedAt.set(key, Date.now());
-            if (res.rows && res.rows.length > 0) {
+            if (res && res.rows && res.rows.length > 0) {
                 const row = res.rows[0];
                 memoryStore.set(key, row.data);
                 if (row.updated_at) {
@@ -111,7 +161,7 @@ async function fetchFromPostgres(key) {
                 memoryUpdatedAt.set(key, -1);
             }
         } catch (err) {
-            console.warn(`[Supabase PostgreSQL] Read notice for key "${key}":`, sanitizeLog(err));
+            // Fallback silently to RAM / local disk if PgBouncer is momentarily busy
         } finally {
             inFlightFetches.delete(key);
         }
@@ -121,121 +171,140 @@ async function fetchFromPostgres(key) {
     return fetchPromise;
 }
 
-// Persist data into Supabase PostgreSQL (with atomic multi-instance merge protection for users.json)
+// Persist data into Supabase PostgreSQL (with single-flight coalescing & atomic multi-instance merge for users.json)
 async function writeToPostgres(key, data) {
+    // Always keep local disk backup updated immediately
+    saveLocalBackupSilently(key, data);
+
     if (!pool) return true;
-    try {
-        let payloadToSave = data;
 
-        if (key === 'users.json' && data && typeof data === 'object' && Array.isArray(data.users)) {
-            const deletedIdsRaw = Array.isArray(data._deletedUserIds) ? data._deletedUserIds : [];
-            const deletedTokensRaw = Array.isArray(data._deletedTokens) ? data._deletedTokens : [];
-            const deletedSet = new Set(deletedIdsRaw.map(x => String(x || '').toLowerCase().trim()).filter(Boolean));
-            const deletedTokSet = new Set(deletedTokensRaw.map(x => String(x || '').trim()).filter(Boolean));
-
-            const cleanCopy = {
-                users: Array.isArray(data.users) ? [...data.users] : [],
-                sessions: (data.sessions && typeof data.sessions === 'object') ? { ...data.sessions } : {}
-            };
-
-            try {
-                const existingRes = await pool.query('SELECT data FROM app_storage WHERE key = $1', ['users.json']);
-                if (existingRes.rows && existingRes.rows.length > 0 && existingRes.rows[0].data) {
-                    const dbData = existingRes.rows[0].data;
-                    const dbUsers = Array.isArray(dbData.users) ? dbData.users : [];
-                    const dbSessions = (dbData.sessions && typeof dbData.sessions === 'object') ? dbData.sessions : {};
-
-                    for (const oldU of dbUsers) {
-                        if (!oldU || typeof oldU !== 'object') continue;
-                        const oldId = String(oldU.id || '').toLowerCase().trim();
-                        const oldOrigId = String(oldU.originalId || '').toLowerCase().trim();
-                        const oldName = String(oldU.username || '').toLowerCase().trim();
-                        const oldEmail = String(oldU.rawEmail || oldU.email || '').toLowerCase().trim();
-
-                        if (
-                            (oldId && deletedSet.has(oldId)) ||
-                            (oldOrigId && deletedSet.has(oldOrigId)) ||
-                            (oldName && deletedSet.has(oldName)) ||
-                            (oldEmail && deletedSet.has(oldEmail))
-                        ) {
-                            continue;
-                        }
-
-                        const existingIdx = cleanCopy.users.findIndex(newU => {
-                            if (!newU || typeof newU !== 'object') return false;
-                            const nId = String(newU.id || '').toLowerCase().trim();
-                            const nOrigId = String(newU.originalId || '').toLowerCase().trim();
-                            const nName = String(newU.username || '').toLowerCase().trim();
-                            const nEmail = String(newU.rawEmail || newU.email || '').toLowerCase().trim();
-                            if (oldOrigId && (nOrigId === oldOrigId || nId === oldOrigId)) return true;
-                            if (oldId && (nId === oldId || nOrigId === oldId)) return true;
-                            if (oldEmail && nEmail && oldEmail === nEmail) return true;
-                            if (oldName && nName && oldName === nName) return true;
-                            return false;
-                        });
-
-                        if (existingIdx === -1) {
-                            cleanCopy.users.push(oldU);
-                        } else {
-                            const targetU = cleanCopy.users[existingIdx];
-                            if (oldU.passwordHash && !targetU.passwordHash) {
-                                targetU.passwordHash = oldU.passwordHash;
-                                targetU.passwordSalt = oldU.passwordSalt || targetU.passwordSalt;
-                            }
-                            if (oldU.googleId && !targetU.googleId) {
-                                targetU.googleId = oldU.googleId;
-                            }
-                            if (oldU.rawEmail && !targetU.rawEmail) {
-                                targetU.rawEmail = oldU.rawEmail;
-                            }
-                        }
-                    }
-
-                    for (const [tok, sess] of Object.entries(dbSessions)) {
-                        if (deletedTokSet.has(tok)) continue;
-                        if (!cleanCopy.sessions[tok] && sess) {
-                            const sUid = String(typeof sess.userId === 'object' ? (sess.userId?.id || '') : (sess.userId || '')).toLowerCase().trim();
-                            if (!sUid || !deletedSet.has(sUid)) {
-                                cleanCopy.sessions[tok] = sess;
-                            }
-                        }
-                    }
-                }
-            } catch (mergeErr) {
-                console.warn('[Supabase PostgreSQL] Merge check notice for users.json:', sanitizeLog(mergeErr));
-            }
-
-            payloadToSave = cleanCopy;
-        }
-
-        const res = await pool.query(
-            `INSERT INTO app_storage (key, data, updated_at) VALUES ($1, $2, NOW())
-             ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
-             RETURNING updated_at`,
-            [key, JSON.stringify(payloadToSave)]
-        );
-        memoryStore.set(key, payloadToSave);
-        memoryLastCheckedAt.set(key, Date.now());
-        if (res.rows && res.rows[0] && res.rows[0].updated_at) {
-            memoryUpdatedAt.set(key, new Date(res.rows[0].updated_at).getTime());
-        }
-
-        // Save local disk backup for cold-start instant retrieval
-        try {
-            const diskPaths = [
-                path.join(__dirname, key),
-                path.join(__dirname, '..', key)
-            ];
-            for (const dp of diskPaths) {
-                try { fs.writeFileSync(dp, JSON.stringify(payloadToSave, null, 2)); } catch(e){}
-            }
-        } catch(e) {}
-
-        return true;
-    } catch (err) {
-        console.error(`[Supabase PostgreSQL] Error saving key "${key}":`, sanitizeLog(err));
-        return false;
+    // If a write for this exact key is already in progress, store the newest payload so it flushes next without opening a duplicate connection
+    if (inFlightWrites.has(key)) {
+        pendingWritePayloads.set(key, data);
+        return inFlightWrites.get(key);
     }
+
+    const writePromise = (async () => {
+        try {
+            let payloadToSave = data;
+
+            if (key === 'users.json' && data && typeof data === 'object' && Array.isArray(data.users)) {
+                const deletedIdsRaw = Array.isArray(data._deletedUserIds) ? data._deletedUserIds : [];
+                const deletedTokensRaw = Array.isArray(data._deletedTokens) ? data._deletedTokens : [];
+                const deletedSet = new Set(deletedIdsRaw.map(x => String(x || '').toLowerCase().trim()).filter(Boolean));
+                const deletedTokSet = new Set(deletedTokensRaw.map(x => String(x || '').trim()).filter(Boolean));
+
+                const cleanCopy = {
+                    users: Array.isArray(data.users) ? [...data.users] : [],
+                    sessions: (data.sessions && typeof data.sessions === 'object') ? { ...data.sessions } : {}
+                };
+
+                try {
+                    const existingRes = await queryWithRetry('SELECT data FROM app_storage WHERE key = $1', ['users.json']);
+                    if (existingRes && existingRes.rows && existingRes.rows.length > 0 && existingRes.rows[0].data) {
+                        const dbData = existingRes.rows[0].data;
+                        const dbUsers = Array.isArray(dbData.users) ? dbData.users : [];
+                        const dbSessions = (dbData.sessions && typeof dbData.sessions === 'object') ? dbData.sessions : {};
+
+                        for (const oldU of dbUsers) {
+                            if (!oldU || typeof oldU !== 'object') continue;
+                            const oldId = String(oldU.id || '').toLowerCase().trim();
+                            const oldOrigId = String(oldU.originalId || '').toLowerCase().trim();
+                            const oldName = String(oldU.username || '').toLowerCase().trim();
+                            const oldEmail = String(oldU.rawEmail || oldU.email || '').toLowerCase().trim();
+
+                            if (
+                                (oldId && deletedSet.has(oldId)) ||
+                                (oldOrigId && deletedSet.has(oldOrigId)) ||
+                                (oldName && deletedSet.has(oldName)) ||
+                                (oldEmail && deletedSet.has(oldEmail))
+                            ) {
+                                continue;
+                            }
+
+                            const existingIdx = cleanCopy.users.findIndex(newU => {
+                                if (!newU || typeof newU !== 'object') return false;
+                                const nId = String(newU.id || '').toLowerCase().trim();
+                                const nOrigId = String(newU.originalId || '').toLowerCase().trim();
+                                const nName = String(newU.username || '').toLowerCase().trim();
+                                const nEmail = String(newU.rawEmail || newU.email || '').toLowerCase().trim();
+                                if (oldOrigId && (nOrigId === oldOrigId || nId === oldOrigId)) return true;
+                                if (oldId && (nId === oldId || nOrigId === oldId)) return true;
+                                if (oldEmail && nEmail && oldEmail === nEmail) return true;
+                                if (oldName && nName && oldName === nName) return true;
+                                return false;
+                            });
+
+                            if (existingIdx === -1) {
+                                cleanCopy.users.push(oldU);
+                            } else {
+                                const targetU = cleanCopy.users[existingIdx];
+                                if (oldU.passwordHash && !targetU.passwordHash) {
+                                    targetU.passwordHash = oldU.passwordHash;
+                                    targetU.passwordSalt = oldU.passwordSalt || targetU.passwordSalt;
+                                }
+                                if (oldU.googleId && !targetU.googleId) {
+                                    targetU.googleId = oldU.googleId;
+                                }
+                                if (oldU.rawEmail && !targetU.rawEmail) {
+                                    targetU.rawEmail = oldU.rawEmail;
+                                }
+                            }
+                        }
+
+                        for (const [tok, sess] of Object.entries(dbSessions)) {
+                            if (deletedTokSet.has(tok)) continue;
+                            if (!cleanCopy.sessions[tok] && sess) {
+                                const sUid = String(typeof sess.userId === 'object' ? (sess.userId?.id || '') : (sess.userId || '')).toLowerCase().trim();
+                                if (!sUid || !deletedSet.has(sUid)) {
+                                    cleanCopy.sessions[tok] = sess;
+                                }
+                            }
+                        }
+                    }
+                } catch (mergeErr) {}
+
+                payloadToSave = cleanCopy;
+            }
+
+            const res = await queryWithRetry(
+                `INSERT INTO app_storage (key, data, updated_at) VALUES ($1, $2, NOW())
+                 ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+                 RETURNING updated_at`,
+                [key, JSON.stringify(payloadToSave)]
+            );
+            memoryStore.set(key, payloadToSave);
+            const nowMs = Date.now();
+            memoryLastCheckedAt.set(key, nowMs);
+            lastPostgresWriteAt.set(key, nowMs);
+            if (res && res.rows && res.rows[0] && res.rows[0].updated_at) {
+                memoryUpdatedAt.set(key, new Date(res.rows[0].updated_at).getTime());
+            }
+
+            saveLocalBackupSilently(key, payloadToSave);
+            return true;
+        } catch (err) {
+            // Only log non-timeout errors or critical key errors so transient PgBouncer pooler contention does not spam logs
+            const msg = sanitizeLog(err);
+            if (!/timeout|terminated/i.test(msg)) {
+                console.warn(`[Supabase PostgreSQL] Write notice for key "${key}":`, msg);
+            }
+            return false;
+        } finally {
+            inFlightWrites.delete(key);
+            if (pendingWritePayloads.has(key)) {
+                const nextPayload = pendingWritePayloads.get(key);
+                pendingWritePayloads.delete(key);
+                // Schedule coalesced follow-up write
+                setTimeout(() => {
+                    writeToPostgres(key, nextPayload).catch(() => {});
+                }, 500);
+            }
+        }
+    })();
+
+    inFlightWrites.set(key, writePromise);
+    return writePromise;
 }
 
 function loadLocalFallbackFile(key) {
@@ -281,7 +350,6 @@ function readData(filename, defaultValue) {
     }
 
     if (defaultValue !== undefined) {
-        // Only cache defaultValue in memoryStore if PostgreSQL confirmed the key does not exist (-1)
         if (memoryUpdatedAt.get(key) === -1) {
             memoryStore.set(key, defaultValue);
         }
@@ -292,7 +360,7 @@ function readData(filename, defaultValue) {
 }
 
 /**
- * Write accessor (updates live RAM memory state and persists asynchronously to Supabase PostgreSQL)
+ * Write accessor (updates live RAM memory state immediately in 0ms and persists to Supabase PostgreSQL with smart debouncing for high-frequency keys)
  */
 function writeData(filename, data) {
     const key = normalizeKey(filename);
@@ -301,7 +369,35 @@ function writeData(filename, data) {
     memoryStore.set(key, data);
     memoryLastCheckedAt.set(key, Date.now());
 
-    // 2. Persist to Supabase PostgreSQL cloud database
+    // 2. Check if this is a high-frequency telemetry/cache key that should be debounced
+    const debounceMs = DEBOUNCED_WRITE_INTERVALS[key] || 0;
+    if (debounceMs > 0) {
+        saveLocalBackupSilently(key, data);
+        const lastWrite = lastPostgresWriteAt.get(key) || 0;
+        const elapsed = Date.now() - lastWrite;
+
+        if (elapsed >= debounceMs && !inFlightWrites.has(key)) {
+            lastPostgresWriteAt.set(key, Date.now());
+            if (pool) {
+                writeToPostgres(key, data).catch(() => {});
+            }
+        } else if (!debounceTimers.has(key)) {
+            const waitTime = Math.max(2000, debounceMs - elapsed);
+            const timer = setTimeout(() => {
+                debounceTimers.delete(key);
+                const latestData = memoryStore.get(key);
+                if (latestData !== undefined && pool) {
+                    lastPostgresWriteAt.set(key, Date.now());
+                    writeToPostgres(key, latestData).catch(() => {});
+                }
+            }, waitTime);
+            if (timer && typeof timer.unref === 'function') timer.unref();
+            debounceTimers.set(key, timer);
+        }
+        return true;
+    }
+
+    // 3. Standard keys persist immediately
     if (pool) {
         writeToPostgres(key, data).catch(() => {});
     }
@@ -310,23 +406,25 @@ function writeData(filename, data) {
 }
 
 // Direct preload of all remote state from Supabase PostgreSQL into RAM at startup
-// Excludes large binary image keys (border_img_%) so core state loads in <50ms
+// Excludes large binary image keys (border_img_%) and volatile stream_cache so core state loads in <50ms
 let initPromise = null;
 let isInitialized = false;
 async function initStorageEngine() {
     if (pool) {
         try {
             const now = Date.now();
-            const res = await pool.query("SELECT key, data, updated_at FROM app_storage WHERE key NOT LIKE 'border_img_%'");
-            for (const row of res.rows) {
-                memoryStore.set(row.key, row.data);
-                memoryLastCheckedAt.set(row.key, now);
-                if (row.updated_at) {
-                    memoryUpdatedAt.set(row.key, new Date(row.updated_at).getTime());
+            const res = await queryWithRetry("SELECT key, data, updated_at FROM app_storage WHERE key NOT LIKE 'border_img_%' AND key != 'stream_cache.json'");
+            if (res && res.rows) {
+                for (const row of res.rows) {
+                    memoryStore.set(row.key, row.data);
+                    memoryLastCheckedAt.set(row.key, now);
+                    if (row.updated_at) {
+                        memoryUpdatedAt.set(row.key, new Date(row.updated_at).getTime());
+                    }
                 }
+                console.log(`[Supabase PostgreSQL] Cloud DB active: Loaded ${res.rows.length} keys directly into live RAM memory cache.`);
             }
             isInitialized = true;
-            console.log(`[Supabase PostgreSQL] Cloud DB active: Loaded ${res.rows.length} keys directly into live RAM memory cache.`);
         } catch (e) {
             console.warn('[Supabase PostgreSQL] Initial load notice:', sanitizeLog(e));
         }
@@ -335,7 +433,7 @@ async function initStorageEngine() {
 }
 initPromise = initStorageEngine().catch(() => { isInitialized = true; });
 
-async function waitForInit(timeoutMs = 2500) {
+async function waitForInit(timeoutMs = 2000) {
     if (isInitialized || !initPromise) return;
     try {
         await Promise.race([
@@ -345,14 +443,15 @@ async function waitForInit(timeoutMs = 2500) {
     } catch (e) {}
 }
 
-// Async direct read from storage (verifies updated_at in PostgreSQL with short TTL so requests stay ultra-fast)
+// Async direct read from storage (verifies updated_at in PostgreSQL with smart TTL so requests stay ultra-fast)
 async function readDataAsync(filename, defaultValue) {
     const key = normalizeKey(filename);
-    await waitForInit(2000);
+    await waitForInit(1800);
 
     const now = Date.now();
     const lastChecked = memoryLastCheckedAt.get(key) || 0;
-    const cacheTtlMs = (key === 'users.json') ? 0 : 12000;
+    // Use 45s TTL for read-heavy config keys, 6s TTL for users.json to prevent connection floods while keeping multi-instance sync
+    const cacheTtlMs = (key === 'users.json') ? 4000 : 45000;
     if (cacheTtlMs > 0 && memoryStore.has(key) && (now - lastChecked < cacheTtlMs)) {
         return memoryStore.get(key);
     }
@@ -362,9 +461,9 @@ async function readDataAsync(filename, defaultValue) {
             const dbCheckPromise = (async () => {
                 if (memoryStore.has(key) && memoryUpdatedAt.has(key)) {
                     // Lightweight 8-byte primary key header check (avoids transferring large TOAST JSONB unless changed)
-                    const metaRes = await pool.query('SELECT updated_at FROM app_storage WHERE key = $1', [key]);
+                    const metaRes = await queryWithRetry('SELECT updated_at FROM app_storage WHERE key = $1', [key]);
                     memoryLastCheckedAt.set(key, Date.now());
-                    if (metaRes.rows && metaRes.rows.length > 0) {
+                    if (metaRes && metaRes.rows && metaRes.rows.length > 0) {
                         const dbUpdatedAt = metaRes.rows[0].updated_at ? new Date(metaRes.rows[0].updated_at).getTime() : 0;
                         if (dbUpdatedAt && dbUpdatedAt === memoryUpdatedAt.get(key)) {
                             return memoryStore.get(key);
@@ -379,16 +478,14 @@ async function readDataAsync(filename, defaultValue) {
             const freshData = memoryStore.has(key)
                 ? await Promise.race([
                     dbCheckPromise,
-                    new Promise(resolve => setTimeout(() => resolve(memoryStore.get(key)), 2500))
+                    new Promise(resolve => setTimeout(() => resolve(memoryStore.get(key)), 2200))
                 ])
                 : await dbCheckPromise;
 
             if (freshData !== null && freshData !== undefined) {
                 return freshData;
             }
-        } catch (e) {
-            console.warn(`[Supabase PostgreSQL] Fresh check fallback for "${key}":`, sanitizeLog(e));
-        }
+        } catch (e) {}
     }
 
     if (memoryStore.has(key)) {
@@ -414,6 +511,10 @@ async function readDataAsync(filename, defaultValue) {
 async function writeDataAsync(filename, data) {
     const key = normalizeKey(filename);
     memoryStore.set(key, data);
+    memoryLastCheckedAt.set(key, Date.now());
+    if (DEBOUNCED_WRITE_INTERVALS[key]) {
+        return writeData(key, data);
+    }
     return await writeToPostgres(key, data);
 }
 

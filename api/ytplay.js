@@ -65,7 +65,11 @@ let SAVETUBE_CDNS = [
   "cdn401.savetube.vip",
   "cdn405.savetube.vip",
   "cdn406.savetube.vip",
-  "cdn400.savetube.vip"
+  "cdn400.savetube.vip",
+  "cdn402.savetube.vip",
+  "cdn404.savetube.vip",
+  "cdn407.savetube.vip",
+  "cdn408.savetube.vip"
 ];
 
 // Dynamically promote winning CDN to top of the list for sub-600ms future requests
@@ -88,12 +92,14 @@ function demoteCdn(failingCdn) {
   }
 }
 
-async function resolveToVideoId(query, excludeId = null) {
-  if (!query) return null;
+// Resolve multiple candidate video IDs from YouTube Music & YouTube Search
+async function resolveCandidateVideoIds(query, excludeSet = new Set()) {
+  const candidates = [];
+  if (!query) return candidates;
   const clean = String(query).trim();
 
   // 1. Direct Regex match for YouTube & YouTube Music URLs or direct 11-char video ID
-  if (!excludeId) {
+  if (excludeSet.size === 0) {
     const directIdPatterns = [
       /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/|v\/)|youtu\.be\/|music\.youtube\.com\/watch\?.*v=)([a-zA-Z0-9_-]{11})/,
       /^([a-zA-Z0-9_-]{11})$/
@@ -101,7 +107,10 @@ async function resolveToVideoId(query, excludeId = null) {
 
     for (const pattern of directIdPatterns) {
       const match = clean.match(pattern);
-      if (match && match[1]) return match[1];
+      if (match && match[1] && !excludeSet.has(match[1])) {
+        candidates.push(match[1]);
+        return candidates;
+      }
     }
   }
 
@@ -114,29 +123,44 @@ async function resolveToVideoId(query, excludeId = null) {
     const { data } = await axios.post('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', payload, {
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
       httpsAgent: ipv4Agent,
-      timeout: 5000
+      timeout: 4500
     });
     const jsonStr = JSON.stringify(data);
     const matches = [...jsonStr.matchAll(/\"videoId\":\"([a-zA-Z0-9_-]{11})\"/g)];
     for (const m of matches) {
-      if (m && m[1] && m[1] !== excludeId) return m[1];
+      if (m && m[1] && !excludeSet.has(m[1]) && !candidates.includes(m[1])) {
+        candidates.push(m[1]);
+        if (candidates.length >= 4) break;
+      }
     }
-  } catch(e) {}
+  } catch (e) {}
 
-  // 3. YouTube HTML Scrape Fallback
-  try {
-    const res = await axios.get(`https://www.youtube.com/results?search_query=${encodeURIComponent(clean)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      httpsAgent: ipv4Agent,
-      timeout: 5000
-    });
-    const matches = [...String(res.data || '').matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)];
-    for (const m of matches) {
-      if (m && m[1] && m[1] !== excludeId) return m[1];
-    }
-  } catch(e) {}
+  // 3. YouTube HTML Scrape Fallback (essential for DJ remixes, breakbeat, & user uploads)
+  if (candidates.length < 3) {
+    try {
+      const res = await axios.get(`https://www.youtube.com/results?search_query=${encodeURIComponent(clean)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        httpsAgent: ipv4Agent,
+        timeout: 4500
+      });
+      const matches = [...String(res.data || '').matchAll(/\/watch\?v=([a-zA-Z0-9_-]{11})/g)];
+      for (const m of matches) {
+        if (m && m[1] && !excludeSet.has(m[1]) && !candidates.includes(m[1])) {
+          candidates.push(m[1]);
+          if (candidates.length >= 5) break;
+        }
+      }
+    } catch (e) {}
+  }
 
-  return null;
+  return candidates;
+}
+
+async function resolveToVideoId(query, excludeId = null) {
+  const excludeSet = new Set();
+  if (excludeId) excludeSet.add(excludeId);
+  const list = await resolveCandidateVideoIds(query, excludeSet);
+  return list.length > 0 ? list[0] : null;
 }
 
 async function getDownload(url, title, artist, forceRefresh = false, preferredQuality = '128') {
@@ -176,9 +200,10 @@ async function getDownload(url, title, artist, forceRefresh = false, preferredQu
 
   const extractionPromise = (async () => {
     try {
+      const triedIds = new Set([idMatch]);
       let result = await executeExtraction(idMatch, normQuality);
 
-      // If primary extraction fails on the specific ID, resolve metadata via oembed or search alternative track
+      // If primary extraction fails on the specific ID, resolve metadata via oembed and try up to 3 alternative candidate IDs
       if (!result) {
         let trackTitle = title;
         let trackArtist = artist;
@@ -198,17 +223,23 @@ async function getDownload(url, title, artist, forceRefresh = false, preferredQu
 
         if (trackTitle || trackArtist) {
           try {
-            const searchQuery = ((trackTitle || '') + ' ' + (trackArtist || '')).replace(/[-–|]/g, ' ').trim();
-            if (searchQuery) {
-              const altId = await resolveToVideoId(searchQuery + ' official audio', idMatch);
-              if (altId && altId !== idMatch) {
-                console.log(`[EXTRACT] Trying alternative track ID for "${searchQuery}": ${altId}`);
+            const rawQuery = ((trackTitle || '') + ' ' + (trackArtist || '')).replace(/[-–|]/g, ' ').replace(/\s+/g, ' ').trim();
+            if (rawQuery) {
+              // First search exact query (crucial for DJ Remixes/Breakbeat), then fallback to 'audio'
+              let altCandidates = await resolveCandidateVideoIds(rawQuery, triedIds);
+              if (altCandidates.length === 0) {
+                altCandidates = await resolveCandidateVideoIds(rawQuery + ' audio', triedIds);
+              }
+              for (const altId of altCandidates.slice(0, 3)) {
+                if (!altId || triedIds.has(altId)) continue;
+                triedIds.add(altId);
+                console.log(`[EXTRACT] Trying alternative track ID for "${rawQuery}": ${altId}`);
                 result = await executeExtraction(altId, normQuality);
                 if (result && result.audio) {
                   result.audio = normalizeAudioUrl(result.audio);
-                  // Cache for the original requested video ID + quality as well!
                   ytCache.set(cacheKey, { data: result, expireAt: Date.now() + CACHE_TTL });
                   persistCache();
+                  break;
                 }
               }
             }
@@ -228,6 +259,40 @@ async function getDownload(url, title, artist, forceRefresh = false, preferredQu
 
   inFlightRequests.set(cacheKey, extractionPromise);
   return await extractionPromise;
+}
+
+// Backup Extractor 2: Piped / Invidious Direct Audio Stream Resolver
+async function tryPipedBackupExtractor(idMatch, preferredQuality = '128') {
+  const pipedInstances = [
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.tokhmi.xyz',
+    'https://pipedapi.moomoo.me'
+  ];
+  for (const instance of pipedInstances) {
+    try {
+      const res = await axios.get(`${instance}/streams/${idMatch}`, {
+        httpsAgent: ipv4Agent,
+        timeout: 4500,
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      });
+      const audioStreams = res.data?.audioStreams;
+      if (Array.isArray(audioStreams) && audioStreams.length > 0) {
+        // Sort by bitrate descending
+        const sorted = audioStreams.filter(s => s && s.url && s.url.startsWith('http')).sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+        if (sorted.length > 0) {
+          const dur = Number(res.data?.duration || 0);
+          const durStr = dur > 0 ? `${Math.floor(dur / 60)}:${(dur % 60).toString().padStart(2, '0')}` : '';
+          return {
+            duration: durStr,
+            audio: sorted[0].url,
+            bitrate: preferredQuality,
+            source: `piped:${instance}`
+          };
+        }
+      }
+    } catch (e) {}
+  }
+  throw new Error('Piped backup extractor unavailable');
 }
 
 async function executeExtraction(idMatch, preferredQuality = '128') {
@@ -306,7 +371,7 @@ async function executeExtraction(idMatch, preferredQuality = '128') {
     // If download failed on this CDN but we have decrypted.key, try download on alternate CDNs immediately!
     if (!audioUrl || !audioUrl.startsWith("http")) {
       const otherCdns = SAVETUBE_CDNS.filter(c => c !== cdn);
-      for (const altCdn of otherCdns.slice(0, 2)) {
+      for (const altCdn of otherCdns.slice(0, 3)) {
         try {
           const downloadRes = await axios.post(`https://${altCdn}/download`, {
             id: idMatch,
@@ -360,11 +425,10 @@ async function executeExtraction(idMatch, preferredQuality = '128') {
   }
 
   // Concurrent racing across top CDNs with fast early returns
-  // Top 3 start immediately, remaining start after 1000ms if not already resolved
-  const primaryCDNs = SAVETUBE_CDNS.slice(0, 3);
-  const secondaryCDNs = SAVETUBE_CDNS.slice(3);
+  const primaryCDNs = SAVETUBE_CDNS.slice(0, 4);
+  const secondaryCDNs = SAVETUBE_CDNS.slice(4);
 
-  const primaryPromises = primaryCDNs.map(cdn => trySavetube(cdn, 7000));
+  const primaryPromises = primaryCDNs.map(cdn => trySavetube(cdn, 6500));
 
   let delayedSecondary = null;
   if (secondaryCDNs.length > 0) {
@@ -374,13 +438,15 @@ async function executeExtraction(idMatch, preferredQuality = '128') {
           return reject(new Error('Video unavailable'));
         }
         try {
-          const secRes = await Promise.any(secondaryCDNs.map(cdn => trySavetube(cdn, 8000)));
+          const secRes = await Promise.any([
+            ...secondaryCDNs.map(cdn => trySavetube(cdn, 7500)),
+            tryPipedBackupExtractor(idMatch, preferredQuality)
+          ]);
           resolve(secRes);
         } catch (errSec) {
           reject(errSec);
         }
-      }, 1000);
-      // Clean up timer if already resolved
+      }, 900);
       primaryPromises.forEach(p => p.then(() => clearTimeout(timer)).catch(() => {}));
     });
   }
@@ -397,10 +463,13 @@ async function executeExtraction(idMatch, preferredQuality = '128') {
     if (videoUnavailableAbort) {
       return null;
     }
-    // Retry once with remaining/shuffled CDNs after short pause
+    // Retry once with remaining CDNs + Piped backup after short pause
     try {
-      await new Promise(r => setTimeout(r, 400));
-      const retryAttempts = SAVETUBE_CDNS.slice(0, 3).map(cdn => trySavetube(cdn, 7000));
+      await new Promise(r => setTimeout(r, 300));
+      const retryAttempts = [
+        ...SAVETUBE_CDNS.slice(0, 4).map(cdn => trySavetube(cdn, 6500)),
+        tryPipedBackupExtractor(idMatch, preferredQuality)
+      ];
       const retryWinner = await Promise.any(retryAttempts);
       retryWinner.audio = normalizeAudioUrl(retryWinner.audio);
       ytCache.set(cacheKey, { data: retryWinner, expireAt: Date.now() + CACHE_TTL });
