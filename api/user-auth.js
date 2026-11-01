@@ -1812,16 +1812,32 @@ module.exports = async (req, res) => {
                     expiresAt = exp.toISOString();
                 }
 
+                const nowIso = new Date().toISOString();
+                const existingRec = bannedIps[targetIp] || {};
                 bannedIps[targetIp] = {
                     ip: targetIp,
                     banType: banType,
                     banReason: banReason,
                     banExpiresAt: expiresAt,
                     banDurationDays: durationDays,
-                    createdAt: new Date().toISOString()
+                    source: 'admin_manual',
+                    category: 'Sanksi Manual Administrator',
+                    blockedAttempts: Number(existingRec.blockedAttempts || 0) + 1,
+                    lastAttemptAt: nowIso,
+                    createdAt: existingRec.createdAt || nowIso,
+                    details: existingRec.details || {}
                 };
 
                 await writeBannedIpsAsync(bannedIps);
+                if (Security && typeof Security.recordSecurityEvent === 'function') {
+                    Security.recordSecurityEvent({
+                        ip: targetIp,
+                        type: 'manual_ban',
+                        source: 'admin_manual',
+                        category: 'Sanksi Manual Administrator',
+                        reason: banReason
+                    });
+                }
                 return res.json({ status: true, message: `Alamat IP ${targetIp} berhasil diblokir (${banType})`, record: bannedIps[targetIp] });
             }
 
@@ -1841,12 +1857,54 @@ module.exports = async (req, res) => {
                 });
 
                 await writeBannedIpsAsync(bannedIps);
+                if (deleted && Security && typeof Security.recordSecurityEvent === 'function') {
+                    Security.recordSecurityEvent({
+                        ip: targetIp,
+                        type: 'unban',
+                        source: 'admin_manual',
+                        category: 'Pemulihan Akses IP (Unban)',
+                        reason: `Administrator membuka blokir alamat IP ${targetIp}.`
+                    });
+                }
                 return res.json({ status: true, message: deleted ? `Alamat IP ${targetIp} berhasil di-unban` : 'Alamat IP tidak ditemukan di blacklist' });
             }
 
             // GET BANNED IPS LIST
             if (action === 'admin_get_banned_ips') {
-                return res.json({ status: true, bannedIps: bannedIps });
+                const formattedList = Object.entries(bannedIps || {}).map(([ipKey, rec]) => {
+                    const cleanIp = String((rec && rec.ip) || ipKey || '').trim().replace(/^::ffff:/, '');
+                    const src = (rec && rec.source) || (rec && rec.details && rec.details.source) || (String(rec?.banReason || '').toLowerCase().includes('administrator') ? 'admin_manual' : 'auto_system');
+                    let cat = (rec && rec.category) || (rec && rec.details && rec.details.category) || '';
+                    if (!cat) {
+                        const rLower = String(rec?.banReason || '').toLowerCase();
+                        if (rLower.includes('devtools') || rLower.includes('vip') || rLower.includes('tamper')) cat = 'Manipulasi DevTools / VIP';
+                        else if (rLower.includes('scraper') || rLower.includes('getweb') || rLower.includes('ripper')) cat = 'Unduhan Scraper / GetWeb';
+                        else if (rLower.includes('curl')) cat = 'Akses Script cURL Eksternal';
+                        else if (rLower.includes('traversal')) cat = 'Serangan Path Traversal';
+                        else if (rLower.includes('sensitif') || rLower.includes('.env')) cat = 'Akses Berkas Sensitif Server';
+                        else if (src === 'admin_manual') cat = 'Sanksi Manual Administrator';
+                        else cat = 'Proteksi Otomatis Firewall';
+                    }
+                    return {
+                        ip: cleanIp,
+                        banType: (rec && rec.banType) || 'permanent',
+                        banReason: (rec && rec.banReason) || 'Pelanggaran keamanan terdeteksi oleh sistem.',
+                        banExpiresAt: (rec && rec.banExpiresAt) || null,
+                        banDurationDays: Number((rec && rec.banDurationDays) || 0),
+                        source: src,
+                        category: cat,
+                        path: (rec && rec.path) || (rec && rec.details && rec.details.path) || (rec && rec.lastBlockedPath) || '',
+                        userAgent: (rec && rec.userAgent) || (rec && rec.details && rec.details.ua) || '',
+                        deviceLabel: (rec && rec.deviceLabel) || '',
+                        username: (rec && rec.username) || (rec && rec.details && rec.details.username) || '',
+                        userId: (rec && rec.userId) || (rec && rec.details && rec.details.userId) || '',
+                        blockedAttempts: Number((rec && rec.blockedAttempts) || 1),
+                        lastAttemptAt: (rec && rec.lastAttemptAt) || (rec && rec.createdAt) || new Date().toISOString(),
+                        createdAt: (rec && rec.createdAt) || new Date().toISOString()
+                    };
+                }).sort((a, b) => new Date(b.lastAttemptAt || b.createdAt || 0).getTime() - new Date(a.lastAttemptAt || a.createdAt || 0).getTime());
+
+                return res.json({ status: true, bannedIps: formattedList, bannedIpsMap: bannedIps });
             }
 
             // GET GMAIL SMTP OTP CONFIG
