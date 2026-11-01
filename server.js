@@ -27,7 +27,39 @@ try {
     }
 } catch (e) {}
 
-const Security = require('./api/security.js');
+const Security = (() => {
+    let loaded = null;
+    try {
+        loaded = require('./api/security.js');
+    } catch (e) {
+        try {
+            loaded = require('./public/security.js');
+        } catch (e2) {}
+    }
+    const defaults = {
+        normalizeIp: (ip) => String(ip || '127.0.0.1').trim().toLowerCase().replace(/^::ffff:/, '').split(',')[0].trim() || '127.0.0.1',
+        isImmuneIp: () => false,
+        addImmuneIp: () => {},
+        readBannedIpsSync: () => ({}),
+        readBannedIpsAsync: async () => ({}),
+        writeBannedIpsAsync: async () => {},
+        getIpBanStatus: () => ({ isIpBanned: false }),
+        banIp: async () => ({ isIpBanned: false }),
+        recordBlockedAttempt: () => {},
+        recordRequestActivity: () => {},
+        recordSecurityEvent: () => {},
+        generateVipSignature: () => '',
+        verifyVipSignature: () => false,
+        isBotOrScraper: () => false,
+        serveCorruptedDummyFile: (res) => res.status(403).end(),
+        getIpBannedHtmlPage: () => '<h1>Akses Ditolak</h1>',
+        securityHandler: async (req, res) => res.status(400).json({ status: false, message: 'Security handler fallback' })
+    };
+    if (loaded && (typeof loaded === 'object' || typeof loaded === 'function')) {
+        return Object.assign(defaults, loaded);
+    }
+    return defaults;
+})();
 
 const ipv4HttpsAgent = new https.Agent({ family: 4, keepAlive: true, maxSockets: 50 });
 const ipv4HttpAgent = new http.Agent({ family: 4, keepAlive: true, maxSockets: 50 });
@@ -77,6 +109,7 @@ app.use((req, res, next) => {
     // 1. IP Ban Enforcement: Block all requests from banned IPs across the entire website
     const banCheck = Security.getIpBanStatus(cleanIp);
     if (!isImmune && banCheck.isIpBanned) {
+        Security.recordBlockedAttempt(cleanIp, rawPath, req.headers['user-agent'] || '');
         // If request is from scraper, bot, tool, or asset download, feed corrupt dummy empty file
         if (Security.isBotOrScraper(ua) || rawPath.endsWith('.js') || rawPath.endsWith('.css') || rawPath.endsWith('.json') || rawPath.endsWith('.mp3')) {
             return Security.serveCorruptedDummyFile(res);
@@ -97,13 +130,23 @@ app.use((req, res, next) => {
 
     // 2. Auto-Ban & Corrupt Dummy Response for GetWeb, Site Rippers, Scrapers & Automated Downloaders
     if (!isImmune && Security.isBotOrScraper(ua)) {
-        Security.banIp(cleanIp, `Percobaan unduhan situs (GetWeb/Scraper/Ripper) terdeteksi: ${ua.slice(0, 50)}`, { ua, path: rawPath });
+        Security.banIp(cleanIp, `Percobaan unduhan situs (GetWeb/Scraper/Ripper) terdeteksi: ${ua.slice(0, 50)}`, {
+            source: 'auto_system',
+            category: 'Unduhan Situs / Scraper / GetWeb',
+            ua: req.headers['user-agent'] || ua,
+            path: rawPath
+        });
         return Security.serveCorruptedDummyFile(res);
     }
 
     // Block external curl requests (allow internal curl for localhost dev tests/health checks)
     if (!isImmune && (/^curl\//i.test(ua) || ua.includes('curl/'))) {
-        Security.banIp(cleanIp, 'Percobaan akses API via curl eksternal tanpa browser sah.', { ua, path: rawPath });
+        Security.banIp(cleanIp, 'Percobaan akses API via curl eksternal tanpa browser sah.', {
+            source: 'auto_system',
+            category: 'Akses Script cURL Eksternal',
+            ua: req.headers['user-agent'] || ua,
+            path: rawPath
+        });
         return Security.serveCorruptedDummyFile(res);
     }
 
@@ -112,7 +155,12 @@ app.use((req, res, next) => {
         const decodedPath = decodeURIComponent(rawPath);
         if (decodedPath.includes('..') || rawPath.includes('..') || rawPath.includes('%2e%2e')) {
             if (!isImmune) {
-                Security.banIp(cleanIp, `Upaya path traversal ilegal: ${rawPath.slice(0, 50)}`);
+                Security.banIp(cleanIp, `Upaya path traversal ilegal: ${rawPath.slice(0, 50)}`, {
+                    source: 'auto_system',
+                    category: 'Serangan Path Traversal',
+                    ua: req.headers['user-agent'] || ua,
+                    path: rawPath
+                });
             }
             return Security.serveCorruptedDummyFile(res);
         }
@@ -130,10 +178,19 @@ app.use((req, res, next) => {
 
     if (isSensitive) {
         if (!isImmune) {
-            Security.banIp(cleanIp, `Percobaan akses berkas sensitif internal: ${rawPath.slice(0, 50)}`);
+            Security.banIp(cleanIp, `Percobaan akses berkas sensitif internal: ${rawPath.slice(0, 50)}`, {
+                source: 'auto_system',
+                category: 'Akses Berkas Sensitif Server',
+                ua: req.headers['user-agent'] || ua,
+                path: rawPath
+            });
         }
         return Security.serveCorruptedDummyFile(res);
     }
+
+    // 5. Record legitimate visitor/user activity for Admin Real-Time IP & Usage Monitor
+    Security.recordRequestActivity(req, cleanIp, isImmune, banCheck);
+
     next();
 });
 
