@@ -436,16 +436,25 @@ function canUserEquipBorder(user, borderObj, isAdminSession = false) {
         const bId = String(borderObj.id || '').toLowerCase();
         const bCat = String(borderObj.category || '').toLowerCase();
         const bName = String(borderObj.name || '').toLowerCase();
+        const bReqTier = String(borderObj.requiredTier || '').toLowerCase();
         const isPlat = bId === 'border_platinum' || bCat === 'platinum' || bName.includes('platinum');
         const isMast = bId === 'border_master' || bCat === 'master' || bName.includes('master');
         const isLeg = bId === 'border_legend' || bCat === 'legend' || bName.includes('legend');
+        const isImm = bId === 'border_immortal' || bId.includes('immortal') || bId.includes('imortal') || bCat === 'immortal' || bName.includes('immortal');
+        const isPerm = bId === 'border_permanent' || bCat === 'permanent' || bName.includes('permanen') || bReqTier === 'permanent';
         if (trialAccess === 'platinum') return isPlat;
+        if (trialAccess === 'master') return isMast;
+        if (trialAccess === 'legend') return isLeg;
+        if (trialAccess === 'immortal') return isImm;
+        if (trialAccess === 'permanent') return isPerm;
         if (trialAccess === 'platinum_master') return isPlat || isMast;
         if (trialAccess === 'platinum_master_legend') return isPlat || isMast || isLeg;
+        if (trialAccess === 'platinum_master_legend_immortal') return isPlat || isMast || isLeg || isImm;
+        if (trialAccess === 'platinum_master_legend_immortal_permanent') return isPlat || isMast || isLeg || isImm || isPerm;
     }
 
-    // If user's VIP came from Referral and has Admin-configured Border restrictions, enforce Admin's Referral Border rules
-    if (user.vipSource === 'referral' && user.referralBorderRestricted) {
+    // If user's VIP came from Referral or Point Exchange and has Admin-configured Border restrictions, enforce Admin's Border rules
+    if ((user.vipSource === 'referral' || user.vipSource === 'point_exchange') && user.referralBorderRestricted) {
         try {
             const referralsApi = require('./referrals.js');
             const refCheck = referralsApi.canReferralVipEquipBorder(user, borderObj);

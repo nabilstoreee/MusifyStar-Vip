@@ -1,9 +1,182 @@
 const crypto = require('crypto');
 const adminAuth = require('./admin-auth.js');
 const storage = require('./storage.js');
+const Security = require('./security.js');
 
 const REFERRAL_CONFIG_FILE = 'referral_config.json';
 const USERS_FILE = 'users.json';
+
+const DEFAULT_PACKAGE_ALLOWED_FEATURES = {
+    customId: true,
+    nameGlow: true,
+    liquidGlassIos27: true,
+    vipAvatar: true,
+    dynamicIsland: true,
+    highAudio: true,
+    backgroundPlay: true,
+    keepScreenAwake: true,
+    swipeGestures: true,
+    vipSultanBadge: true,
+    homeTheme: true,
+    navTheme: true
+};
+
+function sanitizePackageAllowedFeatures(rawFeatures) {
+    const src = (rawFeatures && typeof rawFeatures === 'object') ? rawFeatures : {};
+    const out = {};
+    Object.keys(DEFAULT_PACKAGE_ALLOWED_FEATURES).forEach(k => {
+        out[k] = src[k] !== undefined ? Boolean(src[k]) : DEFAULT_PACKAGE_ALLOWED_FEATURES[k];
+    });
+    return out;
+}
+
+function resolveExchangePackageBorderInfo(borderVal, borderIdVal) {
+    const bStr = String(borderVal || '').trim();
+    const bLow = bStr.toLowerCase();
+    const idLow = String(borderIdVal || '').trim().toLowerCase();
+
+    if (idLow === 'none' || bLow === 'none' || bLow.includes('tanpa')) {
+        return {
+            border: 'Tanpa Border',
+            borderId: 'none',
+            restricted: true,
+            allowedBorders: ['none'],
+            assignedBorder: '',
+            assignedBorderName: '',
+            assignedBorderUrl: ''
+        };
+    }
+    if (idLow === 'all' || bLow.includes('semua')) {
+        return {
+            border: 'Semua Border Permanen / Immortal',
+            borderId: 'all',
+            restricted: false,
+            allowedBorders: ['all'],
+            assignedBorder: 'border_immortal',
+            assignedBorderName: 'Immortal',
+            assignedBorderUrl: '/borders/Imortal.png'
+        };
+    }
+
+    let permBorder = { id: 'border_immortal', name: 'Permanen', url: '/borders/Imortal.png' };
+    try {
+        const customBorders = storage.readData('custom_borders.json', []);
+        if (Array.isArray(customBorders)) {
+            const foundPerm = customBorders.find(cb => cb && (String(cb.category || '').toLowerCase() === 'permanent' || String(cb.requiredTier || '').toLowerCase() === 'permanent'));
+            if (foundPerm) {
+                permBorder = {
+                    id: foundPerm.id,
+                    name: foundPerm.name || 'Permanen',
+                    url: foundPerm.url || `/api/borders?action=image&id=${encodeURIComponent(foundPerm.id)}&ext=png`
+                };
+            }
+        }
+    } catch (e) {}
+
+    const hasPlat = bLow.includes('platinum') || bLow.includes('latinum') || idLow.includes('platinum');
+    const hasMast = bLow.includes('master') || idLow.includes('master');
+    const hasLeg = bLow.includes('legend') || idLow.includes('legend');
+    const hasImm = bLow.includes('immortal') || bLow.includes('imortal') || idLow.includes('immortal');
+    const hasPerm = bLow.includes('permanen') || bLow.includes('permanent') || idLow.includes('permanent');
+
+    if (hasPlat && hasMast && hasLeg && hasImm && hasPerm) {
+        return {
+            border: 'Border Platinum / Master / Legend / Immortal / Permanen',
+            borderId: 'platinum_master_legend_immortal_permanent',
+            restricted: true,
+            allowedBorders: ['border_platinum', 'platinum', 'border_master', 'master', 'border_legend', 'legend', 'border_immortal', 'immortal', 'border_permanent', 'permanent', 'permanen', permBorder.id],
+            assignedBorder: 'border_immortal',
+            assignedBorderName: 'Immortal',
+            assignedBorderUrl: '/borders/Imortal.png'
+        };
+    }
+    if (hasPlat && hasMast && hasLeg && hasImm) {
+        return {
+            border: 'Border Platinum / Master / Legend / Immortal',
+            borderId: 'platinum_master_legend_immortal',
+            restricted: true,
+            allowedBorders: ['border_platinum', 'platinum', 'border_master', 'master', 'border_legend', 'legend', 'border_immortal', 'immortal'],
+            assignedBorder: 'border_immortal',
+            assignedBorderName: 'Immortal',
+            assignedBorderUrl: '/borders/Imortal.png'
+        };
+    }
+    if (hasPlat && hasMast && hasLeg) {
+        return {
+            border: 'Border Platinum / Master / Legend',
+            borderId: 'platinum_master_legend',
+            restricted: true,
+            allowedBorders: ['border_platinum', 'platinum', 'border_master', 'master', 'border_legend', 'legend'],
+            assignedBorder: 'border_legend',
+            assignedBorderName: 'Legend',
+            assignedBorderUrl: '/borders/Legend.png'
+        };
+    }
+    if (hasPlat && hasMast) {
+        return {
+            border: 'Border Platinum / Master',
+            borderId: 'platinum_master',
+            restricted: true,
+            allowedBorders: ['border_platinum', 'platinum', 'border_master', 'master'],
+            assignedBorder: 'border_master',
+            assignedBorderName: 'Master',
+            assignedBorderUrl: '/borders/Master.png'
+        };
+    }
+    if (hasPerm) {
+        return {
+            border: 'Border Permanen',
+            borderId: 'border_permanent',
+            restricted: true,
+            allowedBorders: ['border_permanent', 'permanent', 'permanen', permBorder.id],
+            assignedBorder: permBorder.id,
+            assignedBorderName: permBorder.name,
+            assignedBorderUrl: permBorder.url
+        };
+    }
+    if (hasImm) {
+        return {
+            border: 'Border Immortal',
+            borderId: 'border_immortal',
+            restricted: true,
+            allowedBorders: ['border_immortal', 'immortal'],
+            assignedBorder: 'border_immortal',
+            assignedBorderName: 'Immortal',
+            assignedBorderUrl: '/borders/Imortal.png'
+        };
+    }
+    if (hasLeg) {
+        return {
+            border: 'Border Legend',
+            borderId: 'border_legend',
+            restricted: true,
+            allowedBorders: ['border_legend', 'legend'],
+            assignedBorder: 'border_legend',
+            assignedBorderName: 'Legend',
+            assignedBorderUrl: '/borders/Legend.png'
+        };
+    }
+    if (hasMast) {
+        return {
+            border: 'Border Master',
+            borderId: 'border_master',
+            restricted: true,
+            allowedBorders: ['border_master', 'master'],
+            assignedBorder: 'border_master',
+            assignedBorderName: 'Master',
+            assignedBorderUrl: '/borders/Master.png'
+        };
+    }
+    return {
+        border: 'Border Platinum',
+        borderId: 'border_platinum',
+        restricted: true,
+        allowedBorders: ['border_platinum', 'platinum'],
+        assignedBorder: 'border_platinum',
+        assignedBorderName: 'Platinum',
+        assignedBorderUrl: '/borders/Platinum.png'
+    };
+}
 
 const DEFAULT_POINT_EXCHANGE_PACKAGES = [
     {
@@ -13,8 +186,9 @@ const DEFAULT_POINT_EXCHANGE_PACKAGES = [
         durationDays: 7,
         durationText: '7 Hari',
         isPermanent: false,
-        border: 'Platinum',
+        border: 'Border Platinum',
         borderId: 'border_platinum',
+        allowedFeatures: { ...DEFAULT_PACKAGE_ALLOWED_FEATURES },
         benefits: [
             'Akses Penuh Fitur VIP MusifyStar',
             'Kualitas Audio Ultra HD 320kbps',
@@ -31,11 +205,12 @@ const DEFAULT_POINT_EXCHANGE_PACKAGES = [
         durationDays: 0,
         durationText: 'Permanen (Selamanya)',
         isPermanent: true,
-        border: 'Semua Border VIP (Termasuk Immortal)',
-        borderId: 'border_immortal',
+        border: 'Semua Border Permanen / Immortal',
+        borderId: 'all',
+        allowedFeatures: { ...DEFAULT_PACKAGE_ALLOWED_FEATURES },
         benefits: [
             'Status Member VIP Selamanya Tanpa Batas Waktu',
-            'Bebas Pasang Semua Border Profil VIP (Platinum, Master, Legend & Immortal)',
+            'Bebas Pasang Semua Border Profil VIP (Platinum, Master, Legend, Immortal & Permanen)',
             'Efek Nama Berwarna / VIP Glow',
             'Dynamic Island Mini Player & Audio Ultra HD 320kbps',
             'Bebas Akses Seluruh Fitur VIP MusifyStar Tanpa Langganan Lagi'
@@ -422,25 +597,31 @@ function parseBorderConfigInput(preset, customInput, isExtend = false) {
         };
     }
 
-    // Parse custom text input (can be comma-separated or single border name)
+    // Parse custom text input (can be comma/slash-separated or single border name)
     const allowed = [];
     let primaryBorder = null;
 
-    if (c.includes('platinum')) {
+    if (c.includes('platinum') || c.includes('latinum')) {
         allowed.push('border_platinum', 'platinum');
-        if (!primaryBorder) primaryBorder = STANDARD_BORDERS_MAP['border_platinum'];
+        primaryBorder = STANDARD_BORDERS_MAP['border_platinum'];
     }
     if (c.includes('master')) {
         allowed.push('border_master', 'master');
-        if (!primaryBorder) primaryBorder = STANDARD_BORDERS_MAP['border_master'];
+        primaryBorder = STANDARD_BORDERS_MAP['border_master'];
     }
     if (c.includes('legend')) {
         allowed.push('border_legend', 'legend');
-        if (!primaryBorder) primaryBorder = STANDARD_BORDERS_MAP['border_legend'];
+        primaryBorder = STANDARD_BORDERS_MAP['border_legend'];
     }
     if (c.includes('immortal') || c.includes('imortal')) {
         allowed.push('border_immortal', 'immortal');
-        if (!primaryBorder) primaryBorder = STANDARD_BORDERS_MAP['border_immortal'];
+        primaryBorder = STANDARD_BORDERS_MAP['border_immortal'];
+    }
+    if (c.includes('permanen') || c.includes('permanent')) {
+        allowed.push('border_permanent', 'permanent', 'permanen');
+        if (!primaryBorder) {
+            primaryBorder = { id: 'border_immortal', name: 'Permanen', url: '/borders/Imortal.png' };
+        }
     }
 
     // Also check custom borders stored by Admin
@@ -451,7 +632,14 @@ function parseBorderConfigInput(preset, customInput, isExtend = false) {
                 if (!cb) return;
                 const cbName = String(cb.name || '').toLowerCase();
                 const cbId = String(cb.id || '').toLowerCase();
-                if (c && (cbName === c || cbId === c || c.includes(cbName) || c.includes(cbId))) {
+                const cbCat = String(cb.category || '').toLowerCase();
+                const cbTier = String(cb.requiredTier || '').toLowerCase();
+                if ((c.includes('permanen') || c.includes('permanent')) && (cbCat === 'permanent' || cbTier === 'permanent')) {
+                    allowed.push(cb.id, cbName);
+                    if (!c.includes('platinum') && !c.includes('master') && !c.includes('legend') && !c.includes('immortal')) {
+                        primaryBorder = { id: cb.id, name: cb.name || 'Permanen', url: cb.url || `/api/borders?action=image&id=${encodeURIComponent(cb.id)}&ext=png` };
+                    }
+                } else if (c && (cbName === c || cbId === c || c.includes(cbName) || c.includes(cbId))) {
                     allowed.push(cb.id, cbName);
                     if (!primaryBorder) {
                         primaryBorder = { id: cb.id, name: cb.name, url: cb.url || `/api/borders?action=image&id=${encodeURIComponent(cb.id)}` };
@@ -781,9 +969,9 @@ function resolveUserDonaturInfo(user) {
 function canReferralVipEquipBorder(user, borderObj) {
     if (!borderObj || borderObj.id === 'none' || !borderObj.isVip) return true;
     const email = String(user?.rawEmail || user?.email || '').toLowerCase().trim();
-    if (email === 'jrnabil570@gmail.com') return true;
+    if (email === 'jrnabil570@gmail.com' && !user?.referralBorderRestricted && user?.vipSource !== 'point_exchange') return true;
 
-    // Only restrict if user got VIP from referral and has referralBorderRestricted
+    // Restrict if user got VIP from referral or point_exchange and has referralBorderRestricted
     if (!user || !user.referralBorderRestricted) return null; // null means use standard VIP tier check
 
     const config = readReferralConfigSync();
@@ -798,14 +986,16 @@ function canReferralVipEquipBorder(user, borderObj) {
     const bId = String(borderObj.id || '').toLowerCase().trim();
     const bName = String(borderObj.name || '').toLowerCase().trim();
     const bCat = String(borderObj.category || '').toLowerCase().trim();
+    const bReqTier = String(borderObj.requiredTier || '').toLowerCase().trim();
 
     if (normAllowed.includes(bId) || (bName && normAllowed.includes(bName)) || (bCat && normAllowed.includes(bCat))) {
         return true;
     }
-    if (bId.includes('platinum') && normAllowed.includes('platinum')) return true;
-    if (bId.includes('master') && normAllowed.includes('master')) return true;
-    if (bId.includes('legend') && normAllowed.includes('legend')) return true;
-    if ((bId.includes('immortal') || bId.includes('imortal')) && (normAllowed.includes('immortal') || normAllowed.includes('imortal'))) return true;
+    if ((bId.includes('platinum') || bCat === 'platinum' || bName.includes('platinum')) && normAllowed.includes('platinum')) return true;
+    if ((bId.includes('master') || bCat === 'master' || bName.includes('master')) && normAllowed.includes('master')) return true;
+    if ((bId.includes('legend') || bCat === 'legend' || bName.includes('legend')) && normAllowed.includes('legend')) return true;
+    if ((bId.includes('immortal') || bId.includes('imortal') || bCat === 'immortal' || bName.includes('immortal')) && (normAllowed.includes('immortal') || normAllowed.includes('imortal') || normAllowed.includes('border_immortal'))) return true;
+    if ((bId.includes('permanent') || bCat === 'permanent' || bName.includes('permanen') || bReqTier === 'permanent') && (normAllowed.includes('permanent') || normAllowed.includes('permanen') || normAllowed.includes('border_permanent'))) return true;
 
     return false;
 }
@@ -1258,6 +1448,7 @@ async function handler(req, res) {
                 ? ` (Kuota undangan @${referrer.username} kini telah mencapai batas maksimal ${updatedRefLimit.referralCount}/${updatedRefLimit.maxInvites})`
                 : '';
 
+            const inviteeVipSig = Security.generateVipSignature(invitee.id, invitee.vipTier || 'none', invitee.vipExpiresAt || null);
             return res.json({
                 status: true,
                 message: `🎉 Kode referral @${referrer.username} berhasil digunakan! ${rewardResult.inviteeRewardSummary ? `Anda mendapat bonus ${rewardResult.inviteeRewardSummary}. ` : ''}@${referrer.username} menerima ${rewardResult.rewardSummary}!${limitNotice}`,
@@ -1267,6 +1458,7 @@ async function handler(req, res) {
                     isPremium: invitee.isPremium,
                     vipTier: invitee.vipTier,
                     vipExpiresAt: invitee.vipExpiresAt,
+                    vipSignature: inviteeVipSig,
                     vipSource: invitee.vipSource || 'standard',
                     referralBorderRestricted: Boolean(invitee.referralBorderRestricted),
                     referralAllowedBorders: invitee.referralAllowedBorders || [],
@@ -1403,26 +1595,56 @@ async function handler(req, res) {
                 user.vipDuration = `${days} Hari`;
             }
 
-            // Tetapkan Border Profil Sesuai Paket
-            const bId = String(targetPkg.borderId || '').trim();
-            const bName = String(targetPkg.border || targetPkg.borderName || '').trim();
-            if (isPermanent || bId === 'border_immortal' || bName.toLowerCase().includes('semua')) {
-                user.referralBorderRestricted = false;
-                user.referralAllowedBorders = ['all', 'border_platinum', 'border_master', 'border_legend', 'border_immortal'];
-                if (!user.border) {
-                    user.border = 'border_immortal';
-                    user.borderName = 'Immortal';
-                    user.borderUrl = '/borders/Imortal.png';
-                }
-            } else if (bId && bId !== 'none') {
-                user.border = bId;
-                user.borderName = bName || 'Platinum';
-                user.borderUrl = STANDARD_BORDERS_MAP[bId]?.url || '/borders/Platinum.png';
-                user.referralBorderRestricted = true;
-                user.referralAllowedBorders = [bId, bId.replace('border_', '')];
+            // Tetapkan Border Profil Sesuai Paket Penukaran Poin
+            const bInfo = resolveExchangePackageBorderInfo(targetPkg.border || targetPkg.borderName, targetPkg.borderId);
+            user.referralBorderRestricted = bInfo.restricted;
+            user.referralAllowedBorders = bInfo.allowedBorders;
+            if (bInfo.borderId === 'none') {
+                user.border = '';
+                user.borderName = '';
+                user.borderUrl = '';
+            } else if (bInfo.assignedBorder) {
+                user.border = bInfo.assignedBorder;
+                user.borderName = bInfo.assignedBorderName;
+                user.borderUrl = bInfo.assignedBorderUrl;
             }
 
+            // Terapkan Pengaturan Centang Fitur VIP (allowedFeatures) dari Paket Penukaran Poin
+            const pkgAllowedFeatures = sanitizePackageAllowedFeatures(targetPkg.allowedFeatures);
+            user.trialAllowedFeatures = pkgAllowedFeatures;
+            user.pointExchangePackageId = targetPkg.id;
             user.vipSource = 'point_exchange';
+
+            // Jika ada fitur yang TIDAK dicentang Admin pada paket ini, cabut fitur yang sedang dipakai user
+            if (pkgAllowedFeatures.customId === false && user.customId) {
+                user.id = user.originalId || user.id;
+                user.customId = null;
+                user.customIdExpiresAt = null;
+                user.isCustomIdTrial = false;
+            }
+            if (pkgAllowedFeatures.nameGlow === false && user.nameGlow) {
+                user.nameGlow = '';
+            }
+            if (pkgAllowedFeatures.vipSultanBadge === false && user.equippedBadge === 'badge_vip_sultan') {
+                user.equippedBadge = '';
+                user.equippedBadgeTitle = '';
+                user.equippedBadgeIcon = '';
+                user.equippedBadgeColor = '';
+            }
+            if (user.settings && typeof user.settings === 'object') {
+                if (pkgAllowedFeatures.liquidGlassIos27 === false) {
+                    user.settings.liquidGlassIos27 = false;
+                    user.settings.liquidGlassIos26 = false;
+                }
+                if (pkgAllowedFeatures.dynamicIsland === false) user.settings.dynamicIsland = false;
+                if (pkgAllowedFeatures.highAudio === false && user.settings.audioQuality === 'high') user.settings.audioQuality = 'standard';
+                if (pkgAllowedFeatures.backgroundPlay === false) user.settings.backgroundPlay = false;
+                if (pkgAllowedFeatures.keepScreenAwake === false) user.settings.keepScreenAwake = false;
+                if (pkgAllowedFeatures.swipeGestures === false) user.settings.swipeGestures = false;
+                if (pkgAllowedFeatures.homeTheme === false) user.settings.homeTheme = 'classic';
+                if (pkgAllowedFeatures.navTheme === false) user.settings.navTheme = 'classic';
+            }
+
             user.redeemedPackages = user.redeemedPackages || [];
             user.redeemedPackages.push({
                 id: 'rdm_' + Date.now(),
@@ -1435,6 +1657,8 @@ async function handler(req, res) {
             usersDb.users[uIdx] = user;
             await storage.writeDataAsync(USERS_FILE, usersDb);
 
+            const exchVipSig = Security.generateVipSignature(user.id, user.vipTier, user.vipExpiresAt);
+
             return res.json({
                 status: true,
                 message: `🎉 Selamat! Berhasil menukar ${pointsNeeded} Poin dengan "${targetPkg.title}"! Status VIP Anda telah berhasil diaktifkan.`,
@@ -1442,17 +1666,26 @@ async function handler(req, res) {
                 package: targetPkg,
                 user: {
                     id: user.id,
+                    originalId: user.originalId || user.id,
+                    customId: user.customId || null,
                     username: user.username,
                     isPremium: true,
                     vipTier: user.vipTier,
                     vipExpiresAt: user.vipExpiresAt,
+                    vipSignature: exchVipSig,
                     vipDuration: user.vipDuration,
+                    vipSource: 'point_exchange',
+                    pointExchangePackageId: user.pointExchangePackageId,
+                    trialAllowedFeatures: user.trialAllowedFeatures,
+                    nameGlow: user.nameGlow || '',
+                    equippedBadge: user.equippedBadge || '',
                     border: user.border,
                     borderName: user.borderName,
                     borderUrl: user.borderUrl,
                     referralPoints: user.referralPoints,
                     referralBorderRestricted: Boolean(user.referralBorderRestricted),
-                    referralAllowedBorders: user.referralAllowedBorders || []
+                    referralAllowedBorders: user.referralAllowedBorders || [],
+                    settings: user.settings || {}
                 }
             });
         }
@@ -1551,6 +1784,7 @@ async function handler(req, res) {
                     } else if (typeof p.benefits === 'string') {
                         benefitsArr = p.benefits.split(/\r?\n/).map(b => b.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
                     }
+                    const bInfo = resolveExchangePackageBorderInfo(p.border, p.borderId);
                     return {
                         id: String(p.id || 'pkg_' + (idx + 1) + '_' + Date.now()).trim(),
                         title: String(p.title || 'Paket VIP').trim(),
@@ -1558,8 +1792,9 @@ async function handler(req, res) {
                         durationDays: isPerm ? 0 : (pDays || 7),
                         durationText: isPerm ? 'Permanen (Selamanya)' : (p.durationText || `${pDays || 7} Hari`),
                         isPermanent: isPerm,
-                        border: String(p.border || 'Platinum').trim(),
-                        borderId: String(p.borderId || 'border_platinum').trim(),
+                        border: bInfo.border,
+                        borderId: bInfo.borderId,
+                        allowedFeatures: sanitizePackageAllowedFeatures(p.allowedFeatures),
                         benefits: benefitsArr.length > 0 ? benefitsArr : ['Buka Semua Akses Fitur VIP MusifyStar'],
                         active: p.active !== false
                     };
@@ -1628,6 +1863,7 @@ async function handler(req, res) {
                 } else if (typeof p.benefits === 'string') {
                     benefitsArr = p.benefits.split(/\r?\n/).map(b => b.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
                 }
+                const bInfo = resolveExchangePackageBorderInfo(p.border, p.borderId);
                 return {
                     id: String(p.id || 'pkg_' + (idx + 1) + '_' + Date.now()).trim(),
                     title: String(p.title || 'Paket VIP').trim(),
@@ -1635,8 +1871,9 @@ async function handler(req, res) {
                     durationDays: isPerm ? 0 : (pDays || 7),
                     durationText: isPerm ? 'Permanen (Selamanya)' : (p.durationText || `${pDays || 7} Hari`),
                     isPermanent: isPerm,
-                    border: String(p.border || 'Platinum').trim(),
-                    borderId: String(p.borderId || 'border_platinum').trim(),
+                    border: bInfo.border,
+                    borderId: bInfo.borderId,
+                    allowedFeatures: sanitizePackageAllowedFeatures(p.allowedFeatures),
                     benefits: benefitsArr.length > 0 ? benefitsArr : ['Buka Semua Akses Fitur VIP MusifyStar'],
                     active: p.active !== false
                 };
@@ -1645,9 +1882,54 @@ async function handler(req, res) {
             config.pointExchangePackages = sanitizedPackages.length > 0 ? sanitizedPackages : DEFAULT_POINT_EXCHANGE_PACKAGES;
             await writeReferralConfigAsync(config);
 
+            // Sync active point_exchange users with the updated package rules (borders & allowedFeatures)
+            let updatedExchangeUsers = 0;
+            usersDb.users.forEach(u => {
+                if (!u || u.vipSource !== 'point_exchange') return;
+                const matchedPkg = config.pointExchangePackages.find(p => String(p.id) === String(u.pointExchangePackageId))
+                    || (u.redeemedPackages && u.redeemedPackages.length > 0
+                        ? config.pointExchangePackages.find(p => String(p.id) === String(u.redeemedPackages[u.redeemedPackages.length - 1].packageId))
+                        : null)
+                    || config.pointExchangePackages[0];
+                if (!matchedPkg) return;
+                const bInfo = resolveExchangePackageBorderInfo(matchedPkg.border, matchedPkg.borderId);
+                u.referralBorderRestricted = bInfo.restricted;
+                u.referralAllowedBorders = bInfo.allowedBorders;
+                if (bInfo.borderId === 'none') {
+                    u.border = '';
+                    u.borderName = '';
+                    u.borderUrl = '';
+                } else if (bInfo.assignedBorder) {
+                    u.border = bInfo.assignedBorder;
+                    u.borderName = bInfo.assignedBorderName;
+                    u.borderUrl = bInfo.assignedBorderUrl;
+                }
+                const feats = sanitizePackageAllowedFeatures(matchedPkg.allowedFeatures);
+                u.trialAllowedFeatures = feats;
+                if (feats.customId === false && u.customId) {
+                    u.id = u.originalId || u.id;
+                    u.customId = null;
+                    u.customIdExpiresAt = null;
+                    u.isCustomIdTrial = false;
+                }
+                if (feats.nameGlow === false && u.nameGlow) {
+                    u.nameGlow = '';
+                }
+                if (feats.vipSultanBadge === false && u.equippedBadge === 'badge_vip_sultan') {
+                    u.equippedBadge = '';
+                    u.equippedBadgeTitle = '';
+                    u.equippedBadgeIcon = '';
+                    u.equippedBadgeColor = '';
+                }
+                updatedExchangeUsers++;
+            });
+            if (updatedExchangeUsers > 0) {
+                await storage.writeDataAsync(USERS_FILE, usersDb);
+            }
+
             return res.json({
                 status: true,
-                message: 'Katalog Paket Penukaran Poin VIP berhasil diperbarui!',
+                message: 'Katalog Paket Penukaran Poin VIP beserta hak akses fitur berhasil diperbarui!',
                 pointExchangePackages: config.pointExchangePackages
             });
         }

@@ -4,45 +4,11 @@ const adminAuth = require('./admin-auth.js');
 const storage = require('./storage.js');
 const messagesApi = require('./messages.js');
 
+const Security = require('./security.js');
 const VOUCHERS_FILE = 'vouchers.json';
 const USERS_FILE = 'users.json';
 
-const DEFAULT_VOUCHERS = [
-    {
-        id: 'vch_default_1month',
-        code: 'VIP1BULAN',
-        name: 'Voucher VIP 1 Bulan (Trial Member)',
-        tier: '1month',
-        durationDays: 30,
-        border: 'border_platinum',
-        borderName: 'Platinum',
-        borderUrl: '/borders/Platinum.png',
-        maxUses: 100,
-        usedCount: 0,
-        isActive: true,
-        createdAt: 1790000000000,
-        expiresAt: null,
-        note: 'Voucher resmi MusifyStar VIP 1 Bulan',
-        redeemedBy: []
-    },
-    {
-        id: 'vch_default_permanent',
-        code: 'SULTANVIP',
-        name: 'Voucher VIP Sultan Permanen',
-        tier: 'permanent',
-        durationDays: 0,
-        border: 'border_immortal',
-        borderName: 'Immortal',
-        borderUrl: '/borders/Imortal.png',
-        maxUses: 10,
-        usedCount: 0,
-        isActive: true,
-        createdAt: 1790000000000,
-        expiresAt: null,
-        note: 'Voucher Spesial Sultan Lifetime',
-        redeemedBy: []
-    }
-];
+const DEFAULT_VOUCHERS = [];
 
 async function readVouchersData() {
     try {
@@ -222,6 +188,7 @@ module.exports = async function handler(req, res) {
         }
 
         const durationText = (assignedTier === 'permanent' || durationDays === 0) ? 'Permanen (Selamanya)' : `${durationDays} Hari`;
+        const voucherVipSig = Security.generateVipSignature(user.id, user.vipTier, user.vipExpiresAt);
 
         return res.json({
             status: true,
@@ -233,6 +200,7 @@ module.exports = async function handler(req, res) {
                 isPremium: user.isPremium,
                 vipTier: user.vipTier,
                 vipExpiresAt: user.vipExpiresAt,
+                vipSignature: voucherVipSig,
                 border: user.border,
                 borderName: user.borderName,
                 borderUrl: user.borderUrl

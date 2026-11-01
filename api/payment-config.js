@@ -241,7 +241,7 @@ async function getPaymentConfig() {
             const mergedTrialConfig = {
                 enabled: rawTrial.enabled !== undefined ? Boolean(rawTrial.enabled) : DEFAULT_VIP_TRIAL_CONFIG.enabled,
                 durationDays: Math.max(1, Math.min(3650, Number(rawTrial.durationDays) || DEFAULT_VIP_TRIAL_CONFIG.durationDays)),
-                borderAccess: ['platinum', 'platinum_master', 'platinum_master_legend', 'all', 'none'].includes(String(rawTrial.borderAccess || '').toLowerCase())
+                borderAccess: ['platinum', 'master', 'legend', 'immortal', 'permanent', 'platinum_master', 'platinum_master_legend', 'platinum_master_legend_immortal', 'platinum_master_legend_immortal_permanent', 'all', 'none'].includes(String(rawTrial.borderAccess || '').toLowerCase())
                     ? String(rawTrial.borderAccess).toLowerCase()
                     : DEFAULT_VIP_TRIAL_CONFIG.borderAccess,
                 allowedFeatures: {
@@ -298,9 +298,10 @@ module.exports = async (req, res) => {
         return res.json({ status: true, config });
     }
 
-    // POST /api/payment-config?action=submit_confirmation (User kirim konfirmasi pembayaran VIP)
+    // POST /api/payment-config?action=submit_confirmation (User kirim konfirmasi pembayaran VIP - Wajib Verifikasi Admin untuk Aktivasi VIP)
     if (req.method === 'POST' && action === 'submit_confirmation') {
         const body = req.body || {};
+        const isAdminCaller = await isAdminAuthorized(req);
         const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || body.token;
         let username = body.username || 'Pengguna MusifyStar';
         let userEmail = body.email || '';
@@ -309,19 +310,21 @@ module.exports = async (req, res) => {
         try {
             let foundUser = null;
             const usersData = await storage.readDataAsync('users.json', { users: [], sessions: {} });
+            const userAuth = require('./user-auth.js');
+            const Security = require('./security.js');
             
             if (token) {
-                // Try to resolve user by session token or JWT
-                if (usersData.sessions && usersData.sessions[token]) {
-                    const sUid = usersData.sessions[token].userId;
-                    foundUser = (usersData.users || []).find(x => x.id === sUid);
+                const resolvedUid = userAuth.getUserIdFromToken(token, usersData);
+                if (resolvedUid) {
+                    foundUser = (usersData.users || []).find(x => x && (String(x.id) === String(resolvedUid) || String(x.originalId) === String(resolvedUid)));
                 }
             }
-            if (!foundUser && userId) {
-                foundUser = (usersData.users || []).find(x => x.id === userId || (x.id && x.id.toLowerCase() === userId.toLowerCase()));
+            if (!foundUser && isAdminCaller && userId) {
+                foundUser = (usersData.users || []).find(x => x && (String(x.id) === String(userId) || String(x.originalId) === String(userId)));
             }
-            if (!foundUser && username && username !== 'Pengguna MusifyStar') {
-                foundUser = (usersData.users || []).find(x => x.username && x.username.toLowerCase() === username.toLowerCase());
+
+            if (!foundUser && !isAdminCaller) {
+                return res.status(401).json({ status: false, message: 'Sesi login tidak valid. Silakan login terlebih dahulu.' });
             }
 
             if (foundUser) {
@@ -330,7 +333,7 @@ module.exports = async (req, res) => {
                 userId = foundUser.id;
             }
 
-            // Tentukan tier VIP yang dibeli
+            // Tentukan tier VIP yang diajukan
             let chosenTier = '1month';
             let durationText = '1 Bulan (30 Hari)';
             let durationMs = 30 * 24 * 3600 * 1000;
@@ -362,22 +365,31 @@ module.exports = async (req, res) => {
 
             const chosenPaymentMethod = String(body.paymentMethod || 'QRIS').trim().toUpperCase();
 
-            // Aktifkan VIP pengguna langsung di database & lunasi tagihan trial jika ada
+            // KEAMANAN KETAT: Hanya Admin terautentikasi yang dapat langsung mengaktifkan status VIP!
+            // Jika dipanggil oleh user biasa (atau lewat DevTools), hanya catat sebagai antrean konfirmasi menunggu persetujuan Admin.
             if (foundUser) {
-                foundUser.isPremium = true;
-                foundUser.vipTier = chosenTier;
-                foundUser.vipGrantedAt = Date.now();
-                foundUser.vipExpiresAt = durationMs ? (Date.now() + durationMs) : null;
-                foundUser.vipSource = 'paid';
-                foundUser.isVipTrial = false;
-                foundUser.hasUnpaidTrialInvoice = false;
-                if (foundUser.pendingTrialInvoice && typeof foundUser.pendingTrialInvoice === 'object') {
-                    foundUser.pendingTrialInvoice.status = 'paid';
-                    foundUser.pendingTrialInvoice.paidAt = new Date().toISOString();
-                    foundUser.pendingTrialInvoice.paidMethod = chosenPaymentMethod;
+                if (isAdminCaller) {
+                    foundUser.isPremium = true;
+                    foundUser.vipTier = chosenTier;
+                    foundUser.vipGrantedAt = Date.now();
+                    foundUser.vipExpiresAt = durationMs ? (Date.now() + durationMs) : null;
+                    foundUser.vipSource = 'paid';
+                    foundUser.isVipTrial = false;
+                    foundUser.hasUnpaidTrialInvoice = false;
+                    if (foundUser.pendingTrialInvoice && typeof foundUser.pendingTrialInvoice === 'object') {
+                        foundUser.pendingTrialInvoice.status = 'paid';
+                        foundUser.pendingTrialInvoice.paidAt = new Date().toISOString();
+                        foundUser.pendingTrialInvoice.paidMethod = chosenPaymentMethod;
+                    }
+                } else {
+                    if (foundUser.pendingTrialInvoice && typeof foundUser.pendingTrialInvoice === 'object') {
+                        foundUser.pendingTrialInvoice.waitingAdminApproval = true;
+                        foundUser.pendingTrialInvoice.paymentMethod = chosenPaymentMethod;
+                        foundUser.pendingTrialInvoice.scannedAt = new Date().toISOString();
+                    }
                 }
 
-                const uIdx = (usersData.users || []).findIndex(x => x.id === foundUser.id);
+                const uIdx = (usersData.users || []).findIndex(x => x && x.id === foundUser.id);
                 if (uIdx !== -1) {
                     usersData.users[uIdx] = foundUser;
                     await storage.writeDataAsync('users.json', usersData);
@@ -399,7 +411,7 @@ module.exports = async (req, res) => {
                 invoiceId: body.invoiceId || null,
                 proofBase64: body.proofBase64 ? body.proofBase64.substring(0, 500000) : null,
                 notes: body.notes || '',
-                status: 'completed',
+                status: isAdminCaller ? 'completed' : 'pending_admin_verification',
                 createdAt: new Date().toISOString()
             };
 
@@ -408,29 +420,35 @@ module.exports = async (req, res) => {
             if (ordersData.orders.length > 100) ordersData.orders = ordersData.orders.slice(0, 100);
             await storage.writeDataAsync('vip_orders.json', ordersData);
 
-            // Kirim pesan resmi otomatis ke Kotak Masuk Pesan Admin pengguna
-            try {
-                const messagesApi = require('./messages.js');
-                if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
-                    await messagesApi.sendVipWelcomeMessage(userId, username, chosenTier, durationText);
+            if (isAdminCaller) {
+                try {
+                    const messagesApi = require('./messages.js');
+                    if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
+                        await messagesApi.sendVipWelcomeMessage(userId, username, chosenTier, durationText);
+                    }
+                } catch (mErr) {
+                    console.error('[PAYMENT_CONFIG] Error sending VIP welcome message:', mErr.message);
                 }
-            } catch (mErr) {
-                console.error('[PAYMENT_CONFIG] Error sending VIP welcome message:', mErr.message);
             }
+
+            const vipSig = foundUser ? Security.generateVipSignature(foundUser.id, foundUser.vipTier || 'none', foundUser.vipExpiresAt || null) : null;
 
             return res.json({
                 status: true,
-                message: `Selamat! Pembayaran via ${chosenPaymentMethod} berhasil dikonfirmasi & Keanggotaan VIP Anda telah aktif selama ${durationText}. Pesan konfirmasi resmi telah dikirim ke Kotak Masuk Pesan Admin!`,
+                message: isAdminCaller
+                    ? `Pembayaran via ${chosenPaymentMethod} berhasil diverifikasi Admin & VIP aktif selama ${durationText}.`
+                    : `Konfirmasi pembayaran via ${chosenPaymentMethod} telah tercatat dan menunggu verifikasi bukti transfer oleh Admin.`,
                 order: newOrder,
-                isVipActive: true,
+                isVipActive: Boolean(foundUser && foundUser.isPremium),
                 user: foundUser ? {
                     id: foundUser.id,
                     username: foundUser.username,
-                    isPremium: true,
-                    vipTier: chosenTier,
-                    vipExpiresAt: foundUser.vipExpiresAt,
-                    isVipTrial: false,
-                    hasUnpaidTrialInvoice: false
+                    isPremium: Boolean(foundUser.isPremium),
+                    vipTier: foundUser.vipTier || 'none',
+                    vipExpiresAt: foundUser.vipExpiresAt || null,
+                    vipSignature: vipSig,
+                    isVipTrial: Boolean(foundUser.isVipTrial),
+                    hasUnpaidTrialInvoice: Boolean(foundUser.hasUnpaidTrialInvoice)
                 } : null
             });
         } catch(err) {
@@ -538,7 +556,7 @@ module.exports = async (req, res) => {
             updatedTrialConfig = {
                 enabled: tc.enabled !== undefined ? Boolean(tc.enabled) : updatedTrialConfig.enabled,
                 durationDays: Math.max(1, Math.min(3650, Number(tc.durationDays) || updatedTrialConfig.durationDays || 7)),
-                borderAccess: ['platinum', 'platinum_master', 'platinum_master_legend', 'all', 'none'].includes(String(tc.borderAccess || '').toLowerCase())
+                borderAccess: ['platinum', 'master', 'legend', 'immortal', 'permanent', 'platinum_master', 'platinum_master_legend', 'platinum_master_legend_immortal', 'platinum_master_legend_immortal_permanent', 'all', 'none'].includes(String(tc.borderAccess || '').toLowerCase())
                     ? String(tc.borderAccess).toLowerCase()
                     : updatedTrialConfig.borderAccess,
                 allowedFeatures: {

@@ -2152,7 +2152,9 @@ module.exports = async (req, res) => {
                         (body.allowedFeatures && typeof body.allowedFeatures === 'object') ? body.allowedFeatures : {}
                     );
                     user.isPremium = true;
-                    user.vipTier = bAccess === 'all' ? 'permanent' : (bAccess === 'platinum_master_legend' ? '2months' : '1month');
+                    user.vipTier = (bAccess === 'all' || bAccess === 'permanent' || bAccess === 'immortal' || bAccess.includes('immortal') || bAccess.includes('permanent'))
+                        ? 'permanent'
+                        : (bAccess.includes('legend') ? '2months' : '1month');
                     user.vipGrantedAt = Date.now();
                     user.vipExpiresAt = Date.now() + (days * 24 * 3600 * 1000);
                     user.vipSource = 'trial';
@@ -2184,6 +2186,18 @@ module.exports = async (req, res) => {
                         user.border = '';
                         user.borderUrl = '';
                         user.borderName = '';
+                    } else if (bAccess === 'master') {
+                        user.border = 'border_master';
+                        user.borderUrl = '/borders/Master.png';
+                        user.borderName = 'Master';
+                    } else if (bAccess === 'legend') {
+                        user.border = 'border_legend';
+                        user.borderUrl = '/borders/Legend.png';
+                        user.borderName = 'Legend';
+                    } else if (bAccess === 'immortal' || bAccess === 'permanent') {
+                        user.border = 'border_immortal';
+                        user.borderUrl = '/borders/Imortal.png';
+                        user.borderName = bAccess === 'permanent' ? 'Permanen' : 'Immortal';
                     } else if (!user.border) {
                         user.border = 'border_platinum';
                         user.borderUrl = '/borders/Platinum.png';
@@ -2314,18 +2328,18 @@ module.exports = async (req, res) => {
                         finalBorderId = 'border_platinum';
                         finalBorderName = 'Platinum';
                         finalBorderUrl = '/borders/Platinum.png';
-                    } else if (extBorder === 'border_master' || extBorder === 'master') {
+                    } else if (extBorder === 'border_master' || extBorder === 'master' || extBorder === 'platinum_master') {
                         finalBorderId = 'border_master';
                         finalBorderName = 'Master';
                         finalBorderUrl = '/borders/Master.png';
-                    } else if (extBorder === 'border_legend' || extBorder === 'legend') {
+                    } else if (extBorder === 'border_legend' || extBorder === 'legend' || extBorder === 'platinum_master_legend') {
                         finalBorderId = 'border_legend';
                         finalBorderName = 'Legend';
                         finalBorderUrl = '/borders/Legend.png';
                         if (chosenTier === '1month') chosenTier = '5months';
-                    } else if (extBorder === 'border_immortal' || extBorder === 'immortal') {
+                    } else if (extBorder === 'border_immortal' || extBorder === 'immortal' || extBorder === 'border_permanent' || extBorder === 'permanent' || extBorder === 'platinum_master_legend_immortal' || extBorder === 'platinum_master_legend_immortal_permanent') {
                         finalBorderId = 'border_immortal';
-                        finalBorderName = 'Immortal';
+                        finalBorderName = (extBorder === 'border_permanent' || extBorder === 'permanent') ? 'Permanen' : 'Immortal';
                         finalBorderUrl = '/borders/Imortal.png';
                         chosenTier = 'permanent';
                     } else if (extBorder === 'all') {
@@ -2663,36 +2677,48 @@ module.exports = async (req, res) => {
 
             const verifiedTok = verifyUserToken(token);
             let targetUserId = getUserIdFromToken(token, db);
+            const hasValidAuthToken = Boolean(verifiedTok || targetUserId);
             let user = null;
 
             if (targetUserId) {
                 user = db.users.find(u => u && (String(u.id) === String(targetUserId) || String(u.originalId) === String(targetUserId)));
             }
 
-            // Fallback claimed user
-            if (!user && (fallbackUserId || fallbackUsername || fallbackEmail || (verifiedTok && verifiedTok.u))) {
-                const lookupName = fallbackUsername || (verifiedTok && verifiedTok.u ? String(verifiedTok.u).toLowerCase().trim() : '');
+            // If token is cryptographically verified, resolve user from verified token payload
+            if (!user && verifiedTok) {
+                const tokUid = verifiedTok.uid ? String(verifiedTok.uid).trim() : '';
+                const tokUname = verifiedTok.u ? String(verifiedTok.u).toLowerCase().trim() : '';
                 user = db.users.find(u => {
                     if (!u) return false;
-                    if (fallbackUserId && (String(u.id) === fallbackUserId || (u.originalId && String(u.originalId) === fallbackUserId) || String(u.id).toLowerCase() === fallbackUserId.toLowerCase())) return true;
-                    if (lookupName && u.username && u.username.toLowerCase() === lookupName) return true;
+                    if (tokUid && (String(u.id) === tokUid || (u.originalId && String(u.originalId) === tokUid))) return true;
+                    if (tokUname && u.username && u.username.toLowerCase() === tokUname) return true;
+                    return false;
+                });
+            }
+
+            // Unauthenticated fallback lookup ONLY for ban-status checking (never authenticates session)
+            if (!user && !hasValidAuthToken && (fallbackUserId || fallbackUsername || fallbackEmail)) {
+                user = db.users.find(u => {
+                    if (!u) return false;
+                    if (fallbackUserId && (String(u.id) === fallbackUserId || (u.originalId && String(u.originalId) === fallbackUserId))) return true;
+                    if (fallbackUsername && u.username && u.username.toLowerCase() === fallbackUsername) return true;
                     if (fallbackEmail && ((u.rawEmail && u.rawEmail.toLowerCase() === fallbackEmail) || (u.email && u.email.toLowerCase() === fallbackEmail))) return true;
                     return false;
                 });
             }
 
-            // Auto-heal manually registered or active session user if missing from users.json
-            if (!user && (verifiedTok || (rawFallbackUsername && fallbackEmail && fallbackEmail.includes('@')))) {
+            // Auto-heal ONLY when a cryptographically verified token exists
+            if (!user && verifiedTok) {
                 try {
                     const deletedMap = await readDeletedUsersAsync();
-                    const healName = rawFallbackUsername || (verifiedTok && verifiedTok.u ? String(verifiedTok.u).trim() : '');
+                    const healName = (verifiedTok && verifiedTok.u ? String(verifiedTok.u).trim() : '') || rawFallbackUsername;
                     const healNameLow = healName.toLowerCase();
-                    const healUid = String(fallbackUserId || (verifiedTok && verifiedTok.uid) || '').trim();
+                    const healUid = String((verifiedTok && verifiedTok.uid) || fallbackUserId || '').trim();
                     const isDeleted = (healNameLow && deletedMap[healNameLow]) ||
                                       (fallbackEmail && deletedMap[fallbackEmail]) ||
                                       (healUid && deletedMap[healUid.toLowerCase()]);
                     if (!isDeleted && healName && healNameLow !== 'guest' && healNameLow !== 'musisi') {
-                        const isMasterHeal = (fallbackEmail === 'jrnabil570@gmail.com');
+                        const isMasterHeal = (fallbackEmail === 'jrnabil570@gmail.com' && healUid === '8589478687');
                         const resolvedId = isMasterHeal
                             ? '8589478687'
                             : (/^\d{10}$/.test(healUid) ? healUid : deriveDeterministic10DigitId(healName));
@@ -2738,7 +2764,7 @@ module.exports = async (req, res) => {
             }
 
             if (user) {
-                if (!targetUserId && (verifiedTok || token || fallbackUserId || fallbackEmail)) {
+                if (!targetUserId && hasValidAuthToken) {
                     targetUserId = user.id;
                 }
                 // Check if user has an expired trial custom ID
@@ -2798,12 +2824,40 @@ module.exports = async (req, res) => {
                                 }
                             }
                         } catch (e) {}
+                    } else if (user.vipSource === 'point_exchange') {
+                        try {
+                            const refCfg = referralsApi.readReferralConfigSync();
+                            const pkgs = (refCfg && Array.isArray(refCfg.pointExchangePackages)) ? refCfg.pointExchangePackages : [];
+                            const matchedPkg = pkgs.find(p => String(p.id) === String(user.pointExchangePackageId))
+                                || (user.redeemedPackages && user.redeemedPackages.length > 0
+                                    ? pkgs.find(p => String(p.id) === String(user.redeemedPackages[user.redeemedPackages.length - 1].packageId))
+                                    : null)
+                                || pkgs[0];
+                            if (matchedPkg && matchedPkg.allowedFeatures) {
+                                user.trialAllowedFeatures = Object.assign({}, matchedPkg.allowedFeatures);
+                                if (user.trialAllowedFeatures.customId === false && user.customId) {
+                                    user.id = user.originalId || user.id;
+                                    user.customId = null;
+                                    user.customIdExpiresAt = null;
+                                    user.isCustomIdTrial = false;
+                                }
+                                if (user.trialAllowedFeatures.nameGlow === false && user.nameGlow) {
+                                    user.nameGlow = '';
+                                }
+                                if (user.trialAllowedFeatures.vipSultanBadge === false && user.equippedBadge === 'badge_vip_sultan') {
+                                    user.equippedBadge = '';
+                                    user.equippedBadgeTitle = '';
+                                    user.equippedBadgeIcon = '';
+                                    user.equippedBadgeColor = '';
+                                }
+                            }
+                        } catch (e) {}
                     }
 
                     const vipInfo = resolveUserVipStatus(user);
                     const isMasterAdmin = ((user.rawEmail || user.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com');
 
-                    if ((!isMasterAdmin && !vipInfo.isPremium) || (user.isVipTrial && user.trialAllowedFeatures && user.trialAllowedFeatures.nameGlow === false)) {
+                    if ((!isMasterAdmin && !vipInfo.isPremium) || ((user.isVipTrial || user.vipSource === 'point_exchange') && user.trialAllowedFeatures && user.trialAllowedFeatures.nameGlow === false)) {
                         if (user.nameGlow) {
                             user.nameGlow = '';
                             await writeDbAsync(db);
@@ -2847,6 +2901,7 @@ module.exports = async (req, res) => {
                             vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
                             vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
                             vipSource: user.vipSource || 'standard',
+                            pointExchangePackageId: user.pointExchangePackageId || null,
                             isVipTrial: Boolean(user.isVipTrial && vipInfo.isPremium),
                             hasClaimedVipTrial: Boolean(user.hasClaimedVipTrial),
                             trialClaimedAt: user.trialClaimedAt || null,
@@ -3696,6 +3751,9 @@ module.exports = async (req, res) => {
                 if (!newUsername || newUsername.length < 3) {
                     return res.status(400).json({ status: false, message: 'Username minimal 3 karakter' });
                 }
+                if (!isMasterAdmin && (newUsername.toLowerCase() === 'musifystar' || newUsername.toLowerCase() === 'musifystar official')) {
+                    return res.status(403).json({ status: false, message: 'Username ini dikhususkan untuk Administrator Utama MusifyStar.' });
+                }
                 const exists = db.users.find(u => u.id !== user.id && u.username.toLowerCase() === newUsername.toLowerCase());
                 if (exists) {
                     return res.status(400).json({ status: false, message: 'Username sudah digunakan orang lain' });
@@ -3709,6 +3767,9 @@ module.exports = async (req, res) => {
                 if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
                     return res.status(400).json({ status: false, message: 'Format email tidak valid' });
                 }
+                if (!isMasterAdmin && newEmail === 'jrnabil570@gmail.com') {
+                    return res.status(403).json({ status: false, message: 'Email ini dikhususkan untuk Administrator Utama MusifyStar.' });
+                }
                 const exists = db.users.find(u => u.id !== user.id && ((u.rawEmail && u.rawEmail.toLowerCase() === newEmail.toLowerCase()) || (u.email && u.email.toLowerCase() === newEmail.toLowerCase())));
                 if (exists) {
                     return res.status(400).json({ status: false, message: 'Email sudah digunakan akun lain' });
@@ -3717,9 +3778,17 @@ module.exports = async (req, res) => {
                 user.rawEmail = newEmail;
             }
 
-            // Update avatar if provided
+            // Update avatar if provided (proteksi katalog Avatar VIP)
             if (body.avatar !== undefined) {
-                user.avatar = body.avatar;
+                const reqAvatar = String(body.avatar || '').trim();
+                const isVipCatalogAvatar = reqAvatar.includes('/avatars/vip') || reqAvatar.includes('id=avatar_vip') || reqAvatar.includes('vip_');
+                if (isVipCatalogAvatar && !isUserVip && !isMasterAdmin) {
+                    return res.status(403).json({ status: false, message: 'Katalog Avatar VIP khusus untuk Member VIP MusifyStar!' });
+                }
+                if (isVipCatalogAvatar && (user.isVipTrial || user.vipSource === 'point_exchange') && user.trialAllowedFeatures && user.trialAllowedFeatures.vipAvatar === false) {
+                    return res.status(403).json({ status: false, message: 'Fitur Katalog Avatar VIP dikunci oleh Admin pada paket Anda!' });
+                }
+                user.avatar = reqAvatar;
             }
 
             // Update border if provided
@@ -3769,14 +3838,24 @@ module.exports = async (req, res) => {
                     if (user.isVipTrial) {
                         const trialAccess = String(user.trialBorderAccess || 'platinum').toLowerCase();
                         const bNameLow = String(borderMap[borderId].name || '').toLowerCase();
-                        const isPlat = borderId === 'border_platinum' || bNameLow.includes('platinum');
-                        const isMast = borderId === 'border_master' || bNameLow.includes('master');
-                        const isLeg = borderId === 'border_legend' || bNameLow.includes('legend');
+                        const bCatLow = String(borderMap[borderId].category || '').toLowerCase();
+                        const bReqLow = String(borderMap[borderId].reqTier || '').toLowerCase();
+                        const isPlat = borderId === 'border_platinum' || bCatLow === 'platinum' || bNameLow.includes('platinum');
+                        const isMast = borderId === 'border_master' || bCatLow === 'master' || bNameLow.includes('master');
+                        const isLeg = borderId === 'border_legend' || bCatLow === 'legend' || bNameLow.includes('legend');
+                        const isImm = borderId === 'border_immortal' || borderId.includes('immortal') || borderId.includes('imortal') || bCatLow === 'immortal' || bNameLow.includes('immortal');
+                        const isPerm = borderId === 'border_permanent' || bCatLow === 'permanent' || bNameLow.includes('permanen') || bReqLow === 'permanent';
                         let trialAllowed = false;
                         if (trialAccess === 'all') trialAllowed = true;
                         else if (trialAccess === 'platinum') trialAllowed = isPlat;
+                        else if (trialAccess === 'master') trialAllowed = isMast;
+                        else if (trialAccess === 'legend') trialAllowed = isLeg;
+                        else if (trialAccess === 'immortal') trialAllowed = isImm;
+                        else if (trialAccess === 'permanent') trialAllowed = isPerm;
                         else if (trialAccess === 'platinum_master') trialAllowed = isPlat || isMast;
                         else if (trialAccess === 'platinum_master_legend') trialAllowed = isPlat || isMast || isLeg;
+                        else if (trialAccess === 'platinum_master_legend_immortal') trialAllowed = isPlat || isMast || isLeg || isImm;
+                        else if (trialAccess === 'platinum_master_legend_immortal_permanent') trialAllowed = isPlat || isMast || isLeg || isImm || isPerm;
                         if (!trialAllowed) {
                             return res.status(403).json({
                                 status: false,
@@ -3784,16 +3863,18 @@ module.exports = async (req, res) => {
                             });
                         }
                     } else if (!isMasterAdmin) {
-                        if (user.vipSource === 'referral' && user.referralBorderRestricted) {
+                        if ((user.vipSource === 'referral' || user.vipSource === 'point_exchange') && user.referralBorderRestricted) {
                             const refAllowed = referralsApi.canReferralVipEquipBorder(user, {
                                 id: borderId,
                                 name: borderMap[borderId].name,
+                                category: borderMap[borderId].category,
+                                requiredTier: borderMap[borderId].reqTier,
                                 isVip: true
                             });
                             if (!refAllowed) {
                                 return res.status(403).json({
                                     status: false,
-                                    message: `Border ${borderMap[borderId].name} dikunci oleh Admin untuk paket VIP Referral! Upgrade paket VIP reguler untuk membuka semua border.`
+                                    message: `Border ${borderMap[borderId].name} dikunci oleh Admin untuk paket VIP ${user.vipSource === 'point_exchange' ? 'Penukaran Poin' : 'Referral'} Anda! Upgrade paket VIP reguler untuk membuka semua border.`
                                 });
                             }
                         } else {
@@ -3817,12 +3898,18 @@ module.exports = async (req, res) => {
             // Update equipped custom rank badge if provided
             if (body.equippedBadge !== undefined) {
                 const reqBadge = String(body.equippedBadge || '').trim();
-                if (reqBadge === 'badge_vip_sultan' && user.isVipTrial) {
+                if (reqBadge === 'badge_vip_sultan' && !isUserVip && !isMasterAdmin) {
+                    return res.status(403).json({
+                        status: false,
+                        message: 'Lencana VIP Sultan Member khusus untuk Member VIP MusifyStar!'
+                    });
+                }
+                if (reqBadge === 'badge_vip_sultan' && (user.isVipTrial || user.vipSource === 'point_exchange')) {
                     const tf = user.trialAllowedFeatures || {};
                     if (tf.vipSultanBadge === false) {
                         return res.status(403).json({
                             status: false,
-                            message: 'Lencana VIP Sultan Member dikunci oleh Admin selama masa Percobaan VIP (Trial)! Upgrade ke VIP Penuh untuk membuka lencana ini.'
+                            message: `Lencana VIP Sultan Member tidak dicentang / dikunci oleh Admin pada paket ${user.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Trial)'} Anda!`
                         });
                     }
                 }
@@ -3832,30 +3919,32 @@ module.exports = async (req, res) => {
                 user.equippedBadgeColor = String(body.equippedBadgeColor || '').trim();
             }
 
-            // Update VIP Name Glow effect if provided (wajib VIP aktif & patuhi centang Trial Admin tanpa bypass Donatur)
+            // Update VIP Name Glow effect if provided (wajib VIP aktif & patuhi centang Trial / Penukaran Poin Admin)
             if (body.nameGlow !== undefined) {
                 const rawGlow = String(body.nameGlow || '').trim().toLowerCase();
                 const validGlows = ['', 'none', 'liquid_glass', 'cyber_neon', 'royal_gold', 'crimson_flame', 'emerald_aurora', 'galaxy_amethyst', 'rainbow_prism', 'ice_diamond'];
                 if (rawGlow === '' || rawGlow === 'none') {
                     user.nameGlow = '';
                 } else if (validGlows.includes(rawGlow)) {
-                    if (user.isVipTrial) {
+                    if (user.isVipTrial || user.vipSource === 'point_exchange') {
                         let globalNameGlowAllowed = true;
-                        try {
-                            const paymentConfigApi = require('./payment-config.js');
-                            if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
-                                const payCfg = await paymentConfigApi.getPaymentConfig();
-                                if (payCfg && payCfg.vipTrialConfig && payCfg.vipTrialConfig.allowedFeatures && payCfg.vipTrialConfig.allowedFeatures.nameGlow === false) {
-                                    globalNameGlowAllowed = false;
+                        if (user.isVipTrial) {
+                            try {
+                                const paymentConfigApi = require('./payment-config.js');
+                                if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                                    const payCfg = await paymentConfigApi.getPaymentConfig();
+                                    if (payCfg && payCfg.vipTrialConfig && payCfg.vipTrialConfig.allowedFeatures && payCfg.vipTrialConfig.allowedFeatures.nameGlow === false) {
+                                        globalNameGlowAllowed = false;
+                                    }
                                 }
-                            }
-                        } catch (e) {}
+                            } catch (e) {}
+                        }
                         const tf = user.trialAllowedFeatures || {};
                         if (tf.nameGlow === false || !globalNameGlowAllowed) {
                             user.nameGlow = '';
                             return res.status(403).json({
                                 status: false,
-                                message: 'Fitur Efek Nama Berwarna dikunci oleh Admin pada masa Percobaan VIP (Trial)! Upgrade ke VIP Penuh untuk menggunakan efek nama ini.'
+                                message: `Fitur Efek Nama Berwarna tidak dicentang / dikunci oleh Admin pada paket ${user.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Trial)'} Anda!`
                             });
                         }
                     }
@@ -3870,21 +3959,47 @@ module.exports = async (req, res) => {
                 }
             }
 
-            // Update app settings if provided (e.g. homeTheme, navTheme, etc.)
+            // Update app settings if provided (proteksi ketat server-side untuk non-VIP & Trial/Point Exchange)
             if (body.settings !== undefined && typeof body.settings === 'object') {
-                user.settings = Object.assign({}, user.settings || {}, body.settings);
+                const nextSettings = Object.assign({}, user.settings || {}, body.settings);
+                if (!isUserVip && !isMasterAdmin) {
+                    nextSettings.liquidGlassIos27 = false;
+                    nextSettings.liquidGlassIos26 = false;
+                    nextSettings.dynamicIsland = false;
+                    if (nextSettings.audioQuality === 'high') nextSettings.audioQuality = 'standard';
+                    nextSettings.backgroundPlay = false;
+                    nextSettings.keepScreenAwake = false;
+                    nextSettings.swipeGestures = false;
+                } else if ((user.isVipTrial || user.vipSource === 'point_exchange') && user.trialAllowedFeatures) {
+                    const tf = user.trialAllowedFeatures;
+                    if (tf.liquidGlassIos27 === false) {
+                        nextSettings.liquidGlassIos27 = false;
+                        nextSettings.liquidGlassIos26 = false;
+                    }
+                    if (tf.dynamicIsland === false) nextSettings.dynamicIsland = false;
+                    if (tf.highAudio === false && nextSettings.audioQuality === 'high') nextSettings.audioQuality = 'standard';
+                    if (tf.backgroundPlay === false) nextSettings.backgroundPlay = false;
+                    if (tf.keepScreenAwake === false) nextSettings.keepScreenAwake = false;
+                    if (tf.swipeGestures === false) nextSettings.swipeGestures = false;
+                    if (tf.homeTheme === false) nextSettings.homeTheme = 'classic';
+                    if (tf.navTheme === false) nextSettings.navTheme = 'classic';
+                }
+                user.settings = nextSettings;
             }
 
             db.users[userIndex] = user;
             await writeDbAsync(db);
 
             isUserVip = !!user.isPremium || !!user.is_premium || isMasterAdmin;
+            const updatedVipSig = Security.generateVipSignature(user.id, isMasterAdmin ? 'permanent' : vipInfo.vipTier, isMasterAdmin ? null : vipInfo.vipExpiresAt);
 
             return res.json({
                 status: true,
                 message: 'Profil berhasil diperbarui!',
                 user: {
                     id: user.id,
+                    originalId: user.originalId || user.id,
+                    customId: user.customId || null,
                     username: user.username,
                     email: user.rawEmail || user.email,
                     avatar: user.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.username)}`,
@@ -3896,10 +4011,12 @@ module.exports = async (req, res) => {
                     equippedBadgeIcon: user.equippedBadgeIcon || '',
                     equippedBadgeColor: user.equippedBadgeColor || '',
                     nameGlow: user.nameGlow || '',
-                    isPremium: vipInfo.isPremium,
-                    vipTier: vipInfo.vipTier,
-                    vipExpiresAt: vipInfo.vipExpiresAt,
+                    isPremium: isMasterAdmin || vipInfo.isPremium,
+                    vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
+                    vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
+                    vipSignature: updatedVipSig,
                     vipSource: user.vipSource || 'standard',
+                    pointExchangePackageId: user.pointExchangePackageId || null,
                     isVipTrial: Boolean(user.isVipTrial && vipInfo.isPremium),
                     hasClaimedVipTrial: Boolean(user.hasClaimedVipTrial),
                     trialClaimedAt: user.trialClaimedAt || null,
@@ -3938,7 +4055,10 @@ module.exports = async (req, res) => {
             const oldPassword = String(body.oldPassword || '').trim();
             const newPassword = String(body.newPassword || '').trim();
 
-            if (oldPassword) {
+            if (user.passwordHash) {
+                if (!oldPassword) {
+                    return res.status(400).json({ status: false, message: 'Masukkan password saat ini untuk verifikasi keamanan.' });
+                }
                 const isMatch = verifyPassword(oldPassword, user.passwordHash, user.passwordSalt);
                 if (!isMatch) {
                     return res.status(400).json({ status: false, message: 'Password saat ini salah' });
@@ -3974,7 +4094,6 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ status: false, message: 'Password baru minimal 6 karakter/huruf' });
             }
 
-            // 1. Cari kecocokan persis berdasarkan Username atau Email terlebih dahulu (agar antar akun seperti MusifyStar & abil tidak pernah saling menimpa password)
             let user = (db.users || []).find(u => {
                 if (!u) return false;
                 const uName = String(u.username || '').trim().toLowerCase();
@@ -3983,17 +4102,18 @@ module.exports = async (req, res) => {
                 return uName === rawIdentifier || uEmail === rawIdentifier || uMasked === rawIdentifier;
             });
 
-            // 2. Fallback khusus jika mengetik "musifystar official" untuk akun utama
-            if (!user && (rawIdentifier === 'musifystar' || rawIdentifier === 'musifystar official')) {
-                user = (db.users || []).find(u => {
-                    if (!u) return false;
-                    const uEmail = String(u.rawEmail || u.email || '').trim().toLowerCase();
-                    return uEmail === 'jrnabil570@gmail.com';
-                });
-            }
-
             if (!user) {
                 return res.status(404).json({ status: false, message: 'Akun dengan email/username tersebut tidak ditemukan' });
+            }
+
+            // Proteksi Akun Master Admin dari reset password tanpa otorisasi Admin Token
+            const targetIsMaster = String(user.rawEmail || user.email || '').trim().toLowerCase() === 'jrnabil570@gmail.com';
+            const adminTok = req.headers['x-admin-token'] || body.adminToken || '';
+            if (targetIsMaster && !adminAuth.verifySessionToken(adminTok)) {
+                return res.status(403).json({
+                    status: false,
+                    message: 'Akun Administrator Utama dilindungi sistem keamanan tingkat tinggi dan tidak dapat direset tanpa otorisasi Admin.'
+                });
             }
 
             const { hash, salt } = hashPassword(newPassword);
@@ -4291,25 +4411,27 @@ module.exports = async (req, res) => {
                 return res.status(403).json({ status: false, message: 'Fitur Custom ID khusus untuk Member VIP MusifyStar.' });
             }
 
-            // Cek apakah pengguna sedang dalam masa Percobaan VIP (isVipTrial) dan fitur Custom ID tidak dicentang Admin
-            if (user.isVipTrial) {
+            // Cek apakah pengguna sedang dalam masa Percobaan VIP (isVipTrial) atau VIP Penukaran Poin (point_exchange) dan fitur Custom ID tidak dicentang Admin
+            if (user.isVipTrial || user.vipSource === 'point_exchange') {
                 let isCustomIdAllowedInTrial = true;
-                try {
-                    const paymentConfigApi = require('./payment-config.js');
-                    if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
-                        const payCfg = await paymentConfigApi.getPaymentConfig();
-                        if (payCfg && payCfg.vipTrialConfig && payCfg.vipTrialConfig.allowedFeatures) {
-                            user.trialAllowedFeatures = Object.assign({}, payCfg.vipTrialConfig.allowedFeatures);
+                if (user.isVipTrial) {
+                    try {
+                        const paymentConfigApi = require('./payment-config.js');
+                        if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
+                            const payCfg = await paymentConfigApi.getPaymentConfig();
+                            if (payCfg && payCfg.vipTrialConfig && payCfg.vipTrialConfig.allowedFeatures) {
+                                user.trialAllowedFeatures = Object.assign({}, payCfg.vipTrialConfig.allowedFeatures);
+                            }
                         }
-                    }
-                } catch (e) {}
+                    } catch (e) {}
+                }
                 if (user.trialAllowedFeatures && user.trialAllowedFeatures.customId === false) {
                     isCustomIdAllowedInTrial = false;
                 }
                 if (!isCustomIdAllowedInTrial) {
                     return res.status(403).json({
                         status: false,
-                        message: 'Fitur Custom ID VIP dikunci oleh Admin selama masa Percobaan VIP (Free Trial)! Upgrade ke VIP Penuh untuk menggunakan Custom ID.'
+                        message: `Fitur Custom ID VIP tidak dicentang / dikunci oleh Admin pada paket ${user.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Free Trial)'} Anda! Upgrade ke VIP Penuh untuk menggunakan Custom ID.`
                     });
                 }
             }
@@ -4424,9 +4546,6 @@ module.exports = async (req, res) => {
             if (!user && verified) {
                 user = db.users.find(u => u && ((u.id && String(u.id) === String(verified.uid)) || (u.originalId && String(u.originalId) === String(verified.uid)) || (verified.u && (u.username || '').toLowerCase() === String(verified.u).toLowerCase())));
             }
-            if (!user && body.userId) {
-                user = db.users.find(u => u && (String(u.id) === String(body.userId) || String(u.originalId) === String(body.userId)));
-            }
             if (!user) {
                 return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu untuk mengklaim Percobaan VIP.' });
             }
@@ -4484,7 +4603,9 @@ module.exports = async (req, res) => {
             const expiresAt = Date.now() + (durationDays * 24 * 3600 * 1000);
 
             user.isPremium = true;
-            user.vipTier = borderAccess === 'all' ? 'permanent' : (borderAccess === 'platinum_master_legend' ? '2months' : '1month');
+            user.vipTier = (borderAccess === 'all' || borderAccess === 'permanent' || borderAccess === 'immortal' || borderAccess.includes('immortal') || borderAccess.includes('permanent'))
+                ? 'permanent'
+                : (borderAccess.includes('legend') ? '2months' : '1month');
             user.vipGrantedAt = Date.now();
             user.vipExpiresAt = expiresAt;
             user.vipSource = 'trial';
@@ -4508,8 +4629,24 @@ module.exports = async (req, res) => {
                 user.nameGlow = '';
             }
 
-            // Pasang Border Platinum otomatis jika user belum punya border dan akses border diizinkan
-            if (!user.border && borderAccess !== 'none') {
+            // Pasang Border default sesuai pilihan akses border Admin jika user belum punya border
+            if (borderAccess === 'none') {
+                user.border = '';
+                user.borderUrl = '';
+                user.borderName = '';
+            } else if (borderAccess === 'master') {
+                user.border = 'border_master';
+                user.borderUrl = '/api/borders?action=image&id=border_master';
+                user.borderName = 'Master';
+            } else if (borderAccess === 'legend') {
+                user.border = 'border_legend';
+                user.borderUrl = '/api/borders?action=image&id=border_legend';
+                user.borderName = 'Legend';
+            } else if (borderAccess === 'immortal' || borderAccess === 'permanent') {
+                user.border = 'border_immortal';
+                user.borderUrl = '/api/borders?action=image&id=border_immortal';
+                user.borderName = borderAccess === 'permanent' ? 'Permanen' : 'Immortal';
+            } else if (!user.border) {
                 user.border = 'border_platinum';
                 user.borderUrl = '/api/borders?action=image&id=border_platinum';
                 user.borderName = 'Platinum';
@@ -4519,11 +4656,19 @@ module.exports = async (req, res) => {
 
             const borderLabelMap = {
                 'platinum': 'Border Platinum',
-                'platinum_master': 'Border Platinum & Master',
-                'platinum_master_legend': 'Border Platinum, Master & Legend',
-                'all': 'Semua Border VIP',
-                'none': 'Fitur VIP (Tanpa Border)'
+                'master': 'Border Master',
+                'legend': 'Border Legend',
+                'immortal': 'Border Immortal',
+                'permanent': 'Border Permanen',
+                'platinum_master': 'Border Platinum / Master',
+                'platinum_master_legend': 'Border Platinum / Master / Legend',
+                'platinum_master_legend_immortal': 'Border Platinum / Master / Legend / Immortal',
+                'platinum_master_legend_immortal_permanent': 'Border Platinum / Master / Legend / Immortal / Permanen',
+                'all': 'Semua Border Permanen / Immortal',
+                'none': 'Tanpa Border'
             };
+
+            const trialVipSig = Security.generateVipSignature(user.id, user.vipTier, user.vipExpiresAt);
 
             return res.json({
                 status: true,
@@ -4536,6 +4681,7 @@ module.exports = async (req, res) => {
                     isPremium: true,
                     vipTier: user.vipTier,
                     vipExpiresAt: user.vipExpiresAt,
+                    vipSignature: trialVipSig,
                     vipSource: 'trial',
                     isVipTrial: true,
                     hasClaimedVipTrial: true,
