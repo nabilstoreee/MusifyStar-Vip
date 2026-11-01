@@ -2783,7 +2783,7 @@ var Auth = {
                             <div class="w-8 h-8 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 mb-1">
                                 <i data-lucide="lock" class="w-4 h-4"></i>
                             </div>
-                            <span class="text-[9px] font-bold text-red-300 text-center px-1">${u.isVipTrial ? 'Dikunci Admin (Trial)' : 'Khusus VIP'}</span>
+                            <span class="text-[9px] font-bold text-red-300 text-center px-1">${(u.isVipTrial || u.vipSource === 'point_exchange') ? 'Dikunci Admin' : 'Khusus VIP'}</span>
                         </div>
                     ` : ''}
 
@@ -2813,8 +2813,8 @@ var Auth = {
             : isUserPremium;
 
         if (isPremium && !isVipAvatarAllowed) {
-            if (u.isVipTrial) {
-                showToast('🔒 Katalog Avatar VIP dikunci oleh Admin selama masa Percobaan VIP (Free Trial)! Upgrade ke VIP Penuh untuk memakai avatar ini.');
+            if (u.isVipTrial || u.vipSource === 'point_exchange') {
+                showToast('🔒 Katalog Avatar VIP tidak dicentang / dikunci oleh Admin pada paket ' + (u.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Trial)') + ' Anda! Upgrade ke VIP Penuh untuk memakai avatar ini.');
             } else {
                 showToast('Avatar ini terkunci khusus pengguna Premium / VIP!');
             }
@@ -3532,9 +3532,9 @@ var Auth = {
             return;
         }
 
-        if (u.isVipTrial && typeof Profile !== 'undefined' && typeof Profile.isVipFeatureAllowed === 'function' && !Profile.isVipFeatureAllowed('customId')) {
+        if ((u.isVipTrial || u.vipSource === 'point_exchange') && typeof Profile !== 'undefined' && typeof Profile.isVipFeatureAllowed === 'function' && !Profile.isVipFeatureAllowed('customId')) {
             if (typeof showToast === 'function') {
-                showToast('🔒 Fitur Custom ID VIP tidak dibuka oleh Admin selama masa Percobaan VIP (Free Trial)! Upgrade ke VIP Penuh untuk menggunakan Custom ID.');
+                showToast('🔒 Fitur Custom ID VIP tidak dicentang / dikunci oleh Admin pada paket ' + (u.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Free Trial)') + ' Anda! Upgrade ke VIP Penuh untuk menggunakan Custom ID.');
             }
             if (typeof Profile !== 'undefined' && Profile.openVipPackagesModal) {
                 Profile.openVipPackagesModal();
@@ -3937,9 +3937,9 @@ var Auth = {
                 color: '#facc15',
                 reqHours: 0,
                 reqLabel: 'VIP Active',
-                specialReq: u.isVipTrial ? 'Dikunci Admin (Khusus VIP Penuh)' : 'Memerlukan Akun VIP Aktif',
+                specialReq: (u.isVipTrial || u.vipSource === 'point_exchange') ? 'Dikunci Admin (Khusus VIP Penuh)' : 'Memerlukan Akun VIP Aktif',
                 desc: 'Lencana Mahkota Emas Sultan khusus Pengguna VIP.',
-                unlocked: isUserVip && (!u.isVipTrial || (typeof Profile === 'undefined' || !Profile.isVipFeatureAllowed || Profile.isVipFeatureAllowed('vipSultanBadge')))
+                unlocked: isUserVip && ((!u.isVipTrial && u.vipSource !== 'point_exchange') || (typeof Profile === 'undefined' || !Profile.isVipFeatureAllowed || Profile.isVipFeatureAllowed('vipSultanBadge')))
             },
             {
                 id: 'badge_top_champion',
@@ -4399,6 +4399,9 @@ var Auth = {
                 try { localStorage.removeItem('musifystar_active_ban'); } catch(e) {}
                 Auth.token = data.token;
                 Auth.currentUser = data.user;
+                if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                    window.Security.registerServerUser(data.user);
+                }
                 if (remember) {
                     localStorage.setItem('musifystar_auth_token', data.token);
                     localStorage.setItem('musifystar_auth_user', JSON.stringify(data.user));
@@ -4490,11 +4493,14 @@ var Auth = {
             return { unlocked: true, lockBadge: '', toast: '' };
         }
         u = u || Auth.currentUser || {};
-        var myEmail = String(u.email || u.rawEmail || '').toLowerCase().trim();
-        var isMasterAdmin = (myEmail === 'jrnabil570@gmail.com');
+        var isMasterAdmin = (window.Security && typeof window.Security.isVerifiedMaster === 'function')
+            ? window.Security.isVerifiedMaster(u)
+            : (String(u.email || u.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com' && Boolean(u.vipSignature));
         var isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
         var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
-        var isUserVip = isMasterAdmin || (((Boolean(u.isPremium || u.is_premium || isTierActive)) && u.vipTier !== 'none' && !isVipExpired));
+        var isUserVip = (window.Security && typeof window.Security.isVerifiedVip === 'function')
+            ? window.Security.isVerifiedVip(u)
+            : (isMasterAdmin || (((Boolean(u.isPremium || u.is_premium || isTierActive)) && u.vipTier !== 'none' && !isVipExpired && Boolean(u.vipSignature))));
         if (!isUserVip) {
             return {
                 unlocked: false,
@@ -4523,13 +4529,22 @@ var Auth = {
             var tbId = String(b.id || '').toLowerCase().trim();
             var tbName = String(b.name || '').toLowerCase().trim();
             var tbCat = String(b.category || '').toLowerCase().trim();
+            var tbReq = String(b.requiredTier || '').toLowerCase().trim();
             var isPlat = (tbId === 'border_platinum' || tbCat === 'platinum' || tbName.indexOf('platinum') !== -1);
             var isMast = (tbId === 'border_master' || tbCat === 'master' || tbName.indexOf('master') !== -1);
             var isLeg = (tbId === 'border_legend' || tbCat === 'legend' || tbName.indexOf('legend') !== -1);
+            var isImm = (tbId === 'border_immortal' || tbId.indexOf('immortal') !== -1 || tbId.indexOf('imortal') !== -1 || tbCat === 'immortal' || tbName.indexOf('immortal') !== -1);
+            var isPerm = (tbId === 'border_permanent' || tbCat === 'permanent' || tbName.indexOf('permanen') !== -1 || tbReq === 'permanent');
             var allowedByTrial = false;
             if (trialAccess === 'platinum') allowedByTrial = isPlat;
+            else if (trialAccess === 'master') allowedByTrial = isMast;
+            else if (trialAccess === 'legend') allowedByTrial = isLeg;
+            else if (trialAccess === 'immortal') allowedByTrial = isImm;
+            else if (trialAccess === 'permanent') allowedByTrial = isPerm;
             else if (trialAccess === 'platinum_master') allowedByTrial = isPlat || isMast;
             else if (trialAccess === 'platinum_master_legend') allowedByTrial = isPlat || isMast || isLeg;
+            else if (trialAccess === 'platinum_master_legend_immortal') allowedByTrial = isPlat || isMast || isLeg || isImm;
+            else if (trialAccess === 'platinum_master_legend_immortal_permanent') allowedByTrial = isPlat || isMast || isLeg || isImm || isPerm;
             if (allowedByTrial) {
                 return { unlocked: true, lockBadge: '', toast: '' };
             }
@@ -4540,15 +4555,16 @@ var Auth = {
             };
         }
 
-        if (isMasterAdmin) {
+        if (isMasterAdmin && !u.referralBorderRestricted && u.vipSource !== 'point_exchange') {
             return { unlocked: true, lockBadge: '', toast: '' };
         }
 
-        // Jika VIP berasal dari Referral dan dibatasi aturan Border Profil oleh Admin
+        // Jika VIP berasal dari Referral atau Penukaran Poin dan dibatasi aturan Border Profil oleh Admin
         if (u.referralBorderRestricted) {
             var bId = String(b.id || '').toLowerCase().trim();
             var bName = String(b.name || '').toLowerCase().trim();
             var bCat = String(b.category || '').toLowerCase().trim();
+            var bReqTier = String(b.requiredTier || '').toLowerCase().trim();
 
             if (u.border && String(u.border).toLowerCase().trim() === bId) {
                 return { unlocked: true, lockBadge: '', toast: '' };
@@ -4558,8 +4574,20 @@ var Auth = {
             for (var i = 0; i < allowedList.length; i++) {
                 var rule = String(allowedList[i] || '').toLowerCase().trim();
                 if (!rule || rule === 'none') continue;
-                if (rule === 'all' || rule === 'semua' || rule === 'bebas' || rule === 'permanent' || rule === 'tier:permanent' || rule === 'tier:5months') {
+                if (rule === 'all' || rule === 'semua' || rule === 'bebas' || rule === 'tier:permanent' || rule === 'tier:5months') {
                     return { unlocked: true, lockBadge: '', toast: '' };
+                }
+                if (rule === 'border_permanent' || rule === 'permanent' || rule === 'permanen') {
+                    if (bId === 'border_permanent' || bCat === 'permanent' || bName.indexOf('permanen') !== -1 || bReqTier === 'permanent') {
+                        return { unlocked: true, lockBadge: '', toast: '' };
+                    }
+                    continue;
+                }
+                if (rule === 'border_immortal' || rule === 'immortal' || rule === 'imortal') {
+                    if (bId === 'border_immortal' || bId.indexOf('immortal') !== -1 || bId.indexOf('imortal') !== -1 || bCat === 'immortal' || bName.indexOf('immortal') !== -1) {
+                        return { unlocked: true, lockBadge: '', toast: '' };
+                    }
+                    continue;
                 }
                 if (rule.indexOf('tier:') === 0) {
                     var allowedTier = rule.replace('tier:', '');
@@ -4575,7 +4603,7 @@ var Auth = {
             return {
                 unlocked: false,
                 lockBadge: 'Diatur Admin',
-                toast: `Akses Border ${b.name} pada VIP Referral diatur oleh Admin. Upgrade paket VIP reguler untuk membuka border ini!`
+                toast: `Akses Border ${b.name} pada paket VIP ${u.vipSource === 'point_exchange' ? 'Penukaran Poin' : 'Referral'} Anda diatur oleh Admin. Upgrade paket VIP reguler untuk membuka border ini!`
             };
         }
 
@@ -4637,6 +4665,9 @@ var Auth = {
                 try { localStorage.removeItem('musifystar_pending_ref'); } catch(e) {}
                 Auth.token = data.token;
                 Auth.currentUser = data.user;
+                if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                    window.Security.registerServerUser(data.user);
+                }
                 localStorage.setItem('musifystar_auth_token', data.token);
                 localStorage.setItem('musifystar_auth_user', JSON.stringify(data.user));
                 if (data.referralApplied) {
@@ -4802,6 +4833,9 @@ var Auth = {
                 try { localStorage.removeItem('musifystar_active_ban'); } catch(e) {}
                 Auth.token = data.token;
                 Auth.currentUser = data.user;
+                if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                    window.Security.registerServerUser(data.user);
+                }
                 localStorage.setItem('musifystar_auth_token', data.token);
                 localStorage.setItem('musifystar_auth_user', JSON.stringify(data.user));
                 sessionStorage.removeItem('musifystar_auth_token');
@@ -5140,8 +5174,8 @@ var Auth = {
     canUserUseNameGlow(user) {
         var u = user || Auth.currentUser;
         if (!u) return false;
-        // Jika pengguna sedang dalam masa Percobaan VIP (Trial), wajib patuhi centang Admin tanpa pengecualian!
-        if (u.isVipTrial) {
+        // Jika pengguna sedang dalam masa Percobaan VIP (Trial) atau Penukaran Poin VIP, wajib patuhi centang Admin!
+        if (u.isVipTrial || u.vipSource === 'point_exchange') {
             if (u.trialAllowedFeatures && u.trialAllowedFeatures.nameGlow === false) {
                 return false;
             }
@@ -5212,7 +5246,7 @@ var Auth = {
                     </div>
                     ${!canEquip ? `
                     <div class="mt-2.5 p-2.5 rounded-xl bg-rose-500/15 border border-rose-400/35 flex items-center justify-between gap-2 text-[10.5px]">
-                        <span class="text-rose-200/95 leading-snug">${u.isVipTrial ? '🔒 Fitur <strong>Efek Nama Berwarna</strong> tidak dicentang / dikunci oleh Admin selama masa Percobaan VIP (Free Trial). Upgrade ke VIP Penuh untuk memakai fitur ini!' : '🔒 Fitur eksklusif khusus <strong>Member VIP MusifyStar</strong>. Akun non-VIP tidak dapat memakai Efek Nama Berwarna.'}</span>
+                        <span class="text-rose-200/95 leading-snug">${(u.isVipTrial || u.vipSource === 'point_exchange') ? '🔒 Fitur <strong>Efek Nama Berwarna</strong> tidak dicentang / dikunci oleh Admin pada paket ' + (u.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Free Trial)') + ' Anda. Upgrade ke VIP Penuh untuk memakai fitur ini!' : '🔒 Fitur eksklusif khusus <strong>Member VIP MusifyStar</strong>. Akun non-VIP tidak dapat memakai Efek Nama Berwarna.'}</span>
                         <button type="button" onclick="gid('name-glow-picker-modal')?.remove(); if(typeof Profile !== 'undefined') Profile.openVipPackagesModal();" class="px-2.5 py-1 rounded-lg bg-amber-400 text-black font-black text-[10px] shrink-0 cursor-pointer active:scale-95">Buka VIP</button>
                     </div>
                     ` : ''}
@@ -5266,8 +5300,8 @@ var Auth = {
         var cleanGlow = String(glowId || '').trim().toLowerCase();
         if (cleanGlow !== 'none' && cleanGlow !== '' && !Auth.canUserUseNameGlow(u)) {
             if (typeof showToast === 'function') {
-                if (u.isVipTrial) {
-                    showToast('🔒 Fitur Efek Nama Berwarna tidak dicentang / dikunci oleh Admin selama masa Percobaan VIP (Free Trial)! Upgrade ke VIP Penuh untuk membuka fitur ini.');
+                if (u.isVipTrial || u.vipSource === 'point_exchange') {
+                    showToast('🔒 Fitur Efek Nama Berwarna tidak dicentang / dikunci oleh Admin pada paket ' + (u.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Free Trial)') + ' Anda! Upgrade ke VIP Penuh untuk membuka fitur ini.');
                 } else {
                     showToast('🔒 Efek Nama Berwarna khusus untuk Member VIP MusifyStar! Silakan berlangganan VIP terlebih dahulu.');
                 }

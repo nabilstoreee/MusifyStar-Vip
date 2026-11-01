@@ -1209,15 +1209,11 @@ var Profile = {
                 gid('musifystar-confirm-dialog')?.remove();
                 gid('musifystar-qris-payment-modal')?.remove();
 
-                if (data.user && typeof Auth !== 'undefined' && Auth.currentUser) {
-                    Auth.currentUser.isPremium = true;
-                    Auth.currentUser.vipTier = data.user.vipTier || '1month';
-                    Auth.currentUser.isVipTrial = false;
-                    Auth.currentUser.hasUnpaidTrialInvoice = false;
-                    if (Auth.currentUser.pendingTrialInvoice) {
-                        Auth.currentUser.pendingTrialInvoice.status = 'paid';
+                if (data.isVipActive && data.user && data.user.isPremium && typeof Auth !== 'undefined' && Auth.currentUser) {
+                    Object.assign(Auth.currentUser, data.user);
+                    if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                        window.Security.registerServerUser(Auth.currentUser);
                     }
-                    if (data.user.vipExpiresAt) Auth.currentUser.vipExpiresAt = data.user.vipExpiresAt;
                     if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
                 }
 
@@ -1778,9 +1774,12 @@ var Profile = {
     isCurrentUserVip() {
         var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
         if (!u) return false;
+        if (window.Security && typeof window.Security.isVerifiedVip === 'function') {
+            return Boolean(window.Security.isVerifiedVip(u));
+        }
         var email = String(u.email || u.rawEmail || '').toLowerCase().trim();
-        if (email === 'jrnabil570@gmail.com') return true;
-        if (u.vipTier === 'none') return false;
+        if (email === 'jrnabil570@gmail.com' && u.vipSignature) return true;
+        if (!u.vipSignature || u.vipTier === 'none') return false;
         var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
         if (u.isPremium || u.is_premium || isTierActive) {
             if (u.vipExpiresAt && Date.now() > u.vipExpiresAt) return false;
@@ -1790,22 +1789,30 @@ var Profile = {
     },
 
     isVipFeatureAllowed(featureKey) {
-        if (!Profile.isCurrentUserVip()) return false;
+        var mappedKey = (featureKey === 'liquidGlassIos26') ? 'liquidGlassIos27' : featureKey;
         var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
+        if (mappedKey === 'homeTheme' || mappedKey === 'navTheme') {
+            if (u && (u.isVipTrial || u.vipSource === 'point_exchange') && u.trialAllowedFeatures && u.trialAllowedFeatures[mappedKey] === false) {
+                return false;
+            }
+            return true;
+        }
+        if (!Profile.isCurrentUserVip()) return false;
         if (!u) return false;
-        if (u.isVipTrial) {
-            var mappedKey = (featureKey === 'liquidGlassIos26') ? 'liquidGlassIos27' : featureKey;
-            var cfgFeatures = (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.vipTrialConfig && Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures)
-                ? Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures
-                : null;
+        if (u.isVipTrial || u.vipSource === 'point_exchange') {
             var userFeatures = (u.trialAllowedFeatures && typeof u.trialAllowedFeatures === 'object')
                 ? u.trialAllowedFeatures
                 : null;
             if (userFeatures && userFeatures[mappedKey] !== undefined) {
                 return Boolean(userFeatures[mappedKey]);
             }
-            if (cfgFeatures && cfgFeatures[mappedKey] !== undefined) {
-                return Boolean(cfgFeatures[mappedKey]);
+            if (u.isVipTrial) {
+                var cfgFeatures = (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.vipTrialConfig && Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures)
+                    ? Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures
+                    : null;
+                if (cfgFeatures && cfgFeatures[mappedKey] !== undefined) {
+                    return Boolean(cfgFeatures[mappedKey]);
+                }
             }
         }
         return true;
@@ -1872,6 +1879,8 @@ var Profile = {
         var canHighAudio = Profile.isVipFeatureAllowed('highAudio');
         var canDynamicIsland = Profile.isVipFeatureAllowed('dynamicIsland');
         var canLiquidGlass = Profile.isVipFeatureAllowed('liquidGlassIos27');
+        var canHomeTheme = Profile.isVipFeatureAllowed('homeTheme');
+        var canNavTheme = Profile.isVipFeatureAllowed('navTheme');
 
         // 1. Putar Otomatis (Autoplay)
         if (typeof S !== 'undefined') {
@@ -1915,8 +1924,8 @@ var Profile = {
             DynamicIsland.updateState();
         }
 
-        // 8. Bebas Semua Tema Home Screen (Classic, Playful, Neon, Spotify, Apple) - BEBAS SEMUA TEMA
-        var homeTheme = settings.homeTheme || 'classic';
+        // 8. Bebas Semua Tema Home Screen (Classic, Playful, Neon, Spotify, Apple)
+        var homeTheme = canHomeTheme ? (settings.homeTheme || 'classic') : 'classic';
         window._musifyHomeTheme = homeTheme;
         ['classic', 'playful', 'neon', 'spotify', 'apple'].forEach(function(th) {
             document.documentElement.classList.remove('theme-home-' + th);
@@ -1925,8 +1934,8 @@ var Profile = {
         document.documentElement.classList.add('theme-home-' + homeTheme);
         document.body.classList.add('theme-home-' + homeTheme);
 
-        // 9. Bebas Semua Tema Nav Bar (Classic, Liquid Glass, Spotify, Apple, Cyber Neon, Modern Capsule) - BEBAS SEMUA TEMA
-        var navTheme = settings.navTheme || 'classic';
+        // 9. Bebas Semua Tema Nav Bar (Classic, Liquid Glass, Spotify, Apple, Cyber Neon, Modern Capsule)
+        var navTheme = canNavTheme ? (settings.navTheme || 'classic') : 'classic';
         window._musifyNavTheme = navTheme;
         ['classic', 'liquid', 'spotify', 'apple', 'neon', 'newclassic'].forEach(function(th) {
             document.documentElement.classList.remove('theme-nav-' + th);
@@ -1949,6 +1958,13 @@ var Profile = {
     },
 
     changeHomeTheme(themeName, selectEl) {
+        if (themeName !== 'classic' && !Profile.isVipFeatureAllowed('homeTheme')) {
+            if (selectEl) selectEl.value = 'classic';
+            if (typeof showToast === 'function') {
+                showToast('🔒 Fitur Tema Home Screen tidak dicentang / dikunci oleh Admin pada paket VIP Anda!');
+            }
+            return;
+        }
         var s = Profile.getSettings();
         s.homeTheme = themeName;
         Profile.saveSettings(s);
@@ -1967,6 +1983,13 @@ var Profile = {
     },
 
     changeNavTheme(themeName, selectEl) {
+        if (themeName !== 'classic' && !Profile.isVipFeatureAllowed('navTheme')) {
+            if (selectEl) selectEl.value = 'classic';
+            if (typeof showToast === 'function') {
+                showToast('🔒 Fitur Tema Navigasi Bawah tidak dicentang / dikunci oleh Admin pada paket VIP Anda!');
+            }
+            return;
+        }
         var s = Profile.getSettings();
         s.navTheme = themeName;
         Profile.saveSettings(s);
@@ -1997,8 +2020,8 @@ var Profile = {
             };
             var curU = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
             if (typeof showToast === 'function') {
-                if (curU && curU.isVipTrial) {
-                    showToast(`🔒 Fitur "${featureNames[key]}" tidak dibuka oleh Admin selama masa Percobaan VIP (Trial). Upgrade ke VIP Penuh untuk menggunakan fitur ini!`);
+                if (curU && (curU.isVipTrial || curU.vipSource === 'point_exchange')) {
+                    showToast(`🔒 Fitur "${featureNames[key]}" tidak dicentang / dikunci oleh Admin pada paket ${curU.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Trial)'} Anda. Upgrade ke VIP Penuh untuk menggunakan fitur ini!`);
                 } else {
                     showToast(`Fitur "${featureNames[key]}" terkunci! Khusus member VIP (1 Bulan, 2 Bulan, 5 Bulan, atau Permanen).`);
                 }
@@ -2079,8 +2102,8 @@ var Profile = {
         if (newVal === 'high' && !Profile.isVipFeatureAllowed('highAudio')) {
             var curU = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
             if (typeof showToast === 'function') {
-                if (curU && curU.isVipTrial) {
-                    showToast('🔒 Audio Ultra HD (320 kbps) tidak dibuka oleh Admin selama masa Percobaan VIP (Trial). Upgrade ke VIP Penuh untuk membuka fitur ini!');
+                if (curU && (curU.isVipTrial || curU.vipSource === 'point_exchange')) {
+                    showToast('🔒 Audio Ultra HD (320 kbps) tidak dicentang / dikunci oleh Admin pada paket ' + (curU.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Trial)') + ' Anda. Upgrade ke VIP Penuh untuk membuka fitur ini!');
                 } else {
                     showToast('Kualitas Audio Tinggi HD (320 kbps) terkunci! Khusus member VIP (1 Bulan, 2 Bulan, 5 Bulan, atau Permanen).');
                 }
@@ -2234,7 +2257,7 @@ var Profile = {
         var s = Profile.getSettings();
         var isVip = Profile.isCurrentUserVip();
         var curU = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
-        var isVipTrialUser = Boolean(curU && curU.isVipTrial);
+        var isVipTrialUser = Boolean(curU && (curU.isVipTrial || curU.vipSource === 'point_exchange'));
         var allowBgPlay = Profile.isVipFeatureAllowed('backgroundPlay');
         var allowHighAudio = Profile.isVipFeatureAllowed('highAudio');
         var allowLiquid = Profile.isVipFeatureAllowed('liquidGlassIos27');
@@ -7986,81 +8009,53 @@ var Profile = {
                     <span class="text-[10px] text-white/40 font-mono">Ketentuan Sistem</span>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
                     <!-- Paket 1 Bulan Card -->
-                    <div class="p-3.5 rounded-2xl bg-sky-500/[0.06] border border-sky-400/30 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="font-extrabold text-sky-300 flex items-center gap-1.5">
-                                <i data-lucide="star" class="w-3.5 h-3.5 text-sky-400"></i> 1 Bulan (30 Hari)
+                    <div class="p-3 rounded-2xl bg-sky-500/[0.06] border border-sky-400/30 space-y-1.5">
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="font-extrabold text-sky-300 flex items-center gap-1 text-[11px] sm:text-xs truncate">
+                                <i data-lucide="star" class="w-3.5 h-3.5 text-sky-400 shrink-0"></i> 1 Bulan
                             </span>
-                            <span class="text-[9px] px-1.5 py-0.2 rounded-md bg-sky-400/20 text-sky-300 font-bold">Tier 1</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-sky-400/20 text-sky-300 font-bold shrink-0">30 Hr</span>
                         </div>
-                        <div class="space-y-1">
-                            <p class="text-[11px] text-white/90 font-bold">Dapat Border:</p>
-                            <p class="text-[11px] text-sky-300 font-extrabold flex items-center gap-1">
-                                <i data-lucide="check" class="w-3 h-3 text-sky-400"></i> Platinum & Master
-                            </p>
-                        </div>
-                        <p class="text-[10px] text-white/60 leading-relaxed pt-1 border-t border-white/5">
-                            <strong class="text-emerald-400">Bonus:</strong> Bebas akses semua fitur VIP.
-                        </p>
+                        <p class="text-[10.5px] text-sky-200 font-extrabold leading-snug">Border Platinum & Master</p>
+                        <p class="text-[9.5px] text-white/55 leading-tight pt-1 border-t border-white/5">Semua fitur VIP aktif</p>
                     </div>
 
                     <!-- Paket 2 Bulan Card -->
-                    <div class="p-3.5 rounded-2xl bg-emerald-500/[0.06] border border-emerald-400/30 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="font-extrabold text-emerald-300 flex items-center gap-1.5">
-                                <i data-lucide="shield" class="w-3.5 h-3.5 text-emerald-400"></i> 2 Bulan (60 Hari)
+                    <div class="p-3 rounded-2xl bg-emerald-500/[0.06] border border-emerald-400/30 space-y-1.5">
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="font-extrabold text-emerald-300 flex items-center gap-1 text-[11px] sm:text-xs truncate">
+                                <i data-lucide="shield" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i> 2 Bulan
                             </span>
-                            <span class="text-[9px] px-1.5 py-0.2 rounded-md bg-emerald-400/20 text-emerald-300 font-bold">Tier 2</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-400/20 text-emerald-300 font-bold shrink-0">60 Hr</span>
                         </div>
-                        <div class="space-y-1">
-                            <p class="text-[11px] text-white/90 font-bold">Dapat Border:</p>
-                            <p class="text-[11px] text-emerald-300 font-extrabold flex items-center gap-1">
-                                <i data-lucide="check" class="w-3 h-3 text-emerald-400"></i> Platinum, Master, Legend
-                            </p>
-                        </div>
-                        <p class="text-[10px] text-white/60 leading-relaxed pt-1 border-t border-white/5">
-                            <strong class="text-emerald-400">Bonus:</strong> Bebas akses semua fitur VIP.
-                        </p>
+                        <p class="text-[10.5px] text-emerald-200 font-extrabold leading-snug">Platinum, Master, Legend</p>
+                        <p class="text-[9.5px] text-white/55 leading-tight pt-1 border-t border-white/5">Semua fitur VIP aktif</p>
                     </div>
 
                     <!-- Paket 5 Bulan Card -->
-                    <div class="p-3.5 rounded-2xl bg-amber-500/[0.06] border border-amber-400/30 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="font-extrabold text-amber-300 flex items-center gap-1.5">
-                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i> 5 Bulan (150 Hari)
+                    <div class="p-3 rounded-2xl bg-amber-500/[0.06] border border-amber-400/30 space-y-1.5">
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="font-extrabold text-amber-300 flex items-center gap-1 text-[11px] sm:text-xs truncate">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i> 5 Bulan
                             </span>
-                            <span class="text-[9px] px-1.5 py-0.2 rounded-md bg-amber-400/20 text-amber-300 font-bold">Tier 3</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-300 font-bold shrink-0">150 Hr</span>
                         </div>
-                        <div class="space-y-1">
-                            <p class="text-[11px] text-white/90 font-bold">Dapat Border:</p>
-                            <p class="text-[11px] text-amber-300 font-extrabold flex items-center gap-1">
-                                <i data-lucide="check" class="w-3 h-3 text-amber-400"></i> Platinum, Master, Legend, Immortal
-                            </p>
-                        </div>
-                        <p class="text-[10px] text-white/60 leading-relaxed pt-1 border-t border-white/5">
-                            <strong class="text-emerald-400">Bonus:</strong> Bebas akses semua fitur VIP.
-                        </p>
+                        <p class="text-[10.5px] text-amber-200 font-extrabold leading-snug">Plat, Master, Legend, Immortal</p>
+                        <p class="text-[9.5px] text-white/55 leading-tight pt-1 border-t border-white/5">Semua fitur VIP aktif</p>
                     </div>
 
                     <!-- Paket Permanen Card -->
-                    <div class="p-3.5 rounded-2xl bg-yellow-500/[0.08] border border-yellow-400/40 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="font-black text-amber-300 flex items-center gap-1.5">
-                                <i data-lucide="crown" class="w-3.5 h-3.5 text-yellow-400"></i> Permanen (Lifetime)
+                    <div class="p-3 rounded-2xl bg-yellow-500/[0.08] border border-yellow-400/40 space-y-1.5">
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="font-black text-amber-300 flex items-center gap-1 text-[11px] sm:text-xs truncate">
+                                <i data-lucide="crown" class="w-3.5 h-3.5 text-yellow-400 shrink-0"></i> Permanen
                             </span>
-                            <span class="text-[9px] px-1.5 py-0.2 rounded-md bg-yellow-400 text-black font-black">ULTIMATE</span>
+                            <span class="text-[8.5px] px-1.5 py-0.5 rounded-md bg-yellow-400 text-black font-black shrink-0">MAX</span>
                         </div>
-                        <div class="space-y-1">
-                            <p class="text-[11px] text-white/90 font-bold">Dapat Border:</p>
-                            <p class="text-[11px] text-amber-300 font-black flex items-center gap-1">
-                                <i data-lucide="check" class="w-3 h-3 text-yellow-400"></i> SEMUA BORDER (Bebas)
-                            </p>
-                        </div>
-                        <p class="text-[10px] text-white/70 leading-relaxed pt-1 border-t border-white/5">
-                            <strong class="text-emerald-400">Bonus:</strong> Akses semua fitur VIP selamanya.
-                        </p>
+                        <p class="text-[10.5px] text-amber-300 font-black leading-snug">SEMUA BORDER BEBAS</p>
+                        <p class="text-[9.5px] text-white/65 leading-tight pt-1 border-t border-white/5">Aktif selamanya</p>
                     </div>
                 </div>
 
@@ -8132,60 +8127,60 @@ var Profile = {
                     <!-- Pilihan Paket VIP Durasi -->
                     <div class="space-y-2">
                         <label class="text-xs font-bold text-white/80 block">2. Pilih Paket Durasi VIP:</label>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                        <div class="grid grid-cols-2 gap-2 text-xs">
                             <!-- Radio 1 Bulan -->
-                            <label class="p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 bg-white/[0.02] hover:bg-white/[0.05] border-white/10 has-[:checked]:border-sky-400 has-[:checked]:bg-sky-500/10 has-[:checked]:shadow-[0_0_20px_rgba(56,189,248,0.2)]">
-                                <input type="radio" name="admin_vip_tab_tier_radio" value="1month" checked class="mt-0.5 w-4 h-4 accent-sky-400 cursor-pointer">
+                            <label class="p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2 bg-white/[0.02] hover:bg-white/[0.05] border-white/10 has-[:checked]:border-sky-400 has-[:checked]:bg-sky-500/10 has-[:checked]:shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                                <input type="radio" name="admin_vip_tab_tier_radio" value="1month" checked class="mt-0.5 w-4 h-4 accent-sky-400 cursor-pointer shrink-0">
                                 <div class="min-w-0 flex-1">
-                                    <div class="flex items-center justify-between gap-1">
-                                        <span class="font-bold text-white">1 Bulan (30 Hari)</span>
-                                        <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-sky-400/20 text-sky-300 font-bold border border-sky-400/30">Platinum & Master</span>
+                                    <div class="flex items-center justify-between gap-1 flex-wrap">
+                                        <span class="font-bold text-white text-[11px] sm:text-xs">1 Bulan (30 Hr)</span>
+                                        <span class="text-[8.5px] px-1.5 py-0.5 rounded-full bg-sky-400/20 text-sky-300 font-bold border border-sky-400/30">Plat & Master</span>
                                     </div>
-                                    <p class="text-[10px] text-white/60 mt-0.5">Dapat Border Platinum & Master + Semua Fitur VIP</p>
+                                    <p class="text-[9.5px] text-white/55 mt-0.5 leading-snug">Platinum & Master + Semua Fitur</p>
                                 </div>
                             </label>
 
                             <!-- Radio 2 Bulan -->
-                            <label class="p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 bg-white/[0.02] hover:bg-white/[0.05] border-white/10 has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-500/10 has-[:checked]:shadow-[0_0_20px_rgba(52,211,153,0.2)]">
-                                <input type="radio" name="admin_vip_tab_tier_radio" value="2months" class="mt-0.5 w-4 h-4 accent-emerald-400 cursor-pointer">
+                            <label class="p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2 bg-white/[0.02] hover:bg-white/[0.05] border-white/10 has-[:checked]:border-emerald-400 has-[:checked]:bg-emerald-500/10 has-[:checked]:shadow-[0_0_20px_rgba(52,211,153,0.2)]">
+                                <input type="radio" name="admin_vip_tab_tier_radio" value="2months" class="mt-0.5 w-4 h-4 accent-emerald-400 cursor-pointer shrink-0">
                                 <div class="min-w-0 flex-1">
-                                    <div class="flex items-center justify-between gap-1">
-                                        <span class="font-bold text-white">2 Bulan (60 Hari)</span>
-                                        <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-400/20 text-emerald-300 font-bold border border-emerald-400/30">Platinum, Master, Legend</span>
+                                    <div class="flex items-center justify-between gap-1 flex-wrap">
+                                        <span class="font-bold text-white text-[11px] sm:text-xs">2 Bulan (60 Hr)</span>
+                                        <span class="text-[8.5px] px-1.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 font-bold border border-emerald-400/30">Plat - Legend</span>
                                     </div>
-                                    <p class="text-[10px] text-white/60 mt-0.5">Dapat Border Platinum, Master, Legend + Semua Fitur VIP</p>
+                                    <p class="text-[9.5px] text-white/55 mt-0.5 leading-snug">Platinum, Master, Legend + Fitur</p>
                                 </div>
                             </label>
 
                             <!-- Radio 5 Bulan -->
-                            <label class="p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 bg-white/[0.02] hover:bg-white/[0.05] border-white/10 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-500/10 has-[:checked]:shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-                                <input type="radio" name="admin_vip_tab_tier_radio" value="5months" class="mt-0.5 w-4 h-4 accent-amber-400 cursor-pointer">
+                            <label class="p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2 bg-white/[0.02] hover:bg-white/[0.05] border-white/10 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-500/10 has-[:checked]:shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                                <input type="radio" name="admin_vip_tab_tier_radio" value="5months" class="mt-0.5 w-4 h-4 accent-amber-400 cursor-pointer shrink-0">
                                 <div class="min-w-0 flex-1">
-                                    <div class="flex items-center justify-between gap-1">
-                                        <span class="font-bold text-white">5 Bulan (150 Hari)</span>
-                                        <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30">Legend & Immortal</span>
+                                    <div class="flex items-center justify-between gap-1 flex-wrap">
+                                        <span class="font-bold text-white text-[11px] sm:text-xs">5 Bulan (150 Hr)</span>
+                                        <span class="text-[8.5px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30">+ Immortal</span>
                                     </div>
-                                    <p class="text-[10px] text-white/60 mt-0.5">Dapat Platinum, Master, Legend, Immortal + Semua Fitur</p>
+                                    <p class="text-[9.5px] text-white/55 mt-0.5 leading-snug">Plat, Master, Legend, Immortal</p>
                                 </div>
                             </label>
 
                             <!-- Radio Permanen -->
-                            <label class="p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 bg-white/[0.02] hover:bg-white/[0.05] border-white/10 has-[:checked]:border-yellow-400 has-[:checked]:bg-yellow-500/15 has-[:checked]:shadow-[0_0_25px_rgba(234,179,8,0.25)]">
-                                <input type="radio" name="admin_vip_tab_tier_radio" value="permanent" class="mt-0.5 w-4 h-4 accent-yellow-400 cursor-pointer">
+                            <label class="p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2 bg-white/[0.02] hover:bg-white/[0.05] border-white/10 has-[:checked]:border-yellow-400 has-[:checked]:bg-yellow-500/15 has-[:checked]:shadow-[0_0_25px_rgba(234,179,8,0.25)]">
+                                <input type="radio" name="admin_vip_tab_tier_radio" value="permanent" class="mt-0.5 w-4 h-4 accent-yellow-400 cursor-pointer shrink-0">
                                 <div class="min-w-0 flex-1">
-                                    <div class="flex items-center justify-between gap-1">
-                                        <span class="font-extrabold text-amber-300">Permanen (Lifetime)</span>
-                                        <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-yellow-400/20 text-yellow-300 font-black border border-yellow-400/30">Semua Border</span>
+                                    <div class="flex items-center justify-between gap-1 flex-wrap">
+                                        <span class="font-extrabold text-amber-300 text-[11px] sm:text-xs">Permanen</span>
+                                        <span class="text-[8.5px] px-1.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 font-black border border-yellow-400/30">Semua Border</span>
                                     </div>
-                                    <p class="text-[10px] text-white/70 mt-0.5">Akses SEMUA Border & Fitur Premium Selamanya</p>
+                                    <p class="text-[9.5px] text-white/65 mt-0.5 leading-snug">Akses Semua Border & Fitur Selamanya</p>
                                 </div>
                             </label>
 
                             <!-- Radio Nonaktifkan VIP -->
-                            <label class="p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 bg-white/[0.01] hover:bg-white/[0.04] border-white/5 has-[:checked]:border-rose-400/50 has-[:checked]:bg-rose-500/10 col-span-1 sm:col-span-2">
-                                <input type="radio" name="admin_vip_tab_tier_radio" value="none" class="mt-0.5 w-4 h-4 accent-rose-400 cursor-pointer">
+                            <label class="p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 bg-white/[0.01] hover:bg-white/[0.04] border-white/5 has-[:checked]:border-rose-400/50 has-[:checked]:bg-rose-500/10 col-span-2">
+                                <input type="radio" name="admin_vip_tab_tier_radio" value="none" class="mt-0.5 w-4 h-4 accent-rose-400 cursor-pointer shrink-0">
                                 <div class="min-w-0 flex-1">
-                                    <span class="font-bold text-white/80">Nonaktifkan VIP (Cabut Status & Kembalikan ke Akun Gratis)</span>
+                                    <span class="font-bold text-white/80 text-[11px] sm:text-xs">Nonaktifkan VIP (Cabut Status & Kembalikan ke Akun Gratis)</span>
                                     <p class="text-[10px] text-white/40 mt-0.5">Menghapus hak akses VIP, mengunci fitur kembali, dan melepas border profil.</p>
                                 </div>
                             </label>
@@ -16980,7 +16975,7 @@ var Profile = {
                             </div>
 
                             <!-- Informasi Fitur VIP yang Didapat -->
-                            <div class="relative z-10 p-3.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 space-y-2">
+                            <div class="relative z-10 p-3.5 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 space-y-2.5">
                                 <span class="text-[10.5px] font-extrabold text-amber-300/90 block uppercase tracking-wider">Informasi VIP yang Didapat:</span>
                                 <ul class="space-y-1.5 text-xs text-white/85 leading-relaxed">
                                     ${benefitsList.map(function(b) {
@@ -16990,6 +16985,24 @@ var Profile = {
                                         </li>`;
                                     }).join('')}
                                 </ul>
+                                ${pkg.allowedFeatures && typeof pkg.allowedFeatures === 'object' ? (function() {
+                                    var featLabels = [
+                                        { k: 'customId', l: 'Custom ID VIP' },
+                                        { k: 'nameGlow', l: 'Efek Nama Glow' },
+                                        { k: 'liquidGlassIos27', l: 'Liquid Glass iOS 27' },
+                                        { k: 'vipAvatar', l: 'Avatar VIP' },
+                                        { k: 'dynamicIsland', l: 'Dynamic Island' },
+                                        { k: 'highAudio', l: 'Audio 320kbps' },
+                                        { k: 'backgroundPlay', l: 'Putar Latar Belakang' },
+                                        { k: 'keepScreenAwake', l: 'Layar Menyala' },
+                                        { k: 'swipeGestures', l: 'Gestur Usap' },
+                                        { k: 'vipSultanBadge', l: 'Lencana Sultan' }
+                                    ];
+                                    return `<div class="pt-2 border-t border-white/10 flex flex-wrap gap-1.5">` + featLabels.map(function(fl) {
+                                        var enabled = pkg.allowedFeatures[fl.k] !== false;
+                                        return `<span class="text-[9.5px] px-2 py-0.5 rounded-lg font-bold inline-flex items-center gap-1 ${enabled ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-300/80 border border-rose-500/30 line-through'}">${enabled ? '✓' : '✕'} ${fl.l}</span>`;
+                                    }).join('') + `</div>`;
+                                })() : ''}
                             </div>
 
                             <!-- Tombol Tukar Poin -->
@@ -17424,24 +17437,32 @@ var Profile = {
             ];
 
             var newBorderCards = [
-                { val: 'Platinum', title: 'Platinum', sub: 'Border Tier 1', img: '/borders/Platinum.png', accent: 'sky' },
-                { val: 'Master', title: 'Master', sub: 'Border Tier 2', img: '/borders/Master.png', accent: 'amber' },
-                { val: 'Platinum, Master', title: 'Platinum & Master', sub: 'Buka 2 Border', img: '/borders/Master.png', accent: 'emerald' },
-                { val: 'Legend', title: 'Legend', sub: 'Border Tier 3', img: '/borders/Legend.png', accent: 'emerald' },
-                { val: 'Immortal', title: 'Immortal', sub: 'Border Tier 4', img: '/borders/Imortal.png', accent: 'pink' },
-                { val: 'Semua Border', title: 'Semua Border VIP', sub: 'Bebas Pilih Semua', img: '/borders/Imortal.png', accent: 'yellow' },
-                { val: 'Tanpa Border', title: 'Tanpa Border', sub: 'Kunci Border', img: '', icon: 'lock', accent: 'rose' }
+                { val: 'Border Platinum', title: 'Border Platinum', cardTitle: 'Platinum', sub: 'Tier 1', img: '/borders/Platinum.png', accent: 'sky' },
+                { val: 'Border Master', title: 'Border Master', cardTitle: 'Master', sub: 'Tier 2', img: '/borders/Master.png', accent: 'amber' },
+                { val: 'Border Legend', title: 'Border Legend', cardTitle: 'Legend', sub: 'Tier 3', img: '/borders/Legend.png', accent: 'emerald' },
+                { val: 'Border Immortal', title: 'Border Immortal', cardTitle: 'Immortal', sub: 'Tier 4', img: '/borders/Imortal.png', accent: 'pink' },
+                { val: 'Border Permanen', title: 'Border Permanen', cardTitle: 'Permanen', sub: 'Lifetime', img: '/borders/Imortal.png', accent: 'purple' },
+                { val: 'Border Platinum / Master', title: 'Border Platinum / Master', cardTitle: 'Plat / Master', sub: 'Paket 2 Border', img: '/borders/Master.png', accent: 'emerald' },
+                { val: 'Border Platinum / Master / Legend', title: 'Border Platinum / Master / Legend', cardTitle: 'Plat / Master / Leg', sub: 'Paket 3 Border', img: '/borders/Legend.png', accent: 'emerald' },
+                { val: 'Border Platinum / Master / Legend / Immortal', title: 'Border Platinum / Master / Legend / Immortal', cardTitle: 'Plat s/d Immortal', sub: 'Paket 4 Border', img: '/borders/Imortal.png', accent: 'pink' },
+                { val: 'Border Platinum / Master / Legend / Immortal / Permanen', title: 'Border Platinum / Master / Legend / Immortal / Permanen', cardTitle: 'Plat s/d Permanen', sub: 'Paket 5 Border', img: '/borders/Imortal.png', accent: 'amber' },
+                { val: 'Semua Border Permanen / Immortal', title: 'Semua Border Permanen / Immortal', cardTitle: 'Semua Border', sub: 'Bebas Pilih Semua', img: '/borders/Imortal.png', accent: 'yellow' },
+                { val: 'Tanpa Border', title: 'Tanpa Border', cardTitle: 'Tanpa Border', sub: 'Kunci Border', img: '', icon: 'lock', accent: 'rose' }
             ];
 
             var extBorderCards = [
-                { val: 'Pertahankan Border', title: 'Pertahankan Border', sub: 'Sesuai Tier Saat Ini', img: '', icon: 'shield-check', accent: 'emerald' },
-                { val: 'Platinum', title: 'Platinum', sub: 'Border Tier 1', img: '/borders/Platinum.png', accent: 'sky' },
-                { val: 'Master', title: 'Master', sub: 'Border Tier 2', img: '/borders/Master.png', accent: 'amber' },
-                { val: 'Platinum, Master', title: 'Platinum & Master', sub: 'Buka 2 Border', img: '/borders/Master.png', accent: 'emerald' },
-                { val: 'Legend', title: 'Legend', sub: 'Border Tier 3', img: '/borders/Legend.png', accent: 'emerald' },
-                { val: 'Immortal', title: 'Immortal', sub: 'Border Tier 4', img: '/borders/Imortal.png', accent: 'pink' },
-                { val: 'Semua Border', title: 'Semua Border VIP', sub: 'Bebas Pilih Semua', img: '/borders/Imortal.png', accent: 'yellow' },
-                { val: 'Tanpa Border', title: 'Tanpa Border', sub: 'Lepas Border', img: '', icon: 'ban', accent: 'rose' }
+                { val: 'Pertahankan Border', title: 'Pertahankan Border', cardTitle: 'Pertahankan', sub: 'Sesuai Saat Ini', img: '', icon: 'shield-check', accent: 'emerald' },
+                { val: 'Border Platinum', title: 'Border Platinum', cardTitle: 'Platinum', sub: 'Tier 1', img: '/borders/Platinum.png', accent: 'sky' },
+                { val: 'Border Master', title: 'Border Master', cardTitle: 'Master', sub: 'Tier 2', img: '/borders/Master.png', accent: 'amber' },
+                { val: 'Border Legend', title: 'Border Legend', cardTitle: 'Legend', sub: 'Tier 3', img: '/borders/Legend.png', accent: 'emerald' },
+                { val: 'Border Immortal', title: 'Border Immortal', cardTitle: 'Immortal', sub: 'Tier 4', img: '/borders/Imortal.png', accent: 'pink' },
+                { val: 'Border Permanen', title: 'Border Permanen', cardTitle: 'Permanen', sub: 'Lifetime', img: '/borders/Imortal.png', accent: 'purple' },
+                { val: 'Border Platinum / Master', title: 'Border Platinum / Master', cardTitle: 'Plat / Master', sub: 'Paket 2 Border', img: '/borders/Master.png', accent: 'emerald' },
+                { val: 'Border Platinum / Master / Legend', title: 'Border Platinum / Master / Legend', cardTitle: 'Plat / Master / Leg', sub: 'Paket 3 Border', img: '/borders/Legend.png', accent: 'emerald' },
+                { val: 'Border Platinum / Master / Legend / Immortal', title: 'Border Platinum / Master / Legend / Immortal', cardTitle: 'Plat s/d Immortal', sub: 'Paket 4 Border', img: '/borders/Imortal.png', accent: 'pink' },
+                { val: 'Border Platinum / Master / Legend / Immortal / Permanen', title: 'Border Platinum / Master / Legend / Immortal / Permanen', cardTitle: 'Plat s/d Permanen', sub: 'Paket 5 Border', img: '/borders/Imortal.png', accent: 'amber' },
+                { val: 'Semua Border Permanen / Immortal', title: 'Semua Border Permanen / Immortal', cardTitle: 'Semua Border', sub: 'Bebas Pilih Semua', img: '/borders/Imortal.png', accent: 'yellow' },
+                { val: 'Tanpa Border', title: 'Tanpa Border', cardTitle: 'Tanpa Border', sub: 'Lepas Border', img: '', icon: 'ban', accent: 'rose' }
             ];
 
             container.innerHTML = `
@@ -17541,22 +17562,22 @@ var Profile = {
                                 <span id="adm-ref-newvip-border-preview" class="text-[11px] font-mono font-bold text-amber-300">Border: ${Profile.escapeHtml(initNewBorder)}</span>
                             </div>
 
-                            <!-- Grid Kartu Visual Border dengan Gambar Asli -->
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            <!-- Grid Kartu Visual Border dengan Gambar Asli (Ringkas & Rapi) -->
+                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                                 ${newBorderCards.map(function(b) {
                                     var isChecked = String(initNewBorder).toLowerCase() === b.val.toLowerCase();
                                     return `
-                                    <label class="p-3 rounded-2xl bg-black/40 border border-white/10 hover:border-amber-400/40 transition-all cursor-pointer flex items-center gap-2.5 has-[:checked]:border-2 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-500/15 has-[:checked]:shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-                                        <input type="radio" name="adm_ref_newvip_border_radio" value="${b.val}" ${isChecked ? 'checked' : ''} onchange="Profile.setAdminRefBorder('newvip', this.value)" class="w-4 h-4 accent-amber-400 cursor-pointer shrink-0">
-                                        <div class="relative w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shrink-0">
+                                    <label class="p-2.5 rounded-xl bg-black/40 border border-white/10 hover:border-amber-400/40 transition-all cursor-pointer flex items-center gap-2 has-[:checked]:border-2 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-500/15 has-[:checked]:shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                                        <input type="radio" name="adm_ref_newvip_border_radio" value="${b.val}" ${isChecked ? 'checked' : ''} onchange="Profile.setAdminRefBorder('newvip', this.value)" class="w-3.5 h-3.5 accent-amber-400 cursor-pointer shrink-0">
+                                        <div class="relative w-7 h-7 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shrink-0">
                                             ${b.img
-                                                ? `<img src="${b.img}" class="w-9 h-9 object-contain pointer-events-none" onerror="this.style.display='none'">`
-                                                : `<i data-lucide="${b.icon || 'shield'}" class="w-4 h-4 text-rose-400"></i>`
+                                                ? `<img src="${b.img}" class="w-7 h-7 object-contain pointer-events-none" onerror="this.style.display='none'">`
+                                                : `<i data-lucide="${b.icon || 'shield'}" class="w-3.5 h-3.5 text-rose-400"></i>`
                                             }
                                         </div>
                                         <div class="min-w-0 flex-1">
-                                            <span class="text-xs font-extrabold text-white block truncate">${b.title}</span>
-                                            <span class="text-[10px] text-white/50 block truncate">${b.sub}</span>
+                                            <span class="text-[11px] font-extrabold text-white block truncate" title="${b.title}">${b.cardTitle || b.title}</span>
+                                            <span class="text-[9.5px] text-white/50 block truncate">${b.sub}</span>
                                         </div>
                                     </label>`;
                                 }).join('')}
@@ -17568,10 +17589,9 @@ var Profile = {
                                     <label class="text-[10.5px] font-bold text-amber-300/90 block">Pilih via Dropdown Border:</label>
                                     <select id="adm-ref-newvip-border-select" onchange="if(this.value!=='custom') Profile.setAdminRefBorder('newvip', this.value); else gid('adm-ref-newvip-border')?.focus();" class="w-full py-2.5 px-3.5 rounded-xl bg-black/75 border border-white/15 focus:border-amber-400 text-xs text-white font-semibold outline-none cursor-pointer">
                                         ${newBorderCards.map(function(b) {
-                                            var sel = String(initNewBorder).toLowerCase() === b.val.toLowerCase() ? 'selected' : '';
-                                            return `<option value="${b.val}" ${sel}>${b.title} (${b.sub})</option>`;
+                                            var sel = (String(initNewBorder).toLowerCase() === b.val.toLowerCase() || String('Border ' + initNewBorder).toLowerCase() === b.val.toLowerCase()) ? 'selected' : '';
+                                            return `<option value="${b.val}" ${sel}>${b.title}</option>`;
                                         }).join('')}
-                                        <option value="Platinum, Master, Legend" ${String(initNewBorder).toLowerCase() === 'platinum, master, legend' ? 'selected' : ''}>Sampai Legend (Platinum, Master, Legend)</option>
                                         <option value="custom">✍️ Ketik Kombinasi Border Sendiri</option>
                                     </select>
                                 </div>
@@ -17697,22 +17717,22 @@ var Profile = {
                                 <span id="adm-ref-extvip-border-preview" class="text-[11px] font-mono font-bold text-amber-300">Border: ${Profile.escapeHtml(initExtBorder)}</span>
                             </div>
 
-                            <!-- Grid Kartu Visual Border dengan Gambar Asli -->
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            <!-- Grid Kartu Visual Border dengan Gambar Asli (Ringkas & Rapi) -->
+                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                                 ${extBorderCards.map(function(b) {
                                     var isChecked = String(initExtBorder).toLowerCase() === b.val.toLowerCase();
                                     return `
-                                    <label class="p-3 rounded-2xl bg-black/40 border border-white/10 hover:border-amber-400/40 transition-all cursor-pointer flex items-center gap-2.5 has-[:checked]:border-2 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-500/15 has-[:checked]:shadow-[0_0_20px_rgba(245,158,11,0.25)]">
-                                        <input type="radio" name="adm_ref_extvip_border_radio" value="${b.val}" ${isChecked ? 'checked' : ''} onchange="Profile.setAdminRefBorder('extvip', this.value)" class="w-4 h-4 accent-amber-400 cursor-pointer shrink-0">
-                                        <div class="relative w-9 h-9 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shrink-0">
+                                    <label class="p-2.5 rounded-xl bg-black/40 border border-white/10 hover:border-amber-400/40 transition-all cursor-pointer flex items-center gap-2 has-[:checked]:border-2 has-[:checked]:border-amber-400 has-[:checked]:bg-amber-500/15 has-[:checked]:shadow-[0_0_15px_rgba(245,158,11,0.25)]">
+                                        <input type="radio" name="adm_ref_extvip_border_radio" value="${b.val}" ${isChecked ? 'checked' : ''} onchange="Profile.setAdminRefBorder('extvip', this.value)" class="w-3.5 h-3.5 accent-amber-400 cursor-pointer shrink-0">
+                                        <div class="relative w-7 h-7 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shrink-0">
                                             ${b.img
-                                                ? `<img src="${b.img}" class="w-9 h-9 object-contain pointer-events-none" onerror="this.style.display='none'">`
-                                                : `<i data-lucide="${b.icon || 'shield-check'}" class="w-4 h-4 ${b.accent === 'rose' ? 'text-rose-400' : 'text-emerald-400'}"></i>`
+                                                ? `<img src="${b.img}" class="w-7 h-7 object-contain pointer-events-none" onerror="this.style.display='none'">`
+                                                : `<i data-lucide="${b.icon || 'shield-check'}" class="w-3.5 h-3.5 ${b.accent === 'rose' ? 'text-rose-400' : 'text-emerald-400'}"></i>`
                                             }
                                         </div>
                                         <div class="min-w-0 flex-1">
-                                            <span class="text-xs font-extrabold text-white block truncate">${b.title}</span>
-                                            <span class="text-[10px] text-white/50 block truncate">${b.sub}</span>
+                                            <span class="text-[11px] font-extrabold text-white block truncate" title="${b.title}">${b.cardTitle || b.title}</span>
+                                            <span class="text-[9.5px] text-white/50 block truncate">${b.sub}</span>
                                         </div>
                                     </label>`;
                                 }).join('')}
@@ -17724,8 +17744,8 @@ var Profile = {
                                     <label class="text-[10.5px] font-bold text-amber-300/90 block">Pilih via Dropdown Border:</label>
                                     <select id="adm-ref-extvip-border-select" onchange="if(this.value!=='custom') Profile.setAdminRefBorder('extvip', this.value); else gid('adm-ref-extvip-border')?.focus();" class="w-full py-2.5 px-3.5 rounded-xl bg-black/75 border border-white/15 focus:border-amber-400 text-xs text-white font-semibold outline-none cursor-pointer">
                                         ${extBorderCards.map(function(b) {
-                                            var sel = String(initExtBorder).toLowerCase() === b.val.toLowerCase() ? 'selected' : '';
-                                            return `<option value="${b.val}" ${sel}>${b.title} (${b.sub})</option>`;
+                                            var sel = (String(initExtBorder).toLowerCase() === b.val.toLowerCase() || String('Border ' + initExtBorder).toLowerCase() === b.val.toLowerCase()) ? 'selected' : '';
+                                            return `<option value="${b.val}" ${sel}>${b.title}</option>`;
                                         }).join('')}
                                         <option value="custom">✍️ Ketik Pengaturan Border Sendiri</option>
                                     </select>
@@ -17810,14 +17830,19 @@ var Profile = {
                             <div class="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2">
                                 <label class="text-[11px] font-extrabold text-cyan-300 block">2. Border Profil Teman Baru:</label>
                                 <select onchange="if(this.value) gid('adm-ref-invitee-border').value=this.value;" class="w-full py-2 px-3 rounded-xl bg-black/75 border border-white/15 text-xs text-white font-semibold outline-none cursor-pointer">
-                                    <option value="Platinum" ${initInvBorder === 'Platinum' ? 'selected' : ''}>Border Platinum</option>
-                                    <option value="Master" ${initInvBorder === 'Master' ? 'selected' : ''}>Border Master</option>
-                                    <option value="Platinum, Master" ${initInvBorder === 'Platinum, Master' ? 'selected' : ''}>Platinum & Master</option>
-                                    <option value="Legend" ${initInvBorder === 'Legend' ? 'selected' : ''}>Border Legend</option>
-                                    <option value="Semua Border" ${initInvBorder === 'Semua Border' ? 'selected' : ''}>Semua Border VIP</option>
+                                    <option value="Border Platinum" ${(initInvBorder === 'Platinum' || initInvBorder === 'Border Platinum') ? 'selected' : ''}>Border Platinum</option>
+                                    <option value="Border Master" ${(initInvBorder === 'Master' || initInvBorder === 'Border Master') ? 'selected' : ''}>Border Master</option>
+                                    <option value="Border Legend" ${(initInvBorder === 'Legend' || initInvBorder === 'Border Legend') ? 'selected' : ''}>Border Legend</option>
+                                    <option value="Border Immortal" ${(initInvBorder === 'Immortal' || initInvBorder === 'Border Immortal') ? 'selected' : ''}>Border Immortal</option>
+                                    <option value="Border Permanen" ${(initInvBorder === 'Permanen' || initInvBorder === 'Border Permanen') ? 'selected' : ''}>Border Permanen</option>
+                                    <option value="Border Platinum / Master" ${(initInvBorder === 'Platinum, Master' || initInvBorder === 'Border Platinum / Master') ? 'selected' : ''}>Border Platinum / Master</option>
+                                    <option value="Border Platinum / Master / Legend" ${(initInvBorder === 'Platinum, Master, Legend' || initInvBorder === 'Border Platinum / Master / Legend') ? 'selected' : ''}>Border Platinum / Master / Legend</option>
+                                    <option value="Border Platinum / Master / Legend / Immortal" ${initInvBorder === 'Border Platinum / Master / Legend / Immortal' ? 'selected' : ''}>Border Platinum / Master / Legend / Immortal</option>
+                                    <option value="Border Platinum / Master / Legend / Immortal / Permanen" ${initInvBorder === 'Border Platinum / Master / Legend / Immortal / Permanen' ? 'selected' : ''}>Border Platinum / Master / Legend / Immortal / Permanen</option>
+                                    <option value="Semua Border Permanen / Immortal" ${(initInvBorder === 'Semua Border' || initInvBorder === 'Semua Border Permanen / Immortal') ? 'selected' : ''}>Semua Border Permanen / Immortal</option>
                                     <option value="Tanpa Border" ${initInvBorder === 'Tanpa Border' ? 'selected' : ''}>Tanpa Border</option>
                                 </select>
-                                <input type="text" id="adm-ref-invitee-border" value="${Profile.escapeHtml(initInvBorder)}" placeholder="Ketik: Platinum" class="w-full py-2 px-3 rounded-xl bg-black/75 border border-white/15 focus:border-cyan-400 text-xs text-white font-semibold outline-none">
+                                <input type="text" id="adm-ref-invitee-border" value="${Profile.escapeHtml(initInvBorder)}" placeholder="Ketik: Border Platinum" class="w-full py-2 px-3 rounded-xl bg-black/75 border border-white/15 focus:border-cyan-400 text-xs text-white font-semibold outline-none">
                             </div>
 
                             <div class="p-3.5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2">
@@ -17877,11 +17902,11 @@ var Profile = {
                                     <span>Kode Referral Aktif Masing-Masing Pengguna (${users.length} Akun):</span>
                                 </span>
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
                                 ${users.map(function(u) {
-                                    return `<div class="p-2.5 rounded-xl bg-black/55 border border-white/10 flex items-center justify-between gap-2 text-xs">
+                                    return `<div class="p-2 rounded-xl bg-black/55 border border-white/10 flex items-center justify-between gap-1.5 text-[11px]">
                                         <span class="text-white/80 font-bold truncate">@${Profile.escapeHtml(u.username)}</span>
-                                        <code class="text-amber-300 font-mono font-black tracking-wider">${Profile.escapeHtml(u.referralCode || '-')}</code>
+                                        <code class="text-amber-300 font-mono font-black tracking-wider text-[10px] shrink-0">${Profile.escapeHtml(u.referralCode || '-')}</code>
                                     </div>`;
                                 }).join('')}
                             </div>
@@ -18136,9 +18161,60 @@ var Profile = {
             return;
         }
 
+        var featureDefinitions = [
+            { key: 'customId', label: 'Custom ID VIP', icon: 'fingerprint' },
+            { key: 'nameGlow', label: 'Efek Nama Glow', icon: 'sparkles' },
+            { key: 'liquidGlassIos27', label: 'Liquid Glass iOS 27', icon: 'droplets' },
+            { key: 'vipAvatar', label: 'Katalog Avatar VIP', icon: 'user-check' },
+            { key: 'dynamicIsland', label: 'Dynamic Island iOS', icon: 'radio' },
+            { key: 'highAudio', label: 'Audio Ultra HD', icon: 'headphones' },
+            { key: 'backgroundPlay', label: 'Putar Latar Belakang', icon: 'layers' },
+            { key: 'keepScreenAwake', label: 'Layar Tetap Menyala', icon: 'sun' },
+            { key: 'swipeGestures', label: 'Gestur Usap Layar', icon: 'move-horizontal' },
+            { key: 'vipSultanBadge', label: 'Lencana VIP Sultan', icon: 'crown' },
+            { key: 'homeTheme', label: 'Tema Home Screen', icon: 'palette' },
+            { key: 'navTheme', label: 'Tema Navigasi Bawah', icon: 'layout' }
+        ];
+
         container.innerHTML = pkgs.map(function(pkg, idx) {
             var isPerm = Boolean(pkg.isPermanent || Number(pkg.durationDays) === 0 || String(pkg.durationText || '').toLowerCase().includes('permanen'));
             var benefitsStr = Array.isArray(pkg.benefits) ? pkg.benefits.join('\n') : (pkg.benefits || '');
+            var bStr = String(pkg.border || '').trim();
+            var bLow = bStr.toLowerCase();
+            var bIdLow = String(pkg.borderId || '').trim().toLowerCase();
+
+            var selAllBorders = (bIdLow === 'all' || bLow.includes('semua'));
+            var selNone = (bIdLow === 'none' || bLow === 'tanpa border' || bLow === 'none');
+            var selComboPlatMasterLegImmPerm = (!selAllBorders && !selNone && (bIdLow === 'platinum_master_legend_immortal_permanent' || (bLow.includes('platinum') && bLow.includes('master') && bLow.includes('legend') && bLow.includes('immortal') && (bLow.includes('permanen') || bLow.includes('permanent')))));
+            var selComboPlatMasterLegImm = (!selAllBorders && !selNone && !selComboPlatMasterLegImmPerm && (bIdLow === 'platinum_master_legend_immortal' || (bLow.includes('platinum') && bLow.includes('master') && bLow.includes('legend') && bLow.includes('immortal'))));
+            var selComboPlatMasterLeg = (!selAllBorders && !selNone && !selComboPlatMasterLegImmPerm && !selComboPlatMasterLegImm && (bIdLow === 'platinum_master_legend' || (bLow.includes('platinum') && bLow.includes('master') && bLow.includes('legend'))));
+            var selComboPlatMaster = (!selAllBorders && !selNone && !selComboPlatMasterLegImmPerm && !selComboPlatMasterLegImm && !selComboPlatMasterLeg && (bIdLow === 'platinum_master' || (bLow.includes('platinum') && bLow.includes('master'))));
+            var isAnyCombo = (selComboPlatMaster || selComboPlatMasterLeg || selComboPlatMasterLegImm || selComboPlatMasterLegImmPerm || selAllBorders || selNone);
+            var selPlatinum = (!isAnyCombo && (bIdLow === 'border_platinum' || bLow === 'platinum' || bLow === 'border platinum'));
+            var selMaster = (!isAnyCombo && (bIdLow === 'border_master' || bLow === 'master' || bLow === 'border master'));
+            var selLegend = (!isAnyCombo && (bIdLow === 'border_legend' || bLow === 'legend' || bLow === 'border legend'));
+            var selImmortalOnly = (!isAnyCombo && (bIdLow === 'border_immortal' || bLow === 'immortal' || bLow === 'border immortal'));
+            var selPermanenOnly = (!isAnyCombo && (bIdLow === 'border_permanent' || bIdLow === 'permanent' || bLow === 'permanen' || bLow === 'permanent' || bLow === 'border permanen' || bLow === 'border permanent'));
+            if (!selPlatinum && !selMaster && !selLegend && !selImmortalOnly && !selPermanenOnly && !isAnyCombo) {
+                selPlatinum = true;
+            }
+
+            if (!pkg.allowedFeatures || typeof pkg.allowedFeatures !== 'object') {
+                pkg.allowedFeatures = {
+                    customId: true,
+                    nameGlow: true,
+                    liquidGlassIos27: true,
+                    vipAvatar: true,
+                    dynamicIsland: true,
+                    highAudio: true,
+                    backgroundPlay: true,
+                    keepScreenAwake: true,
+                    swipeGestures: true,
+                    vipSultanBadge: true,
+                    homeTheme: true,
+                    navTheme: true
+                };
+            }
 
             return `
             <div class="p-4 rounded-2xl bg-black/60 border border-white/10 space-y-3.5 hover:border-amber-400/40 transition-all">
@@ -18181,12 +18257,54 @@ var Profile = {
                     <div class="space-y-1">
                         <label class="text-[10.5px] font-bold text-white/75 block">Border Profil VIP:</label>
                         <select onchange="Profile.updateAdminExchangePackageBorder(${idx}, this.value)" class="w-full py-2 px-3 rounded-xl bg-black/75 border border-white/15 focus:border-amber-400 text-xs text-white font-semibold outline-none cursor-pointer">
-                            <option value="Platinum" ${(pkg.border === 'Platinum' || pkg.borderId === 'border_platinum') ? 'selected' : ''}>Platinum</option>
-                            <option value="Master" ${(pkg.border === 'Master' || pkg.borderId === 'border_master') ? 'selected' : ''}>Master</option>
-                            <option value="Legend" ${(pkg.border === 'Legend' || pkg.borderId === 'border_legend') ? 'selected' : ''}>Legend</option>
-                            <option value="Semua Border VIP (Termasuk Immortal)" ${(pkg.border?.includes('Semua') || pkg.borderId === 'border_immortal') ? 'selected' : ''}>Semua Border VIP (Immortal)</option>
-                            <option value="Tanpa Border" ${(pkg.border === 'Tanpa Border' || pkg.borderId === 'none') ? 'selected' : ''}>Tanpa Border</option>
+                            <option value="Border Platinum" ${selPlatinum ? 'selected' : ''}>Border Platinum</option>
+                            <option value="Border Master" ${selMaster ? 'selected' : ''}>Border Master</option>
+                            <option value="Border Legend" ${selLegend ? 'selected' : ''}>Border Legend</option>
+                            <option value="Border Immortal" ${selImmortalOnly ? 'selected' : ''}>Border Immortal</option>
+                            <option value="Border Permanen" ${selPermanenOnly ? 'selected' : ''}>Border Permanen</option>
+                            <option value="Border Platinum / Master" ${selComboPlatMaster ? 'selected' : ''}>Border Platinum / Master</option>
+                            <option value="Border Platinum / Master / Legend" ${selComboPlatMasterLeg ? 'selected' : ''}>Border Platinum / Master / Legend</option>
+                            <option value="Border Platinum / Master / Legend / Immortal" ${selComboPlatMasterLegImm ? 'selected' : ''}>Border Platinum / Master / Legend / Immortal</option>
+                            <option value="Border Platinum / Master / Legend / Immortal / Permanen" ${selComboPlatMasterLegImmPerm ? 'selected' : ''}>Border Platinum / Master / Legend / Immortal / Permanen</option>
+                            <option value="Semua Border Permanen / Immortal" ${selAllBorders ? 'selected' : ''}>Semua Border Permanen / Immortal</option>
+                            <option value="Tanpa Border" ${selNone ? 'selected' : ''}>Tanpa Border</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- CENTANG HAK AKSES FITUR VIP PADA PAKET INI (2 KOLOM RAPI DI HP) -->
+                <div class="p-3 rounded-2xl bg-white/[0.02] border border-amber-400/25 space-y-2.5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-[11px] font-black text-amber-300 flex items-center gap-1.5">
+                                    <i data-lucide="check-square" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i>
+                                    <span>Hak Akses Fitur VIP Paket Ini</span>
+                                </span>
+                                <span class="text-[9.5px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                    ${featureDefinitions.filter(function(f){ return pkg.allowedFeatures[f.key] !== false; }).length}/${featureDefinitions.length} Aktif
+                                </span>
+                            </div>
+                            <p class="text-[10px] text-white/45 mt-0.5 leading-snug">Centang fitur yang dibuka. Jika tidak dicentang = otomatis dikunci.</p>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onclick="Profile.setAllAdminExchangePackageFeatures(${idx}, true)" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/35 text-emerald-300 text-[10px] font-extrabold cursor-pointer active:scale-95 transition-all">Centang Semua</button>
+                            <button type="button" onclick="Profile.setAllAdminExchangePackageFeatures(${idx}, false)" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/35 text-rose-300 text-[10px] font-extrabold cursor-pointer active:scale-95 transition-all">Lepas Semua</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
+                        ${featureDefinitions.map(function(f) {
+                            var isChecked = pkg.allowedFeatures[f.key] !== false;
+                            return `
+                            <label class="p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-1.5 ${isChecked ? 'bg-emerald-500/12 border-emerald-400/35 text-white shadow-[inset_0_0_12px_rgba(16,185,129,0.08)]' : 'bg-black/45 border-white/10 text-white/40'}">
+                                <div class="flex items-center gap-1.5 min-w-0">
+                                    <input type="checkbox" onchange="Profile.toggleAdminExchangePackageFeature(${idx}, '${f.key}', this.checked)" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 accent-emerald-400 rounded cursor-pointer shrink-0">
+                                    <span class="text-[10.5px] font-bold truncate" title="${f.label}">${f.label}</span>
+                                </div>
+                                <span class="w-2 h-2 rounded-full shrink-0 ${isChecked ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-rose-500/60'}" title="${isChecked ? 'Aktif' : 'Terkunci'}"></span>
+                            </label>`;
+                        }).join('')}
                     </div>
                 </div>
 
@@ -18204,6 +18322,27 @@ var Profile = {
     updateAdminExchangePackageField(idx, field, val) {
         if (!Profile._adminExchangePackages || !Profile._adminExchangePackages[idx]) return;
         Profile._adminExchangePackages[idx][field] = val;
+    },
+
+    toggleAdminExchangePackageFeature(idx, featKey, isChecked) {
+        if (!Profile._adminExchangePackages || !Profile._adminExchangePackages[idx]) return;
+        var pkg = Profile._adminExchangePackages[idx];
+        if (!pkg.allowedFeatures || typeof pkg.allowedFeatures !== 'object') {
+            pkg.allowedFeatures = {};
+        }
+        pkg.allowedFeatures[featKey] = Boolean(isChecked);
+        Profile.renderAdminExchangePackagesList();
+    },
+
+    setAllAdminExchangePackageFeatures(idx, boolVal) {
+        if (!Profile._adminExchangePackages || !Profile._adminExchangePackages[idx]) return;
+        var pkg = Profile._adminExchangePackages[idx];
+        var keys = ['customId', 'nameGlow', 'liquidGlassIos27', 'vipAvatar', 'dynamicIsland', 'highAudio', 'backgroundPlay', 'keepScreenAwake', 'swipeGestures', 'vipSultanBadge', 'homeTheme', 'navTheme'];
+        pkg.allowedFeatures = {};
+        keys.forEach(function(k) {
+            pkg.allowedFeatures[k] = Boolean(boolVal);
+        });
+        Profile.renderAdminExchangePackagesList();
     },
 
     updateAdminExchangePackageDuration(idx, days) {
@@ -18225,13 +18364,26 @@ var Profile = {
         if (!Profile._adminExchangePackages || !Profile._adminExchangePackages[idx]) return;
         var pkg = Profile._adminExchangePackages[idx];
         pkg.border = borderVal;
-        if (borderVal.includes('Semua') || borderVal.toLowerCase().includes('immortal')) {
+        var bLow = String(borderVal || '').trim().toLowerCase();
+        if (bLow.includes('semua')) {
+            pkg.borderId = 'all';
+        } else if (bLow.includes('platinum') && bLow.includes('master') && bLow.includes('legend') && bLow.includes('immortal') && (bLow.includes('permanen') || bLow.includes('permanent'))) {
+            pkg.borderId = 'platinum_master_legend_immortal_permanent';
+        } else if (bLow.includes('platinum') && bLow.includes('master') && bLow.includes('legend') && bLow.includes('immortal')) {
+            pkg.borderId = 'platinum_master_legend_immortal';
+        } else if (bLow.includes('platinum') && bLow.includes('master') && bLow.includes('legend')) {
+            pkg.borderId = 'platinum_master_legend';
+        } else if (bLow.includes('platinum') && bLow.includes('master')) {
+            pkg.borderId = 'platinum_master';
+        } else if (bLow === 'permanen' || bLow === 'permanent' || bLow === 'border permanen' || bLow === 'border permanent') {
+            pkg.borderId = 'border_permanent';
+        } else if (bLow === 'immortal' || bLow === 'border immortal') {
             pkg.borderId = 'border_immortal';
-        } else if (borderVal === 'Platinum') {
+        } else if (bLow === 'platinum' || bLow === 'border platinum') {
             pkg.borderId = 'border_platinum';
-        } else if (borderVal === 'Master') {
+        } else if (bLow === 'master' || bLow === 'border master') {
             pkg.borderId = 'border_master';
-        } else if (borderVal === 'Legend') {
+        } else if (bLow === 'legend' || bLow === 'border legend') {
             pkg.borderId = 'border_legend';
         } else {
             pkg.borderId = 'none';
@@ -18256,6 +18408,20 @@ var Profile = {
             isPermanent: false,
             border: 'Platinum',
             borderId: 'border_platinum',
+            allowedFeatures: {
+                customId: true,
+                nameGlow: true,
+                liquidGlassIos27: true,
+                vipAvatar: true,
+                dynamicIsland: true,
+                highAudio: true,
+                backgroundPlay: true,
+                keepScreenAwake: true,
+                swipeGestures: true,
+                vipSultanBadge: true,
+                homeTheme: true,
+                navTheme: true
+            },
             benefits: [
                 'Akses Penuh Fitur VIP MusifyStar',
                 'Kualitas Audio Ultra HD 320kbps',
@@ -18265,7 +18431,7 @@ var Profile = {
             active: true
         });
         Profile.renderAdminExchangePackagesList();
-        if (typeof showToast === 'function') showToast('Paket baru berhasil ditambahkan! Silakan sesuaikan judul, poin, & keuntungannya.');
+        if (typeof showToast === 'function') showToast('Paket baru berhasil ditambahkan! Silakan sesuaikan judul, poin, centang fitur & keuntungannya.');
     },
 
     deleteAdminExchangePackage(idx) {
@@ -19054,66 +19220,83 @@ var Profile = {
                             <div>
                                 <label class="block text-[11px] font-bold text-white/60 mb-1">Akses Border Profil Selama Trial (Diatur Admin):</label>
                                 <select id="adm-vt-border-access" class="w-full px-3 py-2.5 bg-black/60 border border-white/15 rounded-xl text-amber-300 text-xs font-bold focus:outline-none focus:border-amber-400">
-                                    <option value="platinum" ${(!tc.borderAccess || tc.borderAccess === 'platinum') ? 'selected' : ''}>Khusus Border Platinum Saja</option>
-                                    <option value="platinum_master" ${tc.borderAccess === 'platinum_master' ? 'selected' : ''}>Border Platinum & Master</option>
-                                    <option value="platinum_master_legend" ${tc.borderAccess === 'platinum_master_legend' ? 'selected' : ''}>Border Platinum, Master & Legend</option>
-                                    <option value="all" ${tc.borderAccess === 'all' ? 'selected' : ''}>Semua Border VIP (Termasuk Immortal & Custom)</option>
-                                    <option value="none" ${tc.borderAccess === 'none' ? 'selected' : ''}>Tanpa Border VIP (Hanya Fitur VIP)</option>
+                                    <option value="platinum" ${(!tc.borderAccess || tc.borderAccess === 'platinum') ? 'selected' : ''}>Border Platinum</option>
+                                    <option value="master" ${tc.borderAccess === 'master' ? 'selected' : ''}>Border Master</option>
+                                    <option value="legend" ${tc.borderAccess === 'legend' ? 'selected' : ''}>Border Legend</option>
+                                    <option value="immortal" ${tc.borderAccess === 'immortal' ? 'selected' : ''}>Border Immortal</option>
+                                    <option value="permanent" ${tc.borderAccess === 'permanent' ? 'selected' : ''}>Border Permanen</option>
+                                    <option value="platinum_master" ${tc.borderAccess === 'platinum_master' ? 'selected' : ''}>Border Platinum / Master</option>
+                                    <option value="platinum_master_legend" ${tc.borderAccess === 'platinum_master_legend' ? 'selected' : ''}>Border Platinum / Master / Legend</option>
+                                    <option value="platinum_master_legend_immortal" ${tc.borderAccess === 'platinum_master_legend_immortal' ? 'selected' : ''}>Border Platinum / Master / Legend / Immortal</option>
+                                    <option value="platinum_master_legend_immortal_permanent" ${tc.borderAccess === 'platinum_master_legend_immortal_permanent' ? 'selected' : ''}>Border Platinum / Master / Legend / Immortal / Permanen</option>
+                                    <option value="all" ${tc.borderAccess === 'all' ? 'selected' : ''}>Semua Border Permanen / Immortal</option>
+                                    <option value="none" ${tc.borderAccess === 'none' ? 'selected' : ''}>Tanpa Border</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div class="p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-2.5">
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                        <div class="p-3 rounded-2xl bg-black/40 border border-white/10 space-y-2.5">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
                                 <div>
-                                    <span class="text-[11px] font-bold text-white/85 block">Fitur VIP yang Dibuka Selama Masa Trial (10 Fitur Lengkap):</span>
-                                    <span class="text-[10px] text-white/45 block">Fitur yang tidak dicentang otomatis dikunci untuk pengguna Trial VIP (termasuk Custom ID, Efek Nama, dll).</span>
+                                    <span class="text-[11px] font-black text-amber-300 flex items-center gap-1.5">
+                                        <i data-lucide="check-square" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i>
+                                        <span>Fitur VIP yang Dibuka Selama Masa Trial (12 Fitur Lengkap)</span>
+                                    </span>
+                                    <span class="text-[10px] text-white/45 block mt-0.5">Fitur yang tidak dicentang otomatis dikunci untuk pengguna Trial VIP.</span>
                                 </div>
                                 <div class="flex items-center gap-1.5 shrink-0">
-                                    <button type="button" onclick="document.querySelectorAll('.adm-vt-feat-chk').forEach(function(c){c.checked=true;})" class="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/35 text-emerald-300 text-[10px] font-bold cursor-pointer">Centang Semua</button>
-                                    <button type="button" onclick="document.querySelectorAll('.adm-vt-feat-chk').forEach(function(c){c.checked=false;})" class="px-2 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/35 text-rose-300 text-[10px] font-bold cursor-pointer">Matikan Semua</button>
+                                    <button type="button" onclick="document.querySelectorAll('.adm-vt-feat-chk').forEach(function(c){c.checked=true;})" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/35 text-emerald-300 text-[10px] font-extrabold cursor-pointer">Centang Semua</button>
+                                    <button type="button" onclick="document.querySelectorAll('.adm-vt-feat-chk').forEach(function(c){c.checked=false;})" class="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/35 text-rose-300 text-[10px] font-extrabold cursor-pointer">Lepas Semua</button>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs text-white/85 pt-1">
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-cyan-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-liquid" ${tf.liquidGlassIos27 !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-cyan-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Liquid Glass iOS 27 (Full UI)</span>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2 text-xs text-white/90">
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-customid" ${tf.customId !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Custom ID VIP</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-purple-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-glow" ${tf.nameGlow !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-purple-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Efek Nama Berwarna (VIP Glow)</span>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-glow" ${tf.nameGlow !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Efek Nama Glow</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-amber-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-customid" ${tf.customId !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-amber-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Custom ID VIP (Ganti ID Keren)</span>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-liquid" ${tf.liquidGlassIos27 !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Liquid Glass iOS 27</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-pink-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-avatar" ${tf.vipAvatar !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-pink-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Katalog Avatar VIP (Cewe & Cowo)</span>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-avatar" ${tf.vipAvatar !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Katalog Avatar VIP</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-amber-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-island" ${tf.dynamicIsland !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-amber-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Dynamic Island Mini Player iOS</span>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-island" ${tf.dynamicIsland !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Dynamic Island iOS</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-emerald-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-audio" ${tf.highAudio !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Audio Ultra HD 320kbps</span>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-audio" ${tf.highAudio !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Audio Ultra HD</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-indigo-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-bgplay" ${tf.backgroundPlay !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-indigo-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Putar Musik di Latar Belakang</span>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-bgplay" ${tf.backgroundPlay !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Putar Latar Belakang</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-yellow-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-awake" ${tf.keepScreenAwake !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-yellow-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Layar Tetap Menyala (Wake Lock)</span>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-awake" ${tf.keepScreenAwake !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Layar Tetap Menyala</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-sky-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-swipe" ${tf.swipeGestures !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-sky-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Gestur Usap Layar Player</span>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-swipe" ${tf.swipeGestures !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Gestur Usap Layar</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-amber-400/30 cursor-pointer">
-                                    <input type="checkbox" id="adm-vt-feat-badge" ${tf.vipSultanBadge !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-amber-400 rounded w-4 h-4 shrink-0" />
-                                    <span class="text-[11px] font-semibold">Lencana Rank VIP Sultan Member</span>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-badge" ${tf.vipSultanBadge !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Lencana VIP Sultan</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-hometheme" ${tf.homeTheme !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Tema Home Screen</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vt-feat-navtheme" ${tf.navTheme !== false ? 'checked' : ''} class="adm-vt-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Tema Navigasi Bawah</span>
                                 </label>
                             </div>
                         </div>
@@ -19310,9 +19493,15 @@ var Profile = {
 
                             var trialBorderMap = {
                                 'platinum': 'Border Platinum',
-                                'platinum_master': 'Border Platinum & Master',
-                                'platinum_master_legend': 'Border Platinum, Master & Legend',
-                                'all': 'Semua Border VIP (Termasuk Immortal)',
+                                'master': 'Border Master',
+                                'legend': 'Border Legend',
+                                'immortal': 'Border Immortal',
+                                'permanent': 'Border Permanen',
+                                'platinum_master': 'Border Platinum / Master',
+                                'platinum_master_legend': 'Border Platinum / Master / Legend',
+                                'platinum_master_legend_immortal': 'Border Platinum / Master / Legend / Immortal',
+                                'platinum_master_legend_immortal_permanent': 'Border Platinum / Master / Legend / Immortal / Permanen',
+                                'all': 'Semua Border Permanen / Immortal',
                                 'none': 'Tanpa Border'
                             };
                             var userTrialDays = u.trialDurationDays || (inv && parseInt(inv.duration)) || 7;
@@ -19372,14 +19561,19 @@ var Profile = {
                                         <!-- Pilihan Border VIP -->
                                         <div class="flex items-center gap-1.5 flex-wrap">
                                             <label class="text-[11px] font-bold text-white/60">Pilih Border VIP:</label>
-                                            <select id="adm-vt-ext-border-${Profile.escapeHtml(u.id)}" class="px-2.5 py-1.5 rounded-xl bg-black/70 border border-amber-400/40 text-amber-300 text-xs font-bold focus:outline-none max-w-[210px]">
+                                            <select id="adm-vt-ext-border-${Profile.escapeHtml(u.id)}" class="px-2.5 py-1.5 rounded-xl bg-black/70 border border-amber-400/40 text-amber-300 text-xs font-bold focus:outline-none max-w-[230px]">
                                                 <option value="trial_border" selected>⭐ Sesuai Border Trial (${Profile.escapeHtml(userTrialBorderTitle)})</option>
                                                 <option value="border_platinum">Border Platinum</option>
                                                 <option value="border_master">Border Master</option>
                                                 <option value="border_legend">Border Legend</option>
                                                 <option value="border_immortal">Border Immortal</option>
-                                                <option value="all">Semua Border VIP (Termasuk Immortal)</option>
-                                                <option value="none">Tanpa Border (Hanya Fitur VIP)</option>
+                                                <option value="border_permanent">Border Permanen</option>
+                                                <option value="platinum_master">Border Platinum / Master</option>
+                                                <option value="platinum_master_legend">Border Platinum / Master / Legend</option>
+                                                <option value="platinum_master_legend_immortal">Border Platinum / Master / Legend / Immortal</option>
+                                                <option value="platinum_master_legend_immortal_permanent">Border Platinum / Master / Legend / Immortal / Permanen</option>
+                                                <option value="all">Semua Border Permanen / Immortal</option>
+                                                <option value="none">Tanpa Border</option>
                                             </select>
                                         </div>
                                     </div>
@@ -19490,7 +19684,9 @@ var Profile = {
                     backgroundPlay: gid('adm-vt-feat-bgplay') ? Boolean(gid('adm-vt-feat-bgplay').checked) : true,
                     keepScreenAwake: gid('adm-vt-feat-awake') ? Boolean(gid('adm-vt-feat-awake').checked) : true,
                     swipeGestures: gid('adm-vt-feat-swipe') ? Boolean(gid('adm-vt-feat-swipe').checked) : true,
-                    vipSultanBadge: gid('adm-vt-feat-badge') ? Boolean(gid('adm-vt-feat-badge').checked) : true
+                    vipSultanBadge: gid('adm-vt-feat-badge') ? Boolean(gid('adm-vt-feat-badge').checked) : true,
+                    homeTheme: gid('adm-vt-feat-hometheme') ? Boolean(gid('adm-vt-feat-hometheme').checked) : true,
+                    navTheme: gid('adm-vt-feat-navtheme') ? Boolean(gid('adm-vt-feat-navtheme').checked) : true
                 },
                 autoSendEmailInvoice: gid('adm-vt-auto-email') ? Boolean(gid('adm-vt-auto-email').checked) : true,
                 invoicePackageId: 'pkg_1month',
