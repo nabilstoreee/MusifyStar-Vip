@@ -3279,6 +3279,11 @@ var Profile = {
                         <span>Atur Sanksi & Ban</span>
                         <span id="admin-banned-count-badge" class="hidden text-[10px] bg-rose-500 text-white px-1.5 py-0.2 rounded-full font-bold">0</span>
                     </button>
+                    <button id="admin-tab-btn-ipmonitor" onclick="Profile.setAdminTab('ipmonitor')" class="px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 border border-rose-400/40 hover:text-white whitespace-nowrap shadow-sm shadow-rose-500/20">
+                        <i data-lucide="radar" class="w-4 h-4 text-rose-400 animate-pulse"></i>
+                        <span>Pantau IP & Aktivitas Sistem</span>
+                        <span id="admin-ipmonitor-badge" class="text-[9px] bg-gradient-to-r from-rose-500 to-amber-500 text-white px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider">LIVE</span>
+                    </button>
                     <button id="admin-tab-btn-payment" onclick="Profile.setAdminTab('payment')" class="px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-white/5 hover:bg-white/10 text-white/70 hover:text-white whitespace-nowrap">
                         <i data-lucide="qr-code" class="w-4 h-4 text-amber-400"></i>
                         <span>QRIS & Pembayaran</span>
@@ -3488,6 +3493,16 @@ var Profile = {
                         </div>
                     </div>
                 </div>
+
+                <!-- TAB 19: PANTAU IP TERBLOKIR OTOMATIS & PENGGUNAAN WEBSITE REAL-TIME -->
+                <div id="admin-view-ipmonitor" class="hidden space-y-4">
+                    <div id="admin-ipmonitor-container" class="space-y-4">
+                        <div class="text-center py-12 text-white/50 space-y-2">
+                            <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-rose-400"></i>
+                            <p class="text-xs">Memuat sistem pemantauan IP terblokir otomatis & analisis penggunaan website pengguna...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Footer with Logout -->
@@ -3534,6 +3549,7 @@ var Profile = {
         var btnVipTrial = gid('admin-tab-btn-viptrial');
         var btnVouchers = gid('admin-tab-btn-vouchers');
         var btnBans = gid('admin-tab-btn-bans');
+        var btnIpMonitor = gid('admin-tab-btn-ipmonitor');
         var btnPayment = gid('admin-tab-btn-payment');
         var btnMessages = gid('admin-tab-btn-messages');
         var btnAvatars = gid('admin-tab-btn-avatars');
@@ -3554,6 +3570,7 @@ var Profile = {
         var viewVipTrial = gid('admin-view-viptrial');
         var viewVouchers = gid('admin-view-vouchers');
         var viewBans = gid('admin-view-bans');
+        var viewIpMonitor = gid('admin-view-ipmonitor');
         var viewPayment = gid('admin-view-payment');
         var viewMessages = gid('admin-view-messages');
         var viewAvatars = gid('admin-view-avatars');
@@ -3580,6 +3597,7 @@ var Profile = {
         if (btnVipTrial) btnVipTrial.className = tab === 'viptrial' ? activeVipBtnClass : inactiveVipBtnClass;
         if (btnVouchers) btnVouchers.className = tab === 'vouchers' ? activeVipBtnClass : inactiveVipBtnClass;
         if (btnBans) btnBans.className = tab === 'bans' ? activeBtnClass : inactiveBtnClass;
+        if (btnIpMonitor) btnIpMonitor.className = tab === 'ipmonitor' ? activeBtnClass : 'px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 border border-rose-400/40 hover:text-white whitespace-nowrap shadow-sm shadow-rose-500/20';
         if (btnPayment) btnPayment.className = tab === 'payment' ? activeBtnClass : inactiveBtnClass;
         if (btnMessages) btnMessages.className = tab === 'messages' ? activeBtnClass : inactiveBtnClass;
         if (btnAvatars) btnAvatars.className = tab === 'avatars' ? activeBtnClass : inactiveBtnClass;
@@ -3601,6 +3619,7 @@ var Profile = {
         if (viewVipTrial) viewVipTrial.classList.toggle('hidden', tab !== 'viptrial');
         if (viewVouchers) viewVouchers.classList.toggle('hidden', tab !== 'vouchers');
         if (viewBans) viewBans.classList.toggle('hidden', tab !== 'bans');
+        if (viewIpMonitor) viewIpMonitor.classList.toggle('hidden', tab !== 'ipmonitor');
         if (viewPayment) viewPayment.classList.toggle('hidden', tab !== 'payment');
         if (viewMessages) viewMessages.classList.toggle('hidden', tab !== 'messages');
         if (viewAvatars) viewAvatars.classList.toggle('hidden', tab !== 'avatars');
@@ -3634,6 +3653,8 @@ var Profile = {
             Profile.loadAdminVouchersTab();
         } else if (tab === 'bans') {
             Profile.loadAdminBansList();
+        } else if (tab === 'ipmonitor') {
+            Profile.loadAdminIpMonitorTab(false);
         } else if (tab === 'payment') {
             Profile.renderAdminPaymentTab();
         } else if (tab === 'messages') {
@@ -3659,6 +3680,8 @@ var Profile = {
                 Profile.loadAdminAnalytics(true);
             } else if (Profile.adminActiveTab === 'globalstats') {
                 Profile.loadAdminGlobalStats(true);
+            } else if (Profile.adminActiveTab === 'ipmonitor') {
+                Profile.loadAdminIpMonitorTab(true);
             }
             Profile.checkFeedbackBadgeQuietly();
             if (typeof Profile.checkSiteUpdateBadgeQuietly === 'function') {
@@ -3695,6 +3718,8 @@ var Profile = {
             Profile.loadAdminPointExchangeTab();
         } else if (Profile.adminActiveTab === 'bans') {
             Profile.loadAdminBansList();
+        } else if (Profile.adminActiveTab === 'ipmonitor') {
+            Profile.loadAdminIpMonitorTab(false);
         } else if (Profile.adminActiveTab === 'payment') {
             Profile.renderAdminPaymentTab();
         } else if (Profile.adminActiveTab === 'messages') {
@@ -7019,31 +7044,73 @@ var Profile = {
             // Build Banned IPs Cards HTML
             var ipListHtml = '';
             if (bannedIpsList.length === 0) {
-                ipListHtml = `<div class="p-4 text-center rounded-2xl bg-white/[0.02] border border-white/5 text-white/40 text-xs">Belum ada Alamat IP yang masuk dalam daftar hitam blacklist IP khusus</div>`;
+                ipListHtml = `<div class="p-4 text-center rounded-2xl bg-white/[0.02] border border-white/5 text-white/40 text-xs col-span-full">Belum ada Alamat IP yang terblokir otomatis oleh sistem maupun di-blacklist manual.</div>`;
             } else {
                 ipListHtml = bannedIpsList.map(function(item) {
-                    var expText = item.banExpiresAt ? new Date(item.banExpiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Permanen';
+                    var expText = item.banExpiresAt ? new Date(item.banExpiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Permanen (Selamanya)';
+                    var isAuto = item.source !== 'admin_manual';
+                    var sourceBadge = isAuto
+                        ? `<span class="text-[9px] px-2 py-0.5 rounded-full bg-rose-500/30 border border-rose-400/50 text-rose-200 font-black uppercase tracking-wider inline-flex items-center gap-1"><i data-lucide="cpu" class="w-2.5 h-2.5"></i> BLOKIR OTOMATIS SISTEM</span>`
+                        : `<span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/30 border border-amber-400/50 text-amber-200 font-black uppercase tracking-wider inline-flex items-center gap-1"><i data-lucide="shield" class="w-2.5 h-2.5"></i> BLOKIR MANUAL ADMIN</span>`;
+                    var catBadge = item.category
+                        ? `<span class="text-[9px] px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-white/80 font-bold">${Profile.escapeHtml(item.category)}</span>`
+                        : '';
+                    var dateBlocked = item.createdAt ? new Date(item.createdAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+                    var attemptsCount = Number(item.blockedAttempts || 1);
                     return `
-                    <div class="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-between gap-3 text-xs shadow-lg">
-                        <div class="space-y-1">
-                            <div class="font-mono font-bold text-red-200 flex items-center gap-2 flex-wrap">
-                                <i data-lucide="wifi-off" class="w-4 h-4 text-red-400"></i>
-                                <span class="text-sm">${item.ip}</span>
-                                <span class="text-[9px] px-2 py-0.5 rounded-full bg-red-500/30 border border-red-500/50 text-red-200 uppercase font-sans font-black">${item.banType === 'permanent' ? 'Blacklist Permanen' : 'DiBlacklist'}</span>
+                    <div class="p-4 rounded-2xl bg-gradient-to-br from-red-500/10 to-black/60 border border-red-500/30 flex flex-col justify-between gap-3 text-xs shadow-lg">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <div class="font-mono font-bold text-red-200 flex items-center gap-2">
+                                    <i data-lucide="wifi-off" class="w-4 h-4 text-red-400 shrink-0"></i>
+                                    <span class="text-sm select-all">${Profile.escapeHtml(item.ip)}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    ${sourceBadge}
+                                    ${catBadge}
+                                </div>
                             </div>
-                            <p class="text-[11px] text-white/80 font-medium">${item.banReason}</p>
-                            <span class="text-[10px] text-white/40 font-mono block">Masa Berlaku: ${expText} ${item.banDurationText ? '(' + item.banDurationText + ')' : ''}</span>
+                            <p class="text-[11px] text-white/90 font-semibold leading-relaxed bg-black/40 p-2.5 rounded-xl border border-white/5">${Profile.escapeHtml(item.banReason)}</p>
+                            <div class="grid grid-cols-2 gap-1.5 text-[10px] text-white/55 font-mono pt-0.5">
+                                <div>Waktu Blokir: <span class="text-white/80 font-semibold">${dateBlocked}</span></div>
+                                <div>Durasi: <span class="text-red-300 font-bold">${expText}</span></div>
+                                ${item.path ? `<div class="col-span-2 truncate">Path Pemicu: <span class="text-amber-300">${Profile.escapeHtml(item.path)}</span></div>` : ''}
+                                ${item.username ? `<div class="col-span-2">Akun Terkait: <span class="text-sky-300 font-bold">@${Profile.escapeHtml(item.username)}</span></div>` : ''}
+                                <div class="col-span-2">Percobaan Masuk Ulang Ditolak: <span class="text-rose-300 font-bold">${attemptsCount}x ditangkis firewall</span></div>
+                            </div>
                         </div>
-                        <button onclick="Profile.quickUnbanIp('${item.ip}')" class="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 shrink-0 active:scale-95 transition-all cursor-pointer shadow-md">
-                            <i data-lucide="unlock" class="w-3.5 h-3.5 text-emerald-400"></i>
-                            <span>Buka IP</span>
-                        </button>
+                        <div class="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                            <button onclick="Profile.quickUnbanIp('${esJs(item.ip)}')" class="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-all cursor-pointer shadow-md">
+                                <i data-lucide="unlock" class="w-3.5 h-3.5 text-emerald-400"></i>
+                                <span>Buka Blokir IP (Unban)</span>
+                            </button>
+                        </div>
                     </div>`;
                 }).join('');
             }
 
             var html = `
             <div class="space-y-5">
+                <!-- Shortcut Banner to Full Real-Time IP & Website Behavior Monitor -->
+                <div class="p-4 rounded-2xl bg-gradient-to-r from-rose-500/20 via-purple-500/15 to-cyan-500/15 border border-rose-400/40 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-rose-500/25 text-rose-300 flex items-center justify-center shrink-0 border border-rose-400/40">
+                            <i data-lucide="radar" class="w-5 h-5 animate-pulse"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-xs sm:text-sm font-black text-white">Pantau IP Terblokir Otomatis & Penggunaan Website Real-Time</h4>
+                                <span class="text-[9px] px-2 py-0.5 rounded-full bg-rose-500 text-white font-black uppercase">FITUR BARU</span>
+                            </div>
+                            <p class="text-[11px] text-white/70">Lihat daftar IP yang diblokir otomatis oleh sistem serta pantau apakah pengunjung menggunakan website dengan benar/wajar atau mencurigakan.</p>
+                        </div>
+                    </div>
+                    <button onclick="Profile.setAdminTab('ipmonitor')" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white text-xs font-black flex items-center justify-center gap-2 shrink-0 shadow-lg shadow-rose-500/25 active:scale-95 transition-all cursor-pointer">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                        <span>Buka Monitor IP & Aktivitas</span>
+                    </button>
+                </div>
+
                 <!-- Header Info Card -->
                 <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-rose-500/10 via-amber-500/10 to-purple-500/10 border border-rose-500/20 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
@@ -7057,7 +7124,7 @@ var Profile = {
                     </div>
                     <div class="px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold shrink-0 self-start sm:self-auto flex items-center gap-1.5">
                         <i data-lucide="shield" class="w-3.5 h-3.5"></i>
-                        <span>${totalSanctioned} Dalam Sanksi</span>
+                        <span>${totalSanctioned} Akun • ${bannedIpsList.length} IP Diblokir</span>
                     </div>
                 </div>
 
@@ -7531,6 +7598,620 @@ var Profile = {
                 showToast('Terjadi kesalahan jaringan saat menghapus pengguna');
             }
         }
+    },
+
+    // ==============================================================
+    // TAB PANTAU IP TERBLOKIR OTOMATIS & PENGGUNAAN WEBSITE REAL-TIME
+    // ==============================================================
+    ipMonitorSubTab: 'usage', // 'usage' | 'banned' | 'events'
+    ipMonitorUsageFilter: 'all', // 'all' | 'normal' | 'suspicious' | 'banned'
+    ipMonitorBannedFilter: 'all', // 'all' | 'auto_system' | 'admin_manual'
+    ipMonitorSearchQuery: '',
+    cachedIpMonitorData: null,
+
+    async loadAdminIpMonitorTab(silent) {
+        var container = gid('admin-ipmonitor-container');
+        var token = Profile.getAdminToken();
+        if (!container || !token) return;
+
+        if (!silent && !Profile.cachedIpMonitorData) {
+            container.innerHTML = `
+            <div class="text-center py-12 text-white/50 space-y-2">
+                <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-rose-400"></i>
+                <p class="text-xs font-semibold">Memuat radar pemantauan IP otomatis & analisis perilaku pengguna...</p>
+            </div>`;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        try {
+            var res = await fetch('/api/security?action=admin_monitor', {
+                headers: { 'x-admin-token': token }
+            });
+            var data = await res.json();
+            if (!data || !data.status) {
+                if (!silent) {
+                    container.innerHTML = `
+                    <div class="text-center py-12 text-rose-400 space-y-2">
+                        <i data-lucide="alert-triangle" class="w-8 h-8 mx-auto"></i>
+                        <p class="text-xs font-semibold">${(data && data.message) || 'Gagal memuat data pemantauan IP & keamanan sistem'}</p>
+                    </div>`;
+                    if (window.lucide) lucide.createIcons();
+                }
+                return;
+            }
+
+            Profile.cachedIpMonitorData = data;
+
+            // Update badge on tab button
+            var badgeEl = gid('admin-ipmonitor-badge');
+            if (badgeEl && data.summary) {
+                var totalAlerts = Number(data.summary.totalBannedIps || 0) + Number(data.summary.suspiciousCount || 0);
+                badgeEl.innerText = totalAlerts > 0 ? (totalAlerts + ' PANTAU') : 'AMAN';
+            }
+
+            Profile.renderAdminIpMonitorContent();
+        } catch (e) {
+            if (!silent) {
+                container.innerHTML = `
+                <div class="text-center py-12 text-rose-400 space-y-2">
+                    <i data-lucide="wifi-off" class="w-8 h-8 mx-auto"></i>
+                    <p class="text-xs font-semibold">Gagal memuat radar keamanan: ${e.message}</p>
+                </div>`;
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+    },
+
+    setIpMonitorSubTab(subTab) {
+        Profile.ipMonitorSubTab = subTab;
+        Profile.renderAdminIpMonitorContent();
+    },
+
+    setIpMonitorUsageFilter(filter) {
+        Profile.ipMonitorUsageFilter = filter;
+        Profile.renderAdminIpMonitorContent();
+    },
+
+    setIpMonitorBannedFilter(filter) {
+        Profile.ipMonitorBannedFilter = filter;
+        Profile.renderAdminIpMonitorContent();
+    },
+
+    onIpMonitorSearch(val) {
+        Profile.ipMonitorSearchQuery = String(val || '');
+        Profile.renderAdminIpMonitorContent(true);
+    },
+
+    renderAdminIpMonitorContent(preserveSearchFocus) {
+        var container = gid('admin-ipmonitor-container');
+        var data = Profile.cachedIpMonitorData;
+        if (!container || !data) return;
+
+        var summary = data.summary || {};
+        var bannedIps = Array.isArray(data.bannedIps) ? data.bannedIps : [];
+        var activities = Array.isArray(data.activities) ? data.activities : [];
+        var securityEvents = Array.isArray(data.securityEvents) ? data.securityEvents : [];
+        var subTab = Profile.ipMonitorSubTab || 'usage';
+        var q = String(Profile.ipMonitorSearchQuery || '').trim().toLowerCase();
+
+        // Filter activities for 'usage' subTab
+        var filteredActivities = activities.filter(function(act) {
+            if (Profile.ipMonitorUsageFilter === 'normal' && act.status !== 'normal' && act.status !== 'admin') return false;
+            if (Profile.ipMonitorUsageFilter === 'suspicious' && act.status !== 'suspicious') return false;
+            if (Profile.ipMonitorUsageFilter === 'banned' && act.status !== 'banned') return false;
+            if (q) {
+                var hay = [
+                    act.ip,
+                    act.username,
+                    act.email,
+                    act.userId,
+                    act.deviceLabel,
+                    act.lastActionLabel,
+                    act.statusLabel,
+                    act.behaviorSummary
+                ].join(' ').toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            return true;
+        });
+
+        // Filter banned IPs for 'banned' subTab
+        var filteredBannedIps = bannedIps.filter(function(item) {
+            if (Profile.ipMonitorBannedFilter === 'auto_system' && item.source === 'admin_manual') return false;
+            if (Profile.ipMonitorBannedFilter === 'admin_manual' && item.source !== 'admin_manual') return false;
+            if (q) {
+                var hay = [
+                    item.ip,
+                    item.banReason,
+                    item.category,
+                    item.path,
+                    item.username,
+                    item.email,
+                    item.deviceLabel
+                ].join(' ').toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            return true;
+        });
+
+        // Filter security events for 'events' subTab
+        var filteredEvents = securityEvents.filter(function(ev) {
+            if (!q) return true;
+            var hay = [ev.ip, ev.category, ev.reason, ev.path, ev.username, ev.deviceLabel].join(' ').toLowerCase();
+            return hay.includes(q);
+        });
+
+        // Build Sub-Tab Content HTML
+        var subTabBodyHtml = '';
+
+        if (subTab === 'usage') {
+            var usageCardsHtml = '';
+            if (filteredActivities.length === 0) {
+                usageCardsHtml = `
+                <div class="p-8 text-center rounded-2xl bg-white/[0.02] border border-white/10 text-white/40 space-y-2">
+                    <i data-lucide="check-circle-2" class="w-8 h-8 mx-auto text-emerald-400/60"></i>
+                    <p class="text-xs font-bold text-white/70">Tidak ada data aktivitas yang cocok dengan filter saat ini</p>
+                    <p class="text-[11px] text-white/40">Semua aktivitas pengunjung real-time akan langsung tampil di sini.</p>
+                </div>`;
+            } else {
+                usageCardsHtml = filteredActivities.map(function(act) {
+                    var statusBadge = '';
+                    var cardBorder = 'border-white/10 bg-white/[0.03]';
+                    if (act.status === 'banned') {
+                        cardBorder = 'border-rose-500/40 bg-rose-500/[0.07]';
+                        statusBadge = `<span class="text-[10px] px-2.5 py-1 rounded-full bg-rose-500/25 border border-rose-400/50 text-rose-200 font-black inline-flex items-center gap-1"><i data-lucide="ban" class="w-3 h-3 text-rose-400"></i> 🚫 IP DIBLOKIR SISTEM</span>`;
+                    } else if (act.status === 'suspicious') {
+                        cardBorder = 'border-amber-500/40 bg-amber-500/[0.07]';
+                        statusBadge = `<span class="text-[10px] px-2.5 py-1 rounded-full bg-amber-500/25 border border-amber-400/50 text-amber-200 font-black inline-flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3 h-3 text-amber-400"></i> ⚠️ TIDAK WAJAR / MENCURIGAKAN</span>`;
+                    } else if (act.status === 'admin') {
+                        cardBorder = 'border-cyan-500/35 bg-cyan-500/[0.06]';
+                        statusBadge = `<span class="text-[10px] px-2.5 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 font-black inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3 h-3 text-cyan-400"></i> 🛡️ ADMIN RESMI (IMMUNE)</span>`;
+                    } else {
+                        cardBorder = 'border-emerald-500/25 bg-emerald-500/[0.04]';
+                        statusBadge = `<span class="text-[10px] px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-black inline-flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-400"></i> ✅ PENGGUNAAN BENAR & WAJAR</span>`;
+                    }
+
+                    var userBadge = act.username
+                        ? `<span class="text-xs font-extrabold text-sky-300 inline-flex items-center gap-1"><i data-lucide="user-check" class="w-3.5 h-3.5 text-sky-400"></i> @${Profile.escapeHtml(act.username)} ${act.isVip ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-400 text-black font-black">VIP</span>' : ''}</span>`
+                        : `<span class="text-xs font-semibold text-white/50 inline-flex items-center gap-1"><i data-lucide="user" class="w-3.5 h-3.5 text-white/40"></i> Pengunjung Tamu (Belum Login)</span>`;
+
+                    var lastSeenStr = act.lastSeenAt ? new Date(act.lastSeenAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+
+                    var recentTrailHtml = '';
+                    if (Array.isArray(act.recentActions) && act.recentActions.length > 0) {
+                        recentTrailHtml = `
+                        <div class="pt-2 border-t border-white/10 space-y-1">
+                            <span class="text-[10px] uppercase tracking-wider font-bold text-white/40 block">Riwayat Aktivitas Terakhir di Website:</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                ${act.recentActions.slice(0, 5).map(function(ra) {
+                                    var tStr = ra.time ? new Date(ra.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+                                    return `<span class="text-[10px] px-2 py-0.5 rounded-lg bg-black/50 border border-white/10 text-white/80 font-medium inline-flex items-center gap-1">
+                                        <span class="text-emerald-300 font-semibold">${Profile.escapeHtml(ra.label)}</span>
+                                        <span class="text-white/35 font-mono text-[9px]">(${tStr})</span>
+                                    </span>`;
+                                }).join('')}
+                            </div>
+                        </div>`;
+                    }
+
+                    var actionBtnHtml = '';
+                    if (act.isImmune) {
+                        actionBtnHtml = `<span class="text-[10px] px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 font-bold">IP Kebal Blokir</span>`;
+                    } else if (act.status === 'banned') {
+                        actionBtnHtml = `
+                        <button onclick="Profile.quickUnbanIpFromMonitor('${esJs(act.ip)}')" class="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-md">
+                            <i data-lucide="unlock" class="w-3.5 h-3.5 text-emerald-400"></i>
+                            <span>Buka Blokir IP</span>
+                        </button>`;
+                    } else {
+                        actionBtnHtml = `
+                        <button onclick="Profile.quickBanIpFromMonitor('${esJs(act.ip)}', '${esJs(act.username || 'Pengunjung')}')" class="px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer">
+                            <i data-lucide="ban" class="w-3.5 h-3.5 text-rose-400"></i>
+                            <span>Blokir IP Ini</span>
+                        </button>`;
+                    }
+
+                    return `
+                    <div class="p-4 rounded-2xl border ${cardBorder} space-y-3 shadow-lg transition-all">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-mono text-sm font-black text-white bg-black/50 px-2.5 py-0.5 rounded-lg border border-white/10 select-all">${Profile.escapeHtml(act.ip)}</span>
+                                    <span class="text-[9px] px-2 py-0.5 rounded-md bg-white/10 text-white/60 font-mono uppercase">${act.isIpv6 ? 'IPv6' : 'IPv4'}</span>
+                                    ${statusBadge}
+                                </div>
+                                <div class="flex items-center gap-3 flex-wrap pt-0.5">
+                                    ${userBadge}
+                                    ${act.email ? `<span class="text-[11px] text-white/45 font-mono">(${Profile.escapeHtml(act.email)})</span>` : ''}
+                                    <span class="text-[11px] text-white/50 flex items-center gap-1"><i data-lucide="smartphone" class="w-3 h-3 text-white/40"></i> ${Profile.escapeHtml(act.deviceLabel)}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                ${actionBtnHtml}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 rounded-xl bg-black/40 border border-white/5 text-xs">
+                            <div>
+                                <span class="text-[10px] text-white/40 block">Aktivitas Saat Ini:</span>
+                                <span class="font-bold text-amber-300">${Profile.escapeHtml(act.lastActionLabel)}</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-white/40 block">Kecepatan & Total Akses:</span>
+                                <span class="font-mono font-bold text-white">${act.requestsPerMinute} req/menit • Total ${act.totalRequests} aksi</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-white/40 block">Terakhir Aktif:</span>
+                                <span class="font-mono text-white/80">${lastSeenStr}</span>
+                            </div>
+                        </div>
+
+                        <div class="text-[11px] text-white/75 flex items-center gap-1.5">
+                            <i data-lucide="info" class="w-3.5 h-3.5 text-sky-400 shrink-0"></i>
+                            <span><strong>Kesimpulan Sistem:</strong> ${Profile.escapeHtml(act.behaviorSummary)}</span>
+                        </div>
+
+                        ${recentTrailHtml}
+                    </div>`;
+                }).join('');
+            }
+
+            subTabBodyHtml = `
+            <div class="space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button onclick="Profile.setIpMonitorUsageFilter('all')" class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${Profile.ipMonitorUsageFilter === 'all' ? 'bg-white text-black shadow' : 'bg-white/5 text-white/60 hover:bg-white/10'}">Semua (${activities.length})</button>
+                        <button onclick="Profile.setIpMonitorUsageFilter('normal')" class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${Profile.ipMonitorUsageFilter === 'normal' ? 'bg-emerald-500 text-black shadow' : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20'}">✅ Penggunaan Wajar (${summary.normalUsersCount || 0})</button>
+                        <button onclick="Profile.setIpMonitorUsageFilter('suspicious')" class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${Profile.ipMonitorUsageFilter === 'suspicious' ? 'bg-amber-400 text-black shadow' : 'bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20'}">⚠️ Mencurigakan (${summary.suspiciousCount || 0})</button>
+                        <button onclick="Profile.setIpMonitorUsageFilter('banned')" class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${Profile.ipMonitorUsageFilter === 'banned' ? 'bg-rose-500 text-white shadow' : 'bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20'}">🚫 Terblokir (${summary.totalBannedIps || 0})</button>
+                    </div>
+                    <button onclick="Profile.resetIpActivityMonitor()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        <span>Reset Riwayat Pengunjung</span>
+                    </button>
+                </div>
+                <div class="space-y-3">
+                    ${usageCardsHtml}
+                </div>
+            </div>`;
+        } else if (subTab === 'banned') {
+            var bannedCardsHtml = '';
+            if (filteredBannedIps.length === 0) {
+                bannedCardsHtml = `
+                <div class="p-8 text-center rounded-2xl bg-white/[0.02] border border-white/10 text-white/40 space-y-2">
+                    <i data-lucide="shield-check" class="w-8 h-8 mx-auto text-emerald-400/60"></i>
+                    <p class="text-xs font-bold text-white/70">Belum ada Alamat IP yang terblokir pada kategori ini</p>
+                    <p class="text-[11px] text-white/40">Jika ada pengguna yang mencoba mengotak-atik VIP lewat DevTools atau mengunduh website dengan Scraper/GetWeb, IP mereka akan otomatis muncul dan terkunci di sini.</p>
+                </div>`;
+            } else {
+                bannedCardsHtml = filteredBannedIps.map(function(item) {
+                    var isAuto = item.source !== 'admin_manual';
+                    var sourceBadge = isAuto
+                        ? `<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/30 border border-rose-400/50 text-rose-200 font-black uppercase tracking-wider inline-flex items-center gap-1"><i data-lucide="cpu" class="w-3 h-3"></i> 🤖 BLOKIR OTOMATIS SISTEM</span>`
+                        : `<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/30 border border-amber-400/50 text-amber-200 font-black uppercase tracking-wider inline-flex items-center gap-1"><i data-lucide="shield" class="w-3 h-3"></i> 🛡️ BLOKIR MANUAL ADMIN</span>`;
+                    var expText = item.banExpiresAt ? new Date(item.banExpiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'PERMANEN (SELAMANYA)';
+                    var createdStr = item.createdAt ? new Date(item.createdAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+                    var lastAttemptStr = item.lastAttemptAt ? new Date(item.lastAttemptAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+
+                    return `
+                    <div class="p-4 rounded-2xl bg-gradient-to-br from-rose-500/15 via-red-950/20 to-black/60 border border-rose-500/35 space-y-3 shadow-xl">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-mono text-sm sm:text-base font-black text-rose-200 bg-black/60 px-3 py-1 rounded-xl border border-rose-500/30 select-all">${Profile.escapeHtml(item.ip)}</span>
+                                    ${sourceBadge}
+                                    <span class="text-[10px] px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-amber-300 font-bold">${Profile.escapeHtml(item.category || 'Pelanggaran Keamanan')}</span>
+                                </div>
+                                <div class="flex items-center gap-3 flex-wrap text-xs pt-0.5">
+                                    ${item.username ? `<span class="text-sky-300 font-extrabold">Akun: @${Profile.escapeHtml(item.username)}</span>` : `<span class="text-white/45">Tanpa Akun / Tamu</span>`}
+                                    ${item.email ? `<span class="text-white/50 font-mono">(${Profile.escapeHtml(item.email)})</span>` : ''}
+                                    <span class="text-white/60">Perangkat: <strong>${Profile.escapeHtml(item.deviceLabel || 'Tidak diketahui')}</strong></span>
+                                </div>
+                            </div>
+                            <button onclick="Profile.quickUnbanIpFromMonitor('${esJs(item.ip)}')" class="px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-extrabold flex items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-all cursor-pointer shadow-lg">
+                                <i data-lucide="unlock" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Buka Blokir (Unban IP)</span>
+                            </button>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-black/50 border border-rose-500/20 space-y-1">
+                            <span class="text-[10px] uppercase tracking-wider font-bold text-rose-300/80 block">Alasan Pemblokiran Sistem / Pelanggaran:</span>
+                            <p class="text-xs text-white font-semibold leading-relaxed">${Profile.escapeHtml(item.banReason)}</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono bg-black/30 p-2.5 rounded-xl border border-white/5">
+                            <div>
+                                <span class="text-[9px] text-white/40 block font-sans">Status Blokir</span>
+                                <span class="text-rose-300 font-bold">${expText}</span>
+                            </div>
+                            <div>
+                                <span class="text-[9px] text-white/40 block font-sans">Waktu Pertama Diblokir</span>
+                                <span class="text-white/80">${createdStr}</span>
+                            </div>
+                            <div>
+                                <span class="text-[9px] text-white/40 block font-sans">Percobaan Masuk Ulang</span>
+                                <span class="text-amber-300 font-bold">${Number(item.blockedAttempts || 1)}x Ditolak Sistem</span>
+                            </div>
+                            <div>
+                                <span class="text-[9px] text-white/40 block font-sans">Percobaan Terakhir</span>
+                                <span class="text-white/80">${lastAttemptStr}</span>
+                            </div>
+                            ${item.path ? `<div class="col-span-2 sm:col-span-4 pt-1 border-t border-white/5 truncate"><span class="text-white/40 font-sans">Endpoint / Path Pemicu: </span><span class="text-amber-300">${Profile.escapeHtml(item.path)}</span></div>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            subTabBodyHtml = `
+            <div class="space-y-3">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <button onclick="Profile.setIpMonitorBannedFilter('all')" class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${Profile.ipMonitorBannedFilter === 'all' ? 'bg-white text-black shadow' : 'bg-white/5 text-white/60 hover:bg-white/10'}">Semua IP Diblokir (${bannedIps.length})</button>
+                    <button onclick="Profile.setIpMonitorBannedFilter('auto_system')" class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${Profile.ipMonitorBannedFilter === 'auto_system' ? 'bg-rose-500 text-white shadow' : 'bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20'}">🤖 Terblokir Otomatis oleh Sistem (${summary.autoBannedCount || 0})</button>
+                    <button onclick="Profile.setIpMonitorBannedFilter('admin_manual')" class="px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${Profile.ipMonitorBannedFilter === 'admin_manual' ? 'bg-amber-400 text-black shadow' : 'bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20'}">🛡️ Diblokir Manual Admin (${summary.manualBannedCount || 0})</button>
+                </div>
+                <div class="space-y-3">
+                    ${bannedCardsHtml}
+                </div>
+            </div>`;
+        } else if (subTab === 'events') {
+            var eventsHtml = '';
+            if (filteredEvents.length === 0) {
+                eventsHtml = `
+                <div class="p-8 text-center rounded-2xl bg-white/[0.02] border border-white/10 text-white/40 space-y-2">
+                    <i data-lucide="file-check-2" class="w-8 h-8 mx-auto text-sky-400/60"></i>
+                    <p class="text-xs font-bold text-white/70">Belum ada catatan insiden keamanan baru</p>
+                </div>`;
+            } else {
+                eventsHtml = filteredEvents.map(function(ev) {
+                    var timeStr = ev.timestamp ? new Date(ev.timestamp).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+                    var badgeColor = ev.type === 'unban'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : (ev.source === 'auto_system' ? 'bg-rose-500/25 text-rose-200 border-rose-500/40' : 'bg-amber-500/25 text-amber-200 border-amber-500/40');
+                    var badgeLabel = ev.type === 'unban' ? 'UNBAN IP' : (ev.source === 'auto_system' ? 'AUTO-BLOCK SISTEM' : 'BLOKIR ADMIN');
+                    return `
+                    <div class="p-3.5 rounded-2xl bg-black/40 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-[9px] px-2 py-0.5 rounded-full border font-black ${badgeColor}">${badgeLabel}</span>
+                                <span class="font-mono font-bold text-white select-all">${Profile.escapeHtml(ev.ip)}</span>
+                                <span class="text-[10px] text-amber-300 font-bold">${Profile.escapeHtml(ev.category || '')}</span>
+                                ${ev.username ? `<span class="text-[10px] text-sky-300 font-bold">(@${Profile.escapeHtml(ev.username)})</span>` : ''}
+                            </div>
+                            <p class="text-[11px] text-white/80">${Profile.escapeHtml(ev.reason)}</p>
+                            ${ev.path ? `<span class="text-[10px] text-white/40 font-mono block">Path: ${Profile.escapeHtml(ev.path)} • Perangkat: ${Profile.escapeHtml(ev.deviceLabel || '-')}</span>` : ''}
+                        </div>
+                        <span class="text-[10px] font-mono text-white/45 shrink-0">${timeStr}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            subTabBodyHtml = `
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-white/70">Menampilkan ${filteredEvents.length} log kejadian keamanan terbaru</span>
+                    <button onclick="Profile.clearSecurityEventsLog()" class="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        <span>Bersihkan Log</span>
+                    </button>
+                </div>
+                <div class="space-y-2">
+                    ${eventsHtml}
+                </div>
+            </div>`;
+        }
+
+        var fullHtml = `
+        <div class="space-y-5">
+            <!-- Header Radar Keamanan & Pemantauan IP -->
+            <div class="p-5 rounded-3xl bg-gradient-to-r from-rose-500/15 via-purple-600/10 to-cyan-500/15 border border-rose-500/35 shadow-xl space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-rose-500/30 shrink-0">
+                            <i data-lucide="radar" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="text-base sm:text-lg font-black text-white tracking-tight">Pusat Pantau IP Terblokir Otomatis & Perilaku Pengguna</h3>
+                                <span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-400 text-black font-black uppercase">REAL-TIME FIREWALL</span>
+                            </div>
+                            <p class="text-xs text-white/70 mt-0.5">Pantau daftar IP yang diblokir otomatis oleh sistem serta awasi apakah pengunjung menggunakan website dengan benar atau mencurigakan.</p>
+                        </div>
+                    </div>
+                    <button onclick="Profile.loadAdminIpMonitorTab(false)" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                        <span>Segarkan Data</span>
+                    </button>
+                </div>
+
+                <!-- 4 Summary Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-white/10">
+                    <div class="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30">
+                        <span class="text-[10px] text-rose-200/80 font-bold block">IP Diblokir Otomatis / Manual</span>
+                        <div class="flex items-baseline gap-1.5 mt-0.5">
+                            <span class="text-xl font-black text-rose-300">${summary.totalBannedIps || 0}</span>
+                            <span class="text-[10px] text-rose-200/70">(${summary.autoBannedCount || 0} Otomatis)</span>
+                        </div>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30">
+                        <span class="text-[10px] text-emerald-200/80 font-bold block">Pengguna Wajar / Benar</span>
+                        <div class="flex items-baseline gap-1.5 mt-0.5">
+                            <span class="text-xl font-black text-emerald-300">${summary.normalUsersCount || 0}</span>
+                            <span class="text-[10px] text-emerald-200/70">IP Aman</span>
+                        </div>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30">
+                        <span class="text-[10px] text-amber-200/80 font-bold block">Aktivitas Mencurigakan</span>
+                        <div class="flex items-baseline gap-1.5 mt-0.5">
+                            <span class="text-xl font-black text-amber-300">${summary.suspiciousCount || 0}</span>
+                            <span class="text-[10px] text-amber-200/70">Perlu Pantau</span>
+                        </div>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-purple-500/15 border border-purple-500/30">
+                        <span class="text-[10px] text-purple-200/80 font-bold block">Serangan Ulang Ditangkis</span>
+                        <div class="flex items-baseline gap-1.5 mt-0.5">
+                            <span class="text-xl font-black text-purple-300">${summary.totalBlockedAttempts || 0}x</span>
+                            <span class="text-[10px] text-purple-200/70">Ditolak Server</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-Tab Navigation & Search Bar -->
+            <div class="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="Profile.setIpMonitorSubTab('usage')" class="px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all ${subTab === 'usage' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow-lg shadow-emerald-500/20' : 'bg-white/5 text-white/70 hover:bg-white/10'}">
+                            <i data-lucide="activity" class="w-4 h-4"></i>
+                            <span>1. Pantau Penggunaan Website (${activities.length})</span>
+                        </button>
+                        <button onclick="Profile.setIpMonitorSubTab('banned')" class="px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all ${subTab === 'banned' ? 'bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-lg shadow-rose-500/20' : 'bg-white/5 text-white/70 hover:bg-white/10'}">
+                            <i data-lucide="shield-off" class="w-4 h-4"></i>
+                            <span>2. Daftar IP Terblokir Otomatis (${bannedIps.length})</span>
+                        </button>
+                        <button onclick="Profile.setIpMonitorSubTab('events')" class="px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all ${subTab === 'events' ? 'bg-gradient-to-r from-sky-500 to-indigo-500 text-white shadow-lg shadow-sky-500/20' : 'bg-white/5 text-white/70 hover:bg-white/10'}">
+                            <i data-lucide="scroll-text" class="w-4 h-4"></i>
+                            <span>3. Log Audit Keamanan (${securityEvents.length})</span>
+                        </button>
+                    </div>
+                    <div class="relative w-full md:w-72">
+                        <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40"></i>
+                        <input id="admin-ipmonitor-search-input" type="text" value="${Profile.escapeHtml(Profile.ipMonitorSearchQuery || '')}" oninput="Profile.onIpMonitorSearch(this.value)" placeholder="Cari IP, @username, aktivitas, alasan..." class="w-full bg-white/5 border border-white/15 focus:border-rose-400 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-white/35 focus:outline-none transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-Tab Active Body -->
+            ${subTabBodyHtml}
+        </div>`;
+
+        container.innerHTML = fullHtml;
+        if (window.lucide) lucide.createIcons();
+
+        if (preserveSearchFocus) {
+            var searchEl = gid('admin-ipmonitor-search-input');
+            if (searchEl) {
+                searchEl.focus();
+                var len = searchEl.value.length;
+                try { searchEl.setSelectionRange(len, len); } catch (e) {}
+            }
+        }
+    },
+
+    quickBanIpFromMonitor(ip, labelName) {
+        var token = Profile.getAdminToken();
+        if (!token || !ip) return;
+        Profile.showConfirmModal({
+            title: 'Blokir Alamat IP Ini?',
+            message: 'Apakah Anda yakin ingin memblokir permanen alamat IP "' + ip + '" (' + (labelName || 'Pengunjung') + ')? Pengguna dari jaringan IP ini tidak akan bisa mengakses website lagi.',
+            confirmText: 'Ya, Blokir IP Sekarang',
+            confirmClass: 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/30',
+            onConfirm: async function() {
+                try {
+                    var res = await fetch('/api/security?action=admin_ban_ip', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-admin-token': token
+                        },
+                        body: JSON.stringify({
+                            ip: ip,
+                            banType: 'permanent',
+                            reason: 'Diblokir oleh Administrator melalui Radar Pemantauan Penggunaan Website.'
+                        })
+                    });
+                    var data = await res.json();
+                    if (data && data.status) {
+                        if (typeof showToast === 'function') showToast(data.message || 'IP berhasil diblokir!');
+                        Profile.loadAdminIpMonitorTab(false);
+                    } else {
+                        if (typeof showToast === 'function') showToast((data && data.message) || 'Gagal memblokir IP');
+                    }
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Kesalahan jaringan saat memblokir IP');
+                }
+            }
+        });
+    },
+
+    quickUnbanIpFromMonitor(ip) {
+        var token = Profile.getAdminToken();
+        if (!token || !ip) return;
+        Profile.showConfirmModal({
+            title: 'Buka Blokir (Unban) Alamat IP?',
+            message: 'Apakah Anda yakin ingin membuka blokir untuk alamat IP "' + ip + '" agar pengguna tersebut dapat mengakses website kembali?',
+            confirmText: 'Ya, Buka Blokir IP',
+            confirmClass: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30',
+            onConfirm: async function() {
+                try {
+                    var res = await fetch('/api/security?action=admin_unban_ip', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-admin-token': token
+                        },
+                        body: JSON.stringify({ ip: ip })
+                    });
+                    var data = await res.json();
+                    if (data && data.status) {
+                        if (typeof showToast === 'function') showToast(data.message || 'Blokir IP berhasil dibuka!');
+                        Profile.loadAdminIpMonitorTab(false);
+                        if (Profile.adminActiveTab === 'bans') Profile.loadAdminBansList();
+                    } else {
+                        if (typeof showToast === 'function') showToast((data && data.message) || 'Gagal membuka blokir IP');
+                    }
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Kesalahan jaringan saat membuka blokir IP');
+                }
+            }
+        });
+    },
+
+    clearSecurityEventsLog() {
+        var token = Profile.getAdminToken();
+        if (!token) return;
+        Profile.showConfirmModal({
+            title: 'Bersihkan Log Kejadian Keamanan?',
+            message: 'Riwayat log audit kejadian keamanan akan dikosongkan (daftar IP yang sedang diblokir TIDAK akan ikut terhapus). Lanjutkan?',
+            confirmText: 'Ya, Bersihkan Log',
+            confirmClass: 'bg-rose-600 hover:bg-rose-700',
+            onConfirm: async function() {
+                try {
+                    var res = await fetch('/api/security?action=admin_clear_events', {
+                        method: 'POST',
+                        headers: { 'x-admin-token': token }
+                    });
+                    var data = await res.json();
+                    if (data && data.status) {
+                        if (typeof showToast === 'function') showToast(data.message || 'Log berhasil dibersihkan');
+                        Profile.loadAdminIpMonitorTab(false);
+                    }
+                } catch (e) {}
+            }
+        });
+    },
+
+    resetIpActivityMonitor() {
+        var token = Profile.getAdminToken();
+        if (!token) return;
+        Profile.showConfirmModal({
+            title: 'Reset Riwayat Aktivitas Pengunjung?',
+            message: 'Riwayat sesi pengunjung normal akan direset dan mulai merekam ulang dari awal (daftar IP terblokir tetap tersimpan). Lanjutkan?',
+            confirmText: 'Ya, Reset Riwayat',
+            confirmClass: 'bg-amber-500 hover:bg-amber-600 text-black',
+            onConfirm: async function() {
+                try {
+                    var res = await fetch('/api/security?action=admin_reset_activity', {
+                        method: 'POST',
+                        headers: { 'x-admin-token': token }
+                    });
+                    var data = await res.json();
+                    if (data && data.status) {
+                        if (typeof showToast === 'function') showToast(data.message || 'Riwayat aktivitas berhasil direset');
+                        Profile.loadAdminIpMonitorTab(false);
+                    }
+                } catch (e) {}
+            }
+        });
     },
 
     openAdminVipModal(userId, username, email, currentTier, currentBorder) {
