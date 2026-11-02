@@ -177,7 +177,7 @@ var Profile = {
                             <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i>
                             <span>Efek Nama Berwarna / Gradien Animasi</span>
                         </span>
-                        <span class="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/35 font-mono">VIP & DONATUR</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                     </button>
 
                     ${isMasterAdmin ? `
@@ -186,7 +186,7 @@ var Profile = {
                             <i data-lucide="shield-check" class="w-4 h-4 text-purple-300"></i>
                             <span>Panel Admin Master (Server)</span>
                         </span>
-                        <span class="text-[9px] bg-purple-500/30 text-purple-200 border border-purple-400/40 px-1.5 py-0.5 rounded font-mono font-bold">OWNER</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                     </button>` : ''}
                 </div>
             </div>` : `
@@ -210,7 +210,6 @@ var Profile = {
                         <i data-lucide="folder-input" class="w-4 h-4 text-emerald-400"></i>
                         <span>Import Playlist</span>
                     </h3>
-                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono">IMPORT</span>
                 </div>
 
                 <div class="space-y-2 pt-0.5">
@@ -253,10 +252,7 @@ var Profile = {
                         <i data-lucide="heart" class="w-4 h-4 text-amber-400 fill-amber-400/30"></i>
                         <span>Donasi Pengembang</span>
                     </span>
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">QRIS</span>
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
-                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                 </button>
 
                 ${hasUser ? `
@@ -266,10 +262,7 @@ var Profile = {
                         <i data-lucide="sliders" class="w-4 h-4 text-sky-400"></i>
                         <span>Pengatur Kualitas</span>
                     </span>
-                    <div class="flex items-center gap-1.5">
-                        <span id="profile-streaming-quality-badge" class="text-[10px] font-mono font-extrabold text-sky-300 bg-sky-500/15 border border-sky-400/30 px-2 py-0.5 rounded-full">${Profile.getAudioQualityBitrateInfo ? Profile.getAudioQualityBitrateInfo().shortLabel : '128 kbps'}</span>
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
-                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                 </button>
 
                 <!-- Tombol Riwayat Musik (Kalender Mendengarkan) -->
@@ -278,10 +271,7 @@ var Profile = {
                         <i data-lucide="calendar-days" class="w-4 h-4 text-cyan-400"></i>
                         <span>Riwayat Musik</span>
                     </span>
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-[10px] text-cyan-300 font-medium">Bulan Lalu & Ini</span>
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
-                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                 </button>
 
                 <!-- Tombol Estimasi Penggunaan Kuota Data -->
@@ -290,10 +280,7 @@ var Profile = {
                         <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
                         <span>Estimasi Penggunaan Kuota Data</span>
                     </span>
-                    <div class="flex items-center gap-1.5">
-                        <span id="dev-view-session-data-badge" class="text-[10px] font-mono font-bold text-emerald-300">${Profile.getFormattedSessionDataUsage ? Profile.getFormattedSessionDataUsage() : '0.00 MB'}</span>
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
-                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                 </button>
 
                 <!-- Tombol Sistem Referral Undang Teman -->
@@ -302,10 +289,7 @@ var Profile = {
                         <i data-lucide="gift" class="w-4 h-4 text-amber-400"></i>
                         <span>Sistem Referral Undang Teman</span>
                     </span>
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-[10px] font-extrabold text-amber-300 bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 rounded-full">Dapat VIP</span>
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
-                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                 </button>
 
                 <!-- Tombol Efek Nama Berwarna / Gradien Animasi (VIP Name Glow) -->
@@ -314,10 +298,7 @@ var Profile = {
                         <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i>
                         <span>Efek Nama Berwarna</span>
                     </span>
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-[10px] font-extrabold text-amber-200 bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 rounded-full">Name Glow</span>
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
-                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                 </button>
 
                 <!-- Tombol Badge Khusus Donatur / Top Supporter -->
@@ -326,10 +307,7 @@ var Profile = {
                         <i data-lucide="award" class="w-4 h-4 text-pink-400"></i>
                         <span>Badge Top Supporter</span>
                     </span>
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-[10px] font-extrabold text-pink-300 bg-pink-500/15 border border-pink-400/30 px-2 py-0.5 rounded-full">Kehormatan</span>
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
-                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                 </button>
 
                 <!-- Tombol Pengaturan Aplikasi (Khusus saat Logged In) -->
@@ -351,7 +329,6 @@ var Profile = {
                         <span>Informasi & Aplikasi MusifyStar</span>
                     </h3>
                     <div class="flex items-center gap-2">
-                        <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30 font-mono">PWA</span>
                         <i id="profile-app-info-chevron" data-lucide="chevron-down" class="w-4 h-4 text-white/50 group-hover:text-white transition-transform duration-300"></i>
                     </div>
                 </div>
@@ -11865,8 +11842,8 @@ var Profile = {
                         <!-- Right: Duration & Admin Action Buttons -->
                         <div class="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
                             <div class="text-left sm:text-right">
-                                <span class="text-xs font-black text-amber-300 font-mono block">${item.formattedDuration}</span>
-                                <span class="text-[10px] text-white/40 font-mono">${item.listeningSeconds} detik</span>
+                                ${item.formattedDuration ? `<span class="text-xs font-black text-amber-300 font-mono block">${item.formattedDuration}</span>` : `<span class="text-xs font-bold text-white/40 font-mono block">Belum ada waktu</span>`}
+                                <span class="text-[10px] text-white/40 font-mono">${item.listeningSeconds || 0} detik</span>
                             </div>
 
                             <!-- Buttons -->

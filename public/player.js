@@ -185,6 +185,9 @@ AU.addEventListener('timeupdate',function(){
         }
         renderProgress();
         checkAndPreloadNext();
+        if (S.ct && (Date.now() - lastHeartbeatTime >= 10000)) {
+            sendPlaybackHeartbeat(true);
+        }
     }
 });
 AU.addEventListener('play',function(){S.ip=true;S.il=false;UB();SP();try{AU.playbackRate=S.playbackRate||1.0;}catch(ex){}sendPlaybackHeartbeat(true);requestAudioWakeLock();if(typeof Profile!=='undefined'&&typeof Profile.recordSongToListeningCalendar==='function'){try{Profile.recordSongToListeningCalendar(S.ct);}catch(e){}}});

@@ -3820,14 +3820,23 @@ var Auth = {
 
         var listeningHours = (listeningSeconds / 3600).toFixed(1);
 
-        // Helper format durasi bersih: Jika >= 1 Hari, tampilkan "X Hari" saja
+        // Helper format durasi bersih: Hari, Jam, & Menit
         function formatBadgeDurationLabel(secs) {
+            secs = Math.max(0, Number(secs || 0));
             var days = Math.floor(secs / 86400);
-            var hours = Math.floor(secs / 3600);
+            var remSec = secs % 86400;
+            var hours = Math.floor(remSec / 3600);
+            var mins = Math.floor((remSec % 3600) / 60);
             if (days >= 1) {
-                return days === 1 ? '1 Hari' : (secs % 86400 === 0 ? days + ' Hari' : (hours / 24).toFixed(1) + ' Hari');
+                if (hours > 0 && mins > 0) return days + ' Hari ' + hours + ' Jam ' + mins + ' Menit';
+                if (hours > 0) return days + ' Hari ' + hours + ' Jam';
+                if (mins > 0) return days + ' Hari ' + mins + ' Menit';
+                return days + ' Hari';
             }
-            return hours + ' Jam';
+            if (hours >= 1) {
+                return mins > 0 ? (hours + ' Jam ' + mins + ' Menit') : (hours + ' Jam');
+            }
+            return mins + ' Menit';
         }
 
         // Define Progressive Rank Badges (Locked/Unlocked based on Listening Duration)

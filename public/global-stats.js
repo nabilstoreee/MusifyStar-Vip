@@ -456,8 +456,8 @@
             var myRankCard = '';
             if (myUser) {
                 var myRankNum = myRankItem ? ('#' + myRankItem.rank) : '#-';
-                var myDuration = myRankItem ? myRankItem.formattedDuration : '0 Menit';
-                var myPlays = myRankItem ? myRankItem.totalPlays : 0;
+                var myDuration = (myRankItem && myRankItem.formattedDuration) ? myRankItem.formattedDuration : '';
+                var myPlays = myRankItem ? (myRankItem.totalPlays || 0) : 0;
                 var myInfo = this.getUserDisplayInfo(myRankItem || myUser, myUser);
 
                 myRankCard = `
@@ -506,10 +506,12 @@
 
                                     <!-- Row 3: Duration & Played Songs -->
                                     <div class="flex items-center gap-2 text-[10px] text-white/70 font-medium leading-none pt-0.5" style="font-size: 10px;">
+                                        ${myDuration ? `
                                         <span class="flex items-center gap-1 text-amber-300 font-mono font-bold">
                                             <i data-lucide="clock" class="w-2.5 h-2.5 text-amber-400"></i> ${myDuration}
                                         </span>
                                         <span class="text-white/30">&bull;</span>
+                                        ` : ''}
                                         <span class="text-white/60">${myPlays} lagu diputar</span>
                                     </div>
                                 </div>
@@ -590,7 +592,7 @@
                             <div class="min-w-0 flex-1 flex flex-col justify-center space-y-0.5">
                                 <div class="flex items-center justify-between gap-1">
                                     <span class="px-1.5 py-0.5 rounded-md border ${pillTone} font-black font-mono uppercase leading-none" style="font-size: 8px;">🏅 JUARA ${rankNum}</span>
-                                    <span class="text-amber-300 font-mono font-black truncate" style="font-size: 9.5px;">${itemObj.formattedDuration}</span>
+                                    ${itemObj.formattedDuration ? `<span class="text-amber-300 font-mono font-black truncate" style="font-size: 9.5px;">${itemObj.formattedDuration}</span>` : ''}
                                 </div>
                                 <div class="flex items-center gap-1 flex-wrap leading-tight pt-0.5">
                                     <span class="inline-flex items-center max-w-full">
@@ -607,7 +609,7 @@
                                 ` : ''}
                                 <div class="flex items-center gap-1 text-white/50 truncate" style="font-size: 8.5px;">
                                     ${uInfo.borderName ? `<span class="text-amber-300 font-semibold">${uInfo.borderName}</span> &bull; ` : ''}
-                                    <span>${itemObj.totalPlays} lagu</span>
+                                    <span>${itemObj.totalPlays || 0} lagu</span>
                                 </div>
                             </div>
                         </div>
@@ -626,7 +628,6 @@
                         <div class="min-w-0 flex-1 space-y-0.5">
                             <div class="flex items-center justify-between gap-1">
                                 <span class="px-1.5 py-0.5 rounded-md border ${pillTone} font-black font-mono uppercase leading-none" style="font-size: 8px;">🏅 JUARA ${rankNum}</span>
-                                <span class="text-white/40 font-mono font-bold" style="font-size: 9px;">0 Menit</span>
                             </div>
                             <p class="text-white/60 font-bold truncate pt-0.5" style="font-size: 10.5px;">Menunggu Pendengar</p>
                             <p class="text-white/35 truncate" style="font-size: 8.5px;">Putar musik untuk klaim #${rankNum}</p>
@@ -669,11 +670,11 @@
                                 </div>
                                 ` : ''}
                                 ${u2.borderName ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-slate-400/20 text-slate-200 border border-slate-400/30 text-[8px] font-bold leading-none" style="font-size: 8px;">Border: ${u2.borderName}</span>` : ''}
-                                <span class="text-[9.5px] text-slate-300 font-mono font-bold pt-0.5" style="font-size: 9.5px;">${second.formattedDuration}</span>
+                                ${second.formattedDuration ? `<span class="text-[9.5px] text-slate-300 font-mono font-bold pt-0.5" style="font-size: 9.5px;">${second.formattedDuration}</span>` : ''}
                             </div>
                             <div class="w-full h-10 sm:h-11 mt-2 rounded-t-lg bg-gradient-to-t from-slate-900 via-slate-800/80 to-slate-700/60 border-t-2 border-slate-300 flex flex-col items-center justify-center shadow-sm">
                                 <span class="text-[9.5px] font-black text-slate-200" style="font-size: 9.5px;">🥈 JUARA 2</span>
-                                <span class="text-[8px] text-slate-400 font-mono mt-0.5" style="font-size: 8px;">${second.totalPlays} lagu</span>
+                                <span class="text-[8px] text-slate-400 font-mono mt-0.5" style="font-size: 8px;">${second.totalPlays || 0} lagu</span>
                             </div>
                         </div>
                         ` : `
@@ -686,7 +687,6 @@
                             </div>
                             <div class="flex flex-col items-center w-full px-0.5 space-y-1">
                                 <h5 class="text-[10.5px] font-bold text-white/50 truncate w-full text-center" style="font-size: 10.5px;">Belum Terisi</h5>
-                                <span class="text-[9px] text-slate-400/60 font-mono font-bold" style="font-size: 9px;">0 Menit</span>
                             </div>
                             <div class="w-full h-10 sm:h-11 mt-2 rounded-t-lg bg-gradient-to-t from-slate-900/70 to-slate-800/40 border-t-2 border-slate-400/50 flex flex-col items-center justify-center">
                                 <span class="text-[9.5px] font-black text-slate-300" style="font-size: 9.5px;">🥈 JUARA 2</span>
@@ -730,11 +730,11 @@
                                 </div>
                                 ` : ''}
                                 ${u1.borderName ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[8px] font-extrabold leading-none" style="font-size: 8px;">Border: ${u1.borderName}</span>` : ''}
-                                <span class="text-[10px] text-amber-300 font-mono font-black pt-0.5" style="font-size: 10px;">${first.formattedDuration}</span>
+                                ${first.formattedDuration ? `<span class="text-[10px] text-amber-300 font-mono font-black pt-0.5" style="font-size: 10px;">${first.formattedDuration}</span>` : ''}
                             </div>
                             <div class="w-full h-12 sm:h-14 mt-2 rounded-t-lg bg-gradient-to-t from-amber-950 via-amber-800/80 to-amber-500/40 border-t-2 border-amber-400 flex flex-col items-center justify-center shadow-md">
                                 <span class="text-[10px] font-black text-amber-300 flex items-center gap-0.5" style="font-size: 10px;">🥇 JUARA 1</span>
-                                <span class="text-[8px] text-amber-200/80 font-mono mt-0.5" style="font-size: 8px;">${first.totalPlays} Lagu Diputar</span>
+                                <span class="text-[8px] text-amber-200/80 font-mono mt-0.5" style="font-size: 8px;">${first.totalPlays || 0} Lagu Diputar</span>
                             </div>
                         </div>
                         ` : ''}
@@ -768,11 +768,11 @@
                                 </div>
                                 ` : ''}
                                 ${u3.borderName ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-700/20 text-amber-300 border border-amber-700/30 text-[8px] font-bold leading-none" style="font-size: 8px;">Border: ${u3.borderName}</span>` : ''}
-                                <span class="text-[9.5px] text-amber-400 font-mono font-bold pt-0.5" style="font-size: 9.5px;">${third.formattedDuration}</span>
+                                ${third.formattedDuration ? `<span class="text-[9.5px] text-amber-400 font-mono font-bold pt-0.5" style="font-size: 9.5px;">${third.formattedDuration}</span>` : ''}
                             </div>
                             <div class="w-full h-9 sm:h-10 mt-2 rounded-t-lg bg-gradient-to-t from-stone-900 via-amber-950/80 to-amber-900/50 border-t-2 border-amber-700/60 flex flex-col items-center justify-center shadow-sm">
                                 <span class="text-[9.5px] font-black text-amber-400" style="font-size: 9.5px;">🥉 JUARA 3</span>
-                                <span class="text-[8px] text-amber-300/60 font-mono mt-0.5" style="font-size: 8px;">${third.totalPlays} lagu</span>
+                                <span class="text-[8px] text-amber-300/60 font-mono mt-0.5" style="font-size: 8px;">${third.totalPlays || 0} lagu</span>
                             </div>
                         </div>
                         ` : `
@@ -786,7 +786,6 @@
                             <div class="flex flex-col items-center w-full px-0.5 space-y-1">
                                 <h5 class="text-[10.5px] font-bold text-white/55 truncate w-full text-center" style="font-size: 10.5px;">Menunggu #3</h5>
                                 <span class="text-[8px] px-1.5 py-0.5 rounded-full bg-amber-700/15 text-amber-400/70 border border-amber-700/30 font-bold leading-none" style="font-size: 8px;">Slot Terbuka</span>
-                                <span class="text-[9px] text-amber-400/70 font-mono font-bold pt-0.5" style="font-size: 9px;">0 Menit</span>
                             </div>
                             <div class="w-full h-9 sm:h-10 mt-2 rounded-t-lg bg-gradient-to-t from-stone-900 via-amber-950/70 to-amber-900/40 border-t-2 border-amber-700/60 flex flex-col items-center justify-center shadow-sm">
                                 <span class="text-[9.5px] font-black text-amber-400" style="font-size: 9.5px;">🥉 JUARA 3</span>
@@ -862,14 +861,16 @@
                                     ` : ''}
                                     <div class="flex items-center gap-1.5 text-[9.5px] text-white/50 truncate leading-none pt-0.5" style="font-size: 9.5px;">
                                         ${ui.borderName ? `<span class="text-amber-300 font-medium">Border: ${ui.borderName}</span> &bull; ` : ''}
-                                        <span>${item.totalPlays} lagu diputar</span>
+                                        <span>${item.totalPlays || 0} lagu diputar</span>
                                     </div>
                                 </div>
                             </div>
 
+                            ${item.formattedDuration ? `
                             <div class="text-right shrink-0">
                                 <span class="text-xs font-black text-amber-300 font-mono">${item.formattedDuration}</span>
                             </div>
+                            ` : ''}
                         </div>
                     `);
                 } else {
@@ -887,9 +888,6 @@
                                     </div>
                                     <span class="text-white/35 truncate" style="font-size: 9px;">Slot peringkat terbuka &bull; Putar lagu untuk klaim posisi #${r}</span>
                                 </div>
-                            </div>
-                            <div class="text-right shrink-0">
-                                <span class="text-white/40 font-mono font-bold" style="font-size: 10px;">0 Menit</span>
                             </div>
                         </div>
                     `);
