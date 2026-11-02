@@ -160,8 +160,8 @@ function recordSearch(query) {
     saveAnalytics();
 }
 
-function recordHeartbeat(sessionInfo, userAgent) {
-    const data = loadAnalytics();
+async function recordHeartbeat(sessionInfo, userAgent) {
+    const data = await loadAnalyticsAsync();
     const now = Date.now();
     const sessionId = sessionInfo.sessionId || 'anon_' + Math.random().toString(36).substring(2, 9);
     const isPlaying = Boolean(sessionInfo.isPlaying);
@@ -206,7 +206,6 @@ function recordHeartbeat(sessionInfo, userAgent) {
         }
         data.devices[deviceType] = (data.devices[deviceType] || 0) + 1;
         data.totalDeviceCount = (data.totalDeviceCount || 0) + 1;
-        saveAnalytics();
     }
 
     let listeningSecs = (prevSession && prevSession.listeningSeconds) || 0;
@@ -225,18 +224,19 @@ function recordHeartbeat(sessionInfo, userAgent) {
                 device: deviceType,
                 user: userInfo
             });
+            await saveAnalyticsAsync();
         }
     } else {
-        const isNewPlay = !prevSession || !prevSession.isPlaying || (prevSession.title !== title);
+        let isNewPlay = !prevSession || !prevSession.isPlaying || (prevSession.title !== title);
 
-        // Calculate listening elapsed time (heartbeats typically every 10-30s)
+        // Calculate listening elapsed time (heartbeats typically every 10s)
         let elapsedDelta = 0;
         if (prevSession && prevSession.isPlaying) {
             const timeSinceLast = Math.min(60, Math.max(1, Math.round((now - prevSession.lastSeen) / 1000)));
             elapsedDelta = timeSinceLast;
             listeningSecs += timeSinceLast;
         } else {
-            elapsedDelta = 10; // Initial start playback chunk
+            elapsedDelta = 10; // Initial / serverless fallback playback chunk
             listeningSecs += 10;
         }
 
@@ -258,11 +258,11 @@ function recordHeartbeat(sessionInfo, userAgent) {
             if (!data.userStats) data.userStats = {};
             const uKey = (userInfo.username || userInfo.id || '').toLowerCase().trim();
             if (uKey && uKey !== 'tamu (belum login)') {
-                const isMasterAdmin = Boolean((userInfo.email && userInfo.email.toLowerCase().trim() === 'jrnabil570@gmail.com') || (userInfo.id === '8589478687'));
+                const isMasterAdmin = Boolean((userInfo.email && userInfo.email.toLowerCase().trim() === 'jrnabil570@gmail.com') || (userInfo.id === '8589478687') || uKey === 'musifystar' || uKey === 'nabil');
                 if (!data.userStats[uKey]) {
-                    // Check registered user baseline so active sessions don't reset scores
-                    let initSec = 7200;
-                    let initPlays = 28;
+                    // Akun baru mulai dari 0 lagu & 0 detik (belum mendengarkan musik)
+                    let initSec = 0;
+                    let initPlays = 0;
                     if (isMasterAdmin) {
                         initSec = 53400;
                         initPlays = 196;
@@ -295,26 +295,43 @@ function recordHeartbeat(sessionInfo, userAgent) {
                         monthlySeconds: Math.round(initSec * 0.75),
                         totalPlays: initPlays,
                         lastPlayed: '',
-                        lastSeen: now
+                        lastSeen: 0,
+                        cleanedZeroBaseline: true
                     };
                 }
                 const us = data.userStats[uKey];
-                if (isMasterAdmin && !us.manual) {
-                    if ((us.totalSeconds || 0) < 53400) {
-                        us.totalSeconds = 53400;
-                        us.weeklySeconds = Math.round(53400 * 0.35);
-                        us.monthlySeconds = Math.round(53400 * 0.75);
-                    }
-                    if ((us.totalPlays || 0) < 196) {
-                        us.totalPlays = 196;
-                    }
+
+                // Unify Master Admin aliases (nabil & musifystar) BEFORE adding delta so time never gets stuck behind an alias
+                if (isMasterAdmin) {
+                    const nabilSt = data.userStats['nabil'];
+                    const musifySt = data.userStats['musifystar'];
+                    const bestSec = Math.max(us.totalSeconds || 0, nabilSt?.totalSeconds || 0, musifySt?.totalSeconds || 0, (!us.manual ? 53400 : 0));
+                    const bestPlays = Math.max(us.totalPlays || 0, nabilSt?.totalPlays || 0, musifySt?.totalPlays || 0, (!us.manual ? 196 : 0));
+                    us.totalSeconds = bestSec;
+                    us.totalPlays = bestPlays;
+                    if (nabilSt?.lastPlayed && !us.lastPlayed) us.lastPlayed = nabilSt.lastPlayed;
+                    if (musifySt?.lastPlayed && !us.lastPlayed) us.lastPlayed = musifySt.lastPlayed;
+                    if (nabilSt?.lastSeen && (!us.lastSeen || nabilSt.lastSeen > us.lastSeen)) us.lastSeen = nabilSt.lastSeen;
+                    if (musifySt?.lastSeen && (!us.lastSeen || musifySt.lastSeen > us.lastSeen)) us.lastSeen = musifySt.lastSeen;
                 }
+
+                // If prevSession was lost due to serverless cold-start, compute accurate delta from persisted us.lastSeen
+                if (!prevSession && us.lastSeen && (now - us.lastSeen > 0) && (now - us.lastSeen <= 45000)) {
+                    elapsedDelta = Math.min(35, Math.max(5, Math.round((now - us.lastSeen) / 1000)));
+                    isNewPlay = Boolean(title && us.lastPlayed !== title);
+                } else if (title && us.lastPlayed === title && (now - (us.lastSeen || 0) <= 120000)) {
+                    isNewPlay = false;
+                }
+
                 us.totalSeconds = (us.totalSeconds || 0) + elapsedDelta;
                 us.weeklySeconds = (us.weeklySeconds || 0) + elapsedDelta;
                 us.monthlySeconds = (us.monthlySeconds || 0) + elapsedDelta;
-                if (isNewPlay) {
+                if (isNewPlay && title) {
                     us.totalPlays = (us.totalPlays || 0) + 1;
-                    us.lastPlayed = title || '';
+                    us.lastPlayed = title;
+                } else if ((us.totalPlays || 0) <= 0 && us.totalSeconds > 0) {
+                    us.totalPlays = 1;
+                    if (title) us.lastPlayed = title;
                 }
                 us.lastSeen = now;
                 if (userInfo.avatar && !us.avatar) us.avatar = userInfo.avatar;
@@ -322,6 +339,14 @@ function recordHeartbeat(sessionInfo, userAgent) {
                     us.border = userRaw.border;
                     us.borderUrl = userRaw.borderUrl;
                     us.borderName = userRaw.borderName;
+                }
+
+                // Keep both Master Admin alias keys in sync
+                if (isMasterAdmin) {
+                    data.userStats['musifystar'] = { ...us, username: userInfo.username || 'MusifyStar' };
+                    if (data.userStats['nabil']) {
+                        data.userStats['nabil'] = { ...us, username: 'nabil' };
+                    }
                 }
             }
         }
@@ -390,7 +415,7 @@ function recordHeartbeat(sessionInfo, userAgent) {
             }
         }
 
-        saveAnalytics();
+        await saveAnalyticsAsync();
     }
 
     // Clean up sessions older than 90 seconds
@@ -499,15 +524,31 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
 
     const lbMap = new Map();
 
+    const legacySeededUsers = new Set(['musifystar', 'nabil', 'ayaww', 'nananaaa', 'yua', 'kiranakirana', 'abil']);
+
     // Populate from data.userStats
     if (data.userStats && typeof data.userStats === 'object') {
+        let statsCleaned = false;
         for (const [k, v] of Object.entries(data.userStats)) {
             if (v && v.username) {
+                const lowU = v.username.toLowerCase().trim();
+                // Clean old automatic 7200s (2 Jam) / 28 lagu default baseline on new users
+                if (!legacySeededUsers.has(lowU) && !v.manual && !v.cleanedZeroBaseline) {
+                    if ((v.totalSeconds === 7200 && v.totalPlays === 28) || (v.totalSeconds >= 7200 && v.totalPlays >= 28)) {
+                        v.totalSeconds = Math.max(0, (v.totalSeconds || 0) - 7200);
+                        v.weeklySeconds = Math.max(0, Math.round(v.totalSeconds * 0.35));
+                        v.monthlySeconds = Math.max(0, Math.round(v.totalSeconds * 0.75));
+                        v.totalPlays = Math.max(0, (v.totalPlays || 0) - 28);
+                    }
+                    v.cleanedZeroBaseline = true;
+                    statsCleaned = true;
+                }
+
                 let sec = v.totalSeconds || 0;
                 if (tf === '7d') sec = (v.weeklySeconds !== undefined) ? v.weeklySeconds : Math.round(sec * 0.35);
                 else if (tf === '30d') sec = (v.monthlySeconds !== undefined) ? v.monthlySeconds : Math.round(sec * 0.75);
 
-                lbMap.set(v.username.toLowerCase(), {
+                lbMap.set(lowU, {
                     id: v.id || '',
                     username: v.username,
                     avatar: v.avatar || '',
@@ -516,8 +557,8 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
                     borderName: v.borderName || '',
                     isVip: false,
                     vipTier: '',
-                    listeningSeconds: sec,
-                    totalPlays: v.totalPlays || 0,
+                    listeningSeconds: Math.max(0, sec),
+                    totalPlays: Math.max(0, v.totalPlays || 0),
                     lastSeen: v.lastSeen || 0,
                     currentTrack: '',
                     isOnline: false,
@@ -525,12 +566,15 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
                 });
             }
         }
+        if (statsCleaned) {
+            saveAnalytics();
+        }
     }
 
     // Merge / enrich with registered users
     for (const u of registeredUsers) {
         if (!u || !u.username) continue;
-        const uKey = u.username.toLowerCase();
+        const uKey = u.username.toLowerCase().trim();
         const uEmail = (u.email || u.rawEmail || '').toLowerCase().trim();
         const isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
         const isMasterAdmin = Boolean(uEmail === 'jrnabil570@gmail.com' || u.id === '8589478687');
@@ -558,8 +602,9 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
             baselineSec = 10800; // ~3 hours = 3 Jam 0 Menit
             baselinePlays = 42;
         } else {
-            baselineSec = 7200;
-            baselinePlays = 28;
+            // Akun baru: 0 lagu & 0 detik (belum mendengarkan musik)
+            baselineSec = 0;
+            baselinePlays = 0;
         }
 
         if (tf === '7d') baselineSec = Math.round(baselineSec * 0.35);
@@ -590,7 +635,7 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
             lbMap.set(uKey, entry);
         } else {
             // Keep stats consistent: only apply baseline fallback if NOT manually edited by admin
-            if (!entry.manual && !data.userStats[uKey]?.manual && (entry.listeningSeconds || 0) < baselineSec) {
+            if (baselineSec > 0 && !entry.manual && !data.userStats[uKey]?.manual && (entry.listeningSeconds || 0) < baselineSec) {
                 entry.listeningSeconds = baselineSec;
                 if ((entry.totalPlays || 0) < baselinePlays) {
                     entry.totalPlays = baselinePlays;
@@ -644,7 +689,11 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
     const hiddenList = Array.isArray(data.hiddenUsers) ? data.hiddenUsers.map(x => String(x).toLowerCase()) : [];
     let items = Array.from(lbMap.values());
     if (!includeHidden) {
-        items = items.filter(it => !hiddenList.includes(it.username.toLowerCase()));
+        items = items.filter(it => {
+            if (hiddenList.includes(it.username.toLowerCase())) return false;
+            // Hanya akun yang sudah pernah memutar musik yang boleh masuk ke Papan Peringkat (Leaderboard) publik
+            return (Number(it.listeningSeconds || 0) > 0) && (Number(it.totalPlays || 0) > 0);
+        });
     }
 
     // Sort descending by listeningSeconds (up to 100 ranks for public leaderboard)
@@ -652,23 +701,36 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
         .sort((a, b) => (b.listeningSeconds || 0) - (a.listeningSeconds || 0))
         .slice(0, includeHidden ? 500 : 100)
         .map((item, idx) => {
-            const sec = item.listeningSeconds || 0;
+            const sec = Math.max(0, Number(item.listeningSeconds || 0));
             const days = Math.floor(sec / 86400);
             const remSec = sec % 86400;
             const hours = Math.floor(remSec / 3600);
             const mins = Math.floor((remSec % 3600) / 60);
 
+            // Jika belum pernah mendengarkan musik (sec === 0), tidak tampilkan waktu
             let formatted = '';
-            if (days > 0) {
-                formatted = `${days} Hari`;
+            if (sec <= 0) {
+                formatted = '';
+            } else if (days > 0) {
+                if (hours > 0 && mins > 0) {
+                    formatted = `${days} Hari ${hours} Jam ${mins} Menit`;
+                } else if (hours > 0) {
+                    formatted = `${days} Hari ${hours} Jam`;
+                } else if (mins > 0) {
+                    formatted = `${days} Hari ${mins} Menit`;
+                } else {
+                    formatted = `${days} Hari`;
+                }
             } else if (hours > 0) {
                 if (mins > 0) {
                     formatted = `${hours} Jam ${mins} Menit`;
                 } else {
                     formatted = `${hours} Jam`;
                 }
-            } else {
+            } else if (mins > 0) {
                 formatted = `${mins} Menit`;
+            } else {
+                formatted = '1 Menit';
             }
 
             const unameLow = String(item.username || '').toLowerCase().trim();
@@ -691,6 +753,9 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
                 const restDigits = String((h1 ^ h2) >>> 0).padStart(9, '0').slice(0, 9);
                 cleanId = String(firstDigit) + restDigits;
             }
+            const rawPlays = Number(item.totalPlays || 0);
+            const computedPlays = sec <= 0 ? 0 : (rawPlays > 0 ? rawPlays : Math.max(1, Math.round(sec / 200)));
+
             return {
                 rank: idx + 1,
                 id: cleanId,
@@ -713,7 +778,7 @@ async function buildLeaderboardList(data, tf = 'all', includeHidden = false) {
                 currentTrack: item.currentTrack || '',
                 listeningSeconds: sec,
                 formattedDuration: formatted,
-                totalPlays: item.totalPlays || Math.max(1, Math.round(sec / 200)),
+                totalPlays: computedPlays,
                 isHidden: hiddenList.includes(unameLow)
             };
         });
@@ -760,8 +825,9 @@ module.exports = async function (req, res) {
                     return res.status(400).json({ status: false, message: 'Username tidak boleh kosong' });
                 }
                 const uKey = targetUsername.toLowerCase();
-                const totalSec = parseInt(body.totalSeconds, 10) || 0;
-                const totalPlays = parseInt(body.totalPlays, 10) || Math.max(1, Math.round(totalSec / 200));
+                const totalSec = Math.max(0, parseInt(body.totalSeconds, 10) || 0);
+                const parsedPlays = parseInt(body.totalPlays, 10);
+                const totalPlays = !isNaN(parsedPlays) && parsedPlays >= 0 ? parsedPlays : (totalSec <= 0 ? 0 : Math.max(1, Math.round(totalSec / 200)));
 
                 const updatedEntry = {
                     username: targetUsername,
@@ -889,7 +955,7 @@ module.exports = async function (req, res) {
         }
 
         if (type === 'heartbeat') {
-            recordHeartbeat(body, req.headers['user-agent']);
+            await recordHeartbeat(body, req.headers['user-agent']);
             return res.json({ status: true });
         }
 

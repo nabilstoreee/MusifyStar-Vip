@@ -512,6 +512,19 @@ async function writeDataAsync(filename, data) {
     const key = normalizeKey(filename);
     memoryStore.set(key, data);
     memoryLastCheckedAt.set(key, Date.now());
+    if (key === '.analytics_data.json') {
+        saveLocalBackupSilently(key, data);
+        const lastWrite = lastPostgresWriteAt.get(key) || 0;
+        if (Date.now() - lastWrite >= 8000 && !inFlightWrites.has(key) && pool) {
+            lastPostgresWriteAt.set(key, Date.now());
+            await Promise.race([
+                writeToPostgres(key, data).catch(() => {}),
+                new Promise(resolve => setTimeout(resolve, 2500))
+            ]);
+            return true;
+        }
+        return writeData(key, data);
+    }
     if (DEBOUNCED_WRITE_INTERVALS[key]) {
         return writeData(key, data);
     }
