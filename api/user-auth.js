@@ -126,6 +126,11 @@ function resolveUserVipStatus(user) {
     if (isMaster) {
         return { isPremium: true, vipTier: 'permanent', vipExpiresAt: null };
     }
+    const rawTier = String(user.vipTier || '').toLowerCase();
+    const isTrulyPermanent = (rawTier === 'permanent' || rawTier === 'lifetime') && !user.isVipTrial && user.vipSource !== 'trial';
+    if (isTrulyPermanent) {
+        return { isPremium: true, vipTier: 'permanent', vipExpiresAt: null };
+    }
     const isVipExpired = user.vipExpiresAt && Date.now() > user.vipExpiresAt;
     const isTierActive = Boolean(user.vipTier && user.vipTier !== 'none');
     const isPremium = Boolean((user.isPremium || user.is_premium || isTierActive) && user.vipTier !== 'none' && !isVipExpired);
@@ -1129,6 +1134,247 @@ async function sendTrialInvoiceEmail(user, invoice, paymentConfig) {
     return true;
 }
 
+// ==========================================
+// AUTOMATED VIP ACTIVATION EMAIL NOTIFICATION (4 CATEGORIES)
+// ==========================================
+async function sendVipActivationEmail(user, options = {}) {
+    try {
+        if (!user) return false;
+        const toEmail = String(user.rawEmail || user.email || '').trim().toLowerCase();
+        if (!toEmail || !toEmail.includes('@') || toEmail.includes('***')) {
+            return false;
+        }
+
+        const cfg = await readSmtpConfigAsync();
+        const smtpEmail = String(cfg.smtpEmail || 'jrnabil570@gmail.com').trim();
+        const cleanPass = String(cfg.appPassword || '').replace(/\s+/g, '');
+        const senderName = String(cfg.senderName || 'MusifyStar StudioMusik').trim();
+
+        if (!smtpEmail || !cleanPass) {
+            return false;
+        }
+
+        const rawSource = String(options.sourceType || user.vipSource || 'paid').toLowerCase().trim();
+        let sourceCategoryLabel = 'Paket Durasi Utama VIP Penuh Berbayar';
+        let sourceBadgeColor = '#facc15';
+        let sourceSubDetail = options.sourceDetail || '';
+
+        if (rawSource === 'point_exchange' || rawSource === 'exchange' || rawSource === 'points') {
+            sourceCategoryLabel = 'VIP Penukaran Poin';
+            sourceBadgeColor = '#c084fc';
+            if (!sourceSubDetail) sourceSubDetail = 'Penukaran Poin Referral di Katalog VIP';
+        } else if (rawSource === 'trial' || user.isVipTrial) {
+            sourceCategoryLabel = 'Trial VIP Pengguna Baru';
+            sourceBadgeColor = '#38bdf8';
+            if (!sourceSubDetail) sourceSubDetail = 'Klaim Masa Percobaan VIP Pengguna Baru';
+        } else if (rawSource === 'referral' || rawSource === 'invite') {
+            sourceCategoryLabel = 'VIP Hadiah Undang Teman';
+            sourceBadgeColor = '#34d399';
+            if (!sourceSubDetail) sourceSubDetail = 'Hadiah Program Referral Undang Teman';
+        } else {
+            sourceCategoryLabel = 'Paket Durasi Utama VIP Penuh Berbayar';
+            sourceBadgeColor = '#facc15';
+            if (!sourceSubDetail) sourceSubDetail = 'Aktivasi Paket Langganan VIP Penuh';
+        }
+
+        const tier = String(options.vipTier || user.vipTier || '1month').toLowerCase().trim();
+        const expiresAt = options.vipExpiresAt !== undefined ? options.vipExpiresAt : user.vipExpiresAt;
+        let masaAktifText = '';
+
+        if (options.durationLabel && String(options.durationLabel).trim()) {
+            masaAktifText = String(options.durationLabel).trim();
+        } else if (tier === 'permanent' || !expiresAt) {
+            masaAktifText = 'Permanen (Selamanya / Lifetime)';
+        } else {
+            const diffDays = Math.max(1, Math.ceil((Number(expiresAt) - Date.now()) / (24 * 3600 * 1000)));
+            if (tier === '1month' && diffDays >= 28 && diffDays <= 31) {
+                masaAktifText = '1 Bulan (30 Hari)';
+            } else if (tier === '2months' && diffDays >= 58 && diffDays <= 62) {
+                masaAktifText = '2 Bulan (60 Hari)';
+            } else if (tier === '5months' && diffDays >= 148 && diffDays <= 152) {
+                masaAktifText = '5 Bulan (150 Hari)';
+            } else {
+                masaAktifText = `${diffDays} Hari`;
+            }
+        }
+
+        let expiryDateFormatted = 'Selamanya (Tanpa Batas Waktu)';
+        if (expiresAt && Number(expiresAt) > 0 && tier !== 'permanent') {
+            expiryDateFormatted = new Date(Number(expiresAt)).toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            if (!masaAktifText.includes('Berakhir')) {
+                masaAktifText = `${masaAktifText} (s/d ${expiryDateFormatted})`;
+            }
+        }
+
+        const activatedDate = new Date().toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const displayUsername = user.username || 'Member';
+        const displayId = user.id || user.originalId || '-';
+        const displayBorder = user.borderName || (tier === 'permanent' ? 'Semua Border VIP (Immortal & Permanen)' : 'Platinum');
+
+        const subjectTitle = `👑 Selamat VIP Anda Aktif! [@${displayUsername} - ${sourceCategoryLabel}]`;
+
+        const htmlBody = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 540px; margin: 0 auto; background: #090b12; color: #f8fafc; border-radius: 20px; overflow: hidden; border: 1px solid rgba(250, 204, 21, 0.35); box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
+            <!-- Top Luxury Banner -->
+            <div style="background: linear-gradient(135deg, #b45309 0%, #eab308 50%, #7c3aed 100%); padding: 28px 22px; text-align: center;">
+                <div style="display: inline-block; padding: 5px 14px; border-radius: 999px; background: rgba(0,0,0,0.45); color: #fef08a; font-size: 10px; font-weight: 900; letter-spacing: 1.8px; text-transform: uppercase; margin-bottom: 10px; border: 1px solid rgba(254, 240, 138, 0.35);">
+                    👑 NOTIFIKASI RESMI VIP MUSIFYSTAR
+                </div>
+                <h1 style="margin: 0; font-size: 23px; font-weight: 900; color: #ffffff; letter-spacing: 0.4px; text-shadow: 0 2px 10px rgba(0,0,0,0.35);">
+                    Selamat VIP Anda Aktif!
+                </h1>
+                <p style="margin: 6px 0 0; font-size: 12px; color: rgba(255,255,255,0.92); font-weight: 600;">
+                    Diaktifkan pada: ${activatedDate} WIB
+                </p>
+            </div>
+
+            <!-- Main Content Body -->
+            <div style="padding: 26px 22px;">
+                <p style="font-size: 14px; color: #e2e8f0; margin: 0 0 18px; line-height: 1.6;">
+                    Halo <strong style="color: #facc15;">@${displayUsername}</strong>,<br/>
+                    Selamat! Status keanggotaan <strong>VIP MusifyStar</strong> pada akun Anda kini telah resmi aktif. Berikut adalah rincian lengkap informasi akun dan masa aktif VIP Anda:
+                </p>
+
+                <!-- Account & VIP Details Card -->
+                <div style="background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 16px; padding: 18px; margin-bottom: 20px;">
+                    <div style="font-size: 11px; color: #fde047; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 900; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+                        📋 INFORMASI AKUN &amp; STATUS VIP
+                    </div>
+
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: 600; width: 38%; vertical-align: top;">Email</td>
+                            <td style="padding: 8px 0; color: #ffffff; font-weight: 700; text-align: right; word-break: break-all;">${toEmail}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.06);">
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: 600; vertical-align: top;">Username</td>
+                            <td style="padding: 8px 0; color: #facc15; font-weight: 800; text-align: right;">@${displayUsername}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.06);">
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: 600; vertical-align: top;">ID</td>
+                            <td style="padding: 8px 0; color: #38bdf8; font-family: monospace; font-weight: 800; font-size: 13.5px; text-align: right;">${displayId}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.06);">
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: 600; vertical-align: top;">Masa Aktif VIP</td>
+                            <td style="padding: 8px 0; color: #34d399; font-weight: 800; text-align: right;">${masaAktifText}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.06);">
+                            <td style="padding: 8px 0; color: #94a3b8; font-weight: 600; vertical-align: top;">Border Profil</td>
+                            <td style="padding: 8px 0; color: #f8fafc; font-weight: 700; text-align: right;">${displayBorder}</td>
+                        </tr>
+                        <tr style="border-top: 1px dashed rgba(250, 204, 21, 0.25);">
+                            <td style="padding: 12px 0 4px; color: #fde047; font-weight: 800; vertical-align: top;">Status VIP Dari</td>
+                            <td style="padding: 12px 0 4px; text-align: right;">
+                                <span style="display: inline-block; padding: 4px 10px; border-radius: 8px; background: rgba(250, 204, 21, 0.14); border: 1px solid ${sourceBadgeColor}; color: ${sourceBadgeColor}; font-weight: 900; font-size: 12px;">
+                                    ${sourceCategoryLabel}
+                                </span>
+                                ${sourceSubDetail ? `<div style="font-size: 11px; color: #cbd5e1; margin-top: 4px; font-weight: 500;">${sourceSubDetail}</div>` : ''}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Check VIP Status CTA Box -->
+                <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 16px; padding: 18px; text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 13px; font-weight: 800; color: #ffffff; margin-bottom: 6px;">
+                        Cek Status VIP Kalian di Sini (Menu Profile):
+                    </div>
+                    <p style="font-size: 12px; color: #cbd5e1; margin: 0 0 14px; line-height: 1.5;">
+                        Buka halaman <strong>Profile</strong> di aplikasi <strong>MusifyStar</strong> untuk melihat lencana VIP, sisa masa aktif, dan memasang Border Profil eksklusif Anda:
+                    </p>
+                    <a href="https://www.musifystar.web.id" target="_blank" style="display: inline-block; width: 100%; box-sizing: border-box; padding: 13px 18px; border-radius: 12px; background: linear-gradient(135deg, #facc15 0%, #f59e0b 100%); color: #000000; font-weight: 900; font-size: 13.5px; text-decoration: none; text-align: center; letter-spacing: 0.3px;">
+                        👑 Buka Profile MusifyStar (https://www.musifystar.web.id) &rarr;
+                    </a>
+                </div>
+
+                <!-- Developer Support Footer Card -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 15px 16px; text-align: center;">
+                    <div style="font-size: 12.5px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">
+                        Punya masalah VIP belum aktif?
+                    </div>
+                    <p style="font-size: 12px; color: #94a3b8; margin: 0 0 10px; line-height: 1.5;">
+                        Hubungi developer di bawah, terima kasih:
+                    </p>
+                    <div style="display: inline-block; padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); font-size: 12.5px; color: #38bdf8; font-weight: 800;">
+                        ✉️ Email : <a href="mailto:musifystarofficial@gmail.com" style="color: #38bdf8; text-decoration: underline;">musifystarofficial@gmail.com</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Copyright Bar -->
+            <div style="background: #06070c; padding: 14px 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.06);">
+                <strong>&copy; ${new Date().getFullYear()} MusifyStar Official &bull; https://www.musifystar.web.id</strong>
+            </div>
+        </div>`;
+
+        const plainTextBody =
+            `Selamat VIP Anda Aktif!\n\n` +
+            `Email : ${toEmail}\n` +
+            `Username : @${displayUsername}\n` +
+            `ID : ${displayId}\n` +
+            `Masa Aktif VIP : ${masaAktifText}\n` +
+            `Status VIP Dari : ${sourceCategoryLabel}${sourceSubDetail ? ' (' + sourceSubDetail + ')' : ''}\n\n` +
+            `Cek status VIP kalian di sini (Profile):\n` +
+            `https://www.musifystar.web.id\n\n` +
+            `Punya masalah VIP belum aktif?\n` +
+            `Hubungi developer di bawah, terima kasih\n` +
+            `Email : musifystarofficial@gmail.com`;
+
+        if (nodemailer && typeof nodemailer.createTransport === 'function') {
+            try {
+                const transporter = nodemailer.createTransport({
+                    service: 'gmail',
+                    host: 'smtp.gmail.com',
+                    port: 465,
+                    secure: true,
+                    auth: {
+                        user: smtpEmail,
+                        pass: cleanPass
+                    }
+                });
+
+                await transporter.sendMail({
+                    from: `"${senderName}" <${smtpEmail}>`,
+                    to: toEmail,
+                    subject: subjectTitle,
+                    text: plainTextBody,
+                    html: htmlBody
+                });
+                return true;
+            } catch (nmErr) {
+                console.warn('[VIP EMAIL SMTP] Fallback ke Native TLS SMTP:', nmErr.message);
+            }
+        }
+
+        await sendGmailSmtpNative({
+            smtpEmail,
+            cleanPass,
+            senderName,
+            toEmail,
+            subjectTitle,
+            htmlBody
+        });
+
+        return true;
+    } catch (err) {
+        console.warn('[VIP EMAIL] Gagal mengirim email aktivasi VIP:', err.message);
+        return false;
+    }
+}
+
 async function checkAndProcessExpiredVipTrial(user, db, forceExpire = false) {
     if (!user || !user.isVipTrial) return false;
     const isExpired = forceExpire || (user.vipExpiresAt && Date.now() > user.vipExpiresAt);
@@ -1377,10 +1623,13 @@ module.exports = async (req, res) => {
                 const userList = db.users.map(u => {
                     const banStatus = getUserBanStatus(u, banRegistry);
                     const isMaster = (u.rawEmail || u.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com';
-                    const isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
+                    const rawTier = String(u.vipTier || '').toLowerCase();
+                    const isTrulyPermanent = isMaster || ((rawTier === 'permanent' || rawTier === 'lifetime') && !u.isVipTrial && u.vipSource !== 'trial');
+                    const isVipExpired = !isTrulyPermanent && u.vipExpiresAt && Date.now() > u.vipExpiresAt;
                     const isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
-                    const isUserPremium = isMaster || (Boolean(u.isPremium || u.is_premium || isTierActive) && u.vipTier !== 'none' && !isVipExpired);
-                    const userTier = isMaster ? 'permanent' : (isUserPremium ? (u.vipTier || 'permanent') : 'none');
+                    const isUserPremium = isMaster || isTrulyPermanent || (Boolean(u.isPremium || u.is_premium || isTierActive) && u.vipTier !== 'none' && !isVipExpired);
+                    const userTier = isTrulyPermanent ? 'permanent' : (isUserPremium ? (u.vipTier || 'permanent') : 'none');
+                    const resolvedExpiresAt = isTrulyPermanent ? null : (isUserPremium ? (u.vipExpiresAt || null) : null);
                     return {
                         id: u.id,
                         originalId: u.originalId || u.id,
@@ -1395,11 +1644,15 @@ module.exports = async (req, res) => {
                         maskedPassword: '••••••••',
                         isPremium: isUserPremium,
                         vipTier: userTier,
-                        vipExpiresAt: isUserPremium ? (u.vipExpiresAt || null) : null,
+                        vipExpiresAt: resolvedExpiresAt,
                         border: isUserPremium ? (u.border || '') : '',
                         borderUrl: isUserPremium ? (u.borderUrl || '') : '',
                         borderName: isUserPremium ? (u.borderName || '') : '',
-                        vipSource: u.vipSource || 'standard',
+                        vipSource: isMaster ? 'admin' : (u.vipSource || 'standard'),
+                        vipDuration: u.vipDuration || (u.isVipTrial ? `${u.trialDurationDays || 7} Hari` : null),
+                        vipDurationDays: u.vipDurationDays || u.trialDurationDays || null,
+                        pointExchangePackageId: u.pointExchangePackageId || null,
+                        pointExchangePackageTitle: u.pointExchangePackageTitle || null,
                         isVipTrial: Boolean(u.isVipTrial && isUserPremium),
                         hasClaimedVipTrial: Boolean(u.hasClaimedVipTrial),
                         trialClaimedAt: u.trialClaimedAt || null,
@@ -1465,9 +1718,17 @@ module.exports = async (req, res) => {
                 user.vipTier = vipTier;
                 user.vipGrantedAt = isPremium ? Date.now() : null;
                 if (isPremium) {
-                    user.vipSource = 'admin';
+                    const isShortTrialTier = (vipTier === 'trial' || vipTier === '1week');
+                    user.vipSource = isShortTrialTier ? 'trial' : 'admin';
+                    user.isVipTrial = isShortTrialTier;
+                    user.vipDuration = isShortTrialTier ? '7 Hari' : null;
+                    user.vipDurationDays = isShortTrialTier ? 7 : null;
                     user.referralBorderRestricted = false;
                     user.supportCount = (Number(user.supportCount) || 0) + 1;
+                } else {
+                    user.isVipTrial = false;
+                    user.vipDuration = null;
+                    user.vipDurationDays = null;
                 }
 
                 const customDays = parseInt(body.durationDays, 10);
@@ -1529,16 +1790,26 @@ module.exports = async (req, res) => {
                 db.users[userIndex] = user;
                 await writeDbAsync(db);
 
-                // Kirim pesan otomatis ke Kotak Masuk Pesan Admin pengguna jika VIP aktif
+                // Kirim pesan otomatis ke Kotak Masuk Pesan Admin & Email pengguna jika VIP aktif
                 if (isPremium) {
                     try {
                         const messagesApi = require('./messages.js');
                         if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
-                            await messagesApi.sendVipWelcomeMessage(user.id, user.username, vipTier);
+                            await messagesApi.sendVipWelcomeMessage(user.id, user.username, vipTier, null, {
+                                email: user.rawEmail || user.email || '',
+                                vipExpiresAt: user.vipExpiresAt,
+                                sourceCategory: 'Paket Durasi Utama VIP Penuh Berbayar'
+                            });
                         }
                     } catch (mErr) {
                         console.error('[AUTH] Gagal mengirim pesan otomatis VIP:', mErr.message);
                     }
+                    sendVipActivationEmail(user, {
+                        sourceType: 'paid',
+                        sourceDetail: 'Paket Durasi Utama VIP Penuh Berbayar',
+                        vipTier: vipTier,
+                        vipExpiresAt: user.vipExpiresAt
+                    }).catch(() => {});
                 }
 
                 const tierName = vipTier === '1month' 
@@ -2262,6 +2533,23 @@ module.exports = async (req, res) => {
                         user.borderName = 'Platinum';
                     }
                     await writeDbAsync(db);
+                    try {
+                        const messagesApi = require('./messages.js');
+                        if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
+                            await messagesApi.sendVipWelcomeMessage(user.id, user.username, user.vipTier, `${days} Hari (Trial VIP)`, {
+                                email: user.rawEmail || user.email || '',
+                                vipExpiresAt: user.vipExpiresAt,
+                                sourceCategory: 'Trial VIP Pengguna Baru'
+                            });
+                        }
+                    } catch (e) {}
+                    sendVipActivationEmail(user, {
+                        sourceType: 'trial',
+                        sourceDetail: `Trial VIP Pengguna Baru (${days} Hari)`,
+                        durationLabel: `${days} Hari`,
+                        vipTier: user.vipTier,
+                        vipExpiresAt: user.vipExpiresAt
+                    }).catch(() => {});
                     return res.json({
                         status: true,
                         message: `Percobaan VIP (${days} Hari) berhasil diaktifkan untuk @${user.username}!`,
@@ -2436,9 +2724,20 @@ module.exports = async (req, res) => {
                     try {
                         const messagesApi = require('./messages.js');
                         if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
-                            await messagesApi.sendVipWelcomeMessage(user.id, user.username, chosenTier, chosenDurationLabel);
+                            await messagesApi.sendVipWelcomeMessage(user.id, user.username, chosenTier, chosenDurationLabel, {
+                                email: user.rawEmail || user.email || '',
+                                vipExpiresAt: user.vipExpiresAt,
+                                sourceCategory: 'Paket Durasi Utama VIP Penuh Berbayar'
+                            });
                         }
                     } catch (e) {}
+                    sendVipActivationEmail(user, {
+                        sourceType: 'paid',
+                        sourceDetail: `Paket Durasi Utama VIP Penuh Berbayar (${chosenDurationLabel})`,
+                        durationLabel: chosenDurationLabel,
+                        vipTier: chosenTier,
+                        vipExpiresAt: user.vipExpiresAt
+                    }).catch(() => {});
 
                     return res.json({
                         status: true,
@@ -2959,7 +3258,10 @@ module.exports = async (req, res) => {
                             vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
                             vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
                             vipSource: user.vipSource || 'standard',
+                            vipDuration: user.vipDuration || (user.isVipTrial ? `${user.trialDurationDays || 7} Hari` : null),
+                            vipDurationDays: user.vipDurationDays || user.trialDurationDays || null,
                             pointExchangePackageId: user.pointExchangePackageId || null,
+                            pointExchangePackageTitle: user.pointExchangePackageTitle || null,
                             isVipTrial: Boolean(user.isVipTrial && vipInfo.isPremium),
                             hasClaimedVipTrial: Boolean(user.hasClaimedVipTrial),
                             trialClaimedAt: user.trialClaimedAt || null,
@@ -3545,6 +3847,10 @@ module.exports = async (req, res) => {
                     vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
                     vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
                     vipSource: user.vipSource || 'standard',
+                    vipDuration: user.vipDuration || (user.isVipTrial ? `${user.trialDurationDays || 7} Hari` : null),
+                    vipDurationDays: user.vipDurationDays || user.trialDurationDays || null,
+                    pointExchangePackageId: user.pointExchangePackageId || null,
+                    pointExchangePackageTitle: user.pointExchangePackageTitle || null,
                     isVipTrial: Boolean(user.isVipTrial && vipInfo.isPremium),
                     hasClaimedVipTrial: Boolean(user.hasClaimedVipTrial),
                     trialClaimedAt: user.trialClaimedAt || null,
@@ -3755,6 +4061,10 @@ module.exports = async (req, res) => {
                     vipTier: isGoogleMasterAdmin ? 'permanent' : vipInfo.vipTier,
                     vipExpiresAt: isGoogleMasterAdmin ? null : vipInfo.vipExpiresAt,
                     vipSource: user.vipSource || 'standard',
+                    vipDuration: user.vipDuration || (user.isVipTrial ? `${user.trialDurationDays || 7} Hari` : null),
+                    vipDurationDays: user.vipDurationDays || user.trialDurationDays || null,
+                    pointExchangePackageId: user.pointExchangePackageId || null,
+                    pointExchangePackageTitle: user.pointExchangePackageTitle || null,
                     isVipTrial: Boolean(user.isVipTrial && vipInfo.isPremium),
                     hasClaimedVipTrial: Boolean(user.hasClaimedVipTrial),
                     trialClaimedAt: user.trialClaimedAt || null,
@@ -4728,9 +5038,27 @@ module.exports = async (req, res) => {
 
             const trialVipSig = Security.generateVipSignature(user.id, user.vipTier, user.vipExpiresAt);
 
+            try {
+                const messagesApi = require('./messages.js');
+                if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
+                    await messagesApi.sendVipWelcomeMessage(user.id, user.username, user.vipTier, `${durationDays} Hari (Trial VIP Pengguna Baru)`, {
+                        email: user.rawEmail || user.email || '',
+                        vipExpiresAt: user.vipExpiresAt,
+                        sourceCategory: 'Trial VIP Pengguna Baru'
+                    });
+                }
+            } catch (e) {}
+            sendVipActivationEmail(user, {
+                sourceType: 'trial',
+                sourceDetail: `Trial VIP Pengguna Baru (${durationDays} Hari - ${borderLabelMap[borderAccess] || 'Border Platinum'})`,
+                durationLabel: `${durationDays} Hari`,
+                vipTier: user.vipTier,
+                vipExpiresAt: user.vipExpiresAt
+            }).catch(() => {});
+
             return res.json({
                 status: true,
-                message: `Selamat! Percobaan VIP Gratis selama ${durationDays} Hari (${borderLabelMap[borderAccess] || 'Border Platinum'}) berhasil diaktifkan! Saat masa trial berakhir, rincian tagihan akan dikirim ke email ${user.rawEmail || user.email}.`,
+                message: `Selamat! Percobaan VIP Gratis selama ${durationDays} Hari (${borderLabelMap[borderAccess] || 'Border Platinum'}) berhasil diaktifkan! Informasi aktivasi VIP telah dikirim ke email ${user.rawEmail || user.email}.`,
                 user: {
                     id: user.id,
                     originalId: user.originalId || user.id,
@@ -4857,6 +5185,7 @@ module.exports = async (req, res) => {
 module.exports.verifyUserToken = verifyUserToken;
 module.exports.createSignedUserToken = createSignedUserToken;
 module.exports.getUserIdFromToken = getUserIdFromToken;
+module.exports.sendVipActivationEmail = sendVipActivationEmail;
 module.exports.getRegisteredUsers = async function() {
     try {
         const db = await readDbAsync();

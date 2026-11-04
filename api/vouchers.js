@@ -131,22 +131,29 @@ module.exports = async function handler(req, res) {
         const durationDays = voucher.durationDays !== undefined ? voucher.durationDays : tierInfo.durationDays;
         const assignedTier = voucher.tier || tierInfo.tier;
 
+        const isVoucherTrial = Boolean(voucher.isTrial || assignedTier === 'trial' || assignedTier === '1week');
         user.isPremium = true;
         user.is_premium = true;
         user.isVip = true;
         user.is_vip = true;
         user.vipTier = assignedTier;
-        user.vipSource = 'voucher';
+        user.vipSource = isVoucherTrial ? 'trial' : 'voucher';
+        user.isVipTrial = isVoucherTrial;
         user.referralBorderRestricted = false;
         user.supportCount = (Number(user.supportCount) || 0) + 1;
         user.vipGrantedAt = Date.now();
 
-        if (assignedTier === 'permanent' || durationDays === 0) {
+        if ((assignedTier === 'permanent' || durationDays === 0) && !isVoucherTrial) {
             user.vipExpiresAt = null;
+            user.vipDuration = 'Permanen';
+            user.vipDurationDays = 0;
         } else {
             // If already VIP with valid future expiration, add onto existing duration
             const currentExp = (user.vipExpiresAt && user.vipExpiresAt > Date.now()) ? user.vipExpiresAt : Date.now();
             user.vipExpiresAt = currentExp + (durationDays * 24 * 60 * 60 * 1000);
+            user.vipDuration = `${durationDays} Hari`;
+            user.vipDurationDays = durationDays;
+            if (isVoucherTrial) user.trialDurationDays = durationDays;
         }
 
         // Assign border if designated or empty
@@ -178,16 +185,31 @@ module.exports = async function handler(req, res) {
 
         await writeVouchersData(vouchersDb);
 
-        // Send VIP welcome notification message
+        const durationText = (assignedTier === 'permanent' || durationDays === 0) ? 'Permanen (Selamanya)' : `${durationDays} Hari`;
+
+        // Send VIP welcome notification message & email
         try {
             if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
-                await messagesApi.sendVipWelcomeMessage(user.id, user.username, assignedTier);
+                await messagesApi.sendVipWelcomeMessage(user.id, user.username, assignedTier, durationText, {
+                    email: user.rawEmail || user.email || '',
+                    vipExpiresAt: user.vipExpiresAt,
+                    sourceCategory: 'Paket Durasi Utama VIP Penuh Berbayar'
+                });
+            }
+            const userAuthApi = require('./user-auth.js');
+            if (userAuthApi && typeof userAuthApi.sendVipActivationEmail === 'function') {
+                userAuthApi.sendVipActivationEmail(user, {
+                    sourceType: 'paid',
+                    sourceDetail: `Paket Durasi Utama VIP Penuh Berbayar (Kode Voucher: ${voucher.code})`,
+                    durationLabel: durationText,
+                    vipTier: assignedTier,
+                    vipExpiresAt: user.vipExpiresAt
+                }).catch(() => {});
             }
         } catch (mErr) {
             console.error('[VOUCHERS] Gagal kirim pesan otomatis VIP:', mErr.message);
         }
 
-        const durationText = (assignedTier === 'permanent' || durationDays === 0) ? 'Permanen (Selamanya)' : `${durationDays} Hari`;
         const voucherVipSig = Security.generateVipSignature(user.id, user.vipTier, user.vipExpiresAt);
 
         return res.json({

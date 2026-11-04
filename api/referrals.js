@@ -1050,9 +1050,13 @@ async function processReferralReward(referrer, invitee, dbUsers) {
 
                 if (durInfo.isPermanent || durInfo.days === 0) {
                     referrer.vipTier = 'permanent';
+                    referrer.vipDuration = 'Permanen';
+                    referrer.vipDurationDays = 0;
                     referrer.vipExpiresAt = null;
                 } else {
                     referrer.vipTier = '1month';
+                    referrer.vipDuration = `${durInfo.days} Hari`;
+                    referrer.vipDurationDays = durInfo.days;
                     referrer.vipExpiresAt = Date.now() + (durInfo.days * 24 * 60 * 60 * 1000);
                 }
 
@@ -1148,9 +1152,13 @@ async function processReferralReward(referrer, invitee, dbUsers) {
             }
             if (inviteeDur.isPermanent) {
                 invitee.vipTier = 'permanent';
+                invitee.vipDuration = 'Permanen';
+                invitee.vipDurationDays = 0;
                 invitee.vipExpiresAt = null;
             } else {
                 if (!invitee.vipTier || invitee.vipTier === 'none') invitee.vipTier = '1month';
+                invitee.vipDuration = `${inviteeDur.days} Hari`;
+                invitee.vipDurationDays = inviteeDur.days;
                 const baseExp = (invWasVip && invitee.vipExpiresAt && invitee.vipExpiresAt > Date.now()) ? invitee.vipExpiresAt : Date.now();
                 invitee.vipExpiresAt = baseExp + (inviteeDur.days * 24 * 60 * 60 * 1000);
             }
@@ -1443,6 +1451,46 @@ async function handler(req, res) {
             usersDb.users[inviteeIndex] = invitee;
             await storage.writeDataAsync(USERS_FILE, usersDb);
 
+            // Kirim notifikasi Email & Kotak Masuk untuk VIP Hadiah Undang Teman (Pengundang & Teman yang Diundang)
+            try {
+                const userAuthApi = require('./user-auth.js');
+                const messagesApi = require('./messages.js');
+                if (referrer && referrer.isPremium && rewardResult.rewardSummary && rewardResult.rewardSummary.includes('VIP')) {
+                    if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
+                        await messagesApi.sendVipWelcomeMessage(referrer.id, referrer.username, referrer.vipTier, null, {
+                            email: referrer.rawEmail || referrer.email || '',
+                            vipExpiresAt: referrer.vipExpiresAt,
+                            sourceCategory: 'VIP Hadiah Undang Teman'
+                        });
+                    }
+                    if (userAuthApi && typeof userAuthApi.sendVipActivationEmail === 'function') {
+                        userAuthApi.sendVipActivationEmail(referrer, {
+                            sourceType: 'referral',
+                            sourceDetail: `VIP Hadiah Undang Teman (Mengundang @${invitee.username})`,
+                            vipTier: referrer.vipTier,
+                            vipExpiresAt: referrer.vipExpiresAt
+                        }).catch(() => {});
+                    }
+                }
+                if (invitee && invitee.isPremium && rewardResult.inviteeRewardSummary && rewardResult.inviteeRewardSummary.includes('VIP')) {
+                    if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
+                        await messagesApi.sendVipWelcomeMessage(invitee.id, invitee.username, invitee.vipTier, rewardResult.inviteeRewardSummary, {
+                            email: invitee.rawEmail || invitee.email || '',
+                            vipExpiresAt: invitee.vipExpiresAt,
+                            sourceCategory: 'VIP Hadiah Undang Teman'
+                        });
+                    }
+                    if (userAuthApi && typeof userAuthApi.sendVipActivationEmail === 'function') {
+                        userAuthApi.sendVipActivationEmail(invitee, {
+                            sourceType: 'referral',
+                            sourceDetail: `VIP Hadiah Undang Teman (Memasukkan Kode @${referrer.username})`,
+                            vipTier: invitee.vipTier,
+                            vipExpiresAt: invitee.vipExpiresAt
+                        }).catch(() => {});
+                    }
+                }
+            } catch (notifErr) {}
+
             const updatedRefLimit = resolveUserInviteLimitInfo(referrer, config);
             const limitNotice = updatedRefLimit.isLimitReached
                 ? ` (Kuota undangan @${referrer.username} kini telah mencapai batas maksimal ${updatedRefLimit.referralCount}/${updatedRefLimit.maxInvites})`
@@ -1582,6 +1630,7 @@ async function handler(req, res) {
             if (isPermanent) {
                 user.vipTier = 'permanent';
                 user.vipDuration = 'Permanen';
+                user.vipDurationDays = 0;
                 user.vipExpiresAt = null;
             } else {
                 const days = Math.max(1, Number(targetPkg.durationDays) || 7);
@@ -1593,7 +1642,9 @@ async function handler(req, res) {
                 }
                 user.vipTier = (days >= 30) ? '1month' : 'trial';
                 user.vipDuration = `${days} Hari`;
+                user.vipDurationDays = days;
             }
+            user.pointExchangePackageTitle = targetPkg.title || '';
 
             // Tetapkan Border Profil Sesuai Paket Penukaran Poin
             const bInfo = resolveExchangePackageBorderInfo(targetPkg.border || targetPkg.borderName, targetPkg.borderId);
@@ -1657,11 +1708,33 @@ async function handler(req, res) {
             usersDb.users[uIdx] = user;
             await storage.writeDataAsync(USERS_FILE, usersDb);
 
+            // Kirim notifikasi Email & Kotak Masuk untuk VIP Penukaran Poin
+            try {
+                const userAuthApi = require('./user-auth.js');
+                const messagesApi = require('./messages.js');
+                if (messagesApi && typeof messagesApi.sendVipWelcomeMessage === 'function') {
+                    await messagesApi.sendVipWelcomeMessage(user.id, user.username, user.vipTier, user.vipDuration || targetPkg.title, {
+                        email: user.rawEmail || user.email || '',
+                        vipExpiresAt: user.vipExpiresAt,
+                        sourceCategory: 'VIP Penukaran Poin'
+                    });
+                }
+                if (userAuthApi && typeof userAuthApi.sendVipActivationEmail === 'function') {
+                    userAuthApi.sendVipActivationEmail(user, {
+                        sourceType: 'point_exchange',
+                        sourceDetail: `VIP Penukaran Poin (${targetPkg.title} - ${pointsNeeded} Poin)`,
+                        durationLabel: user.vipDuration,
+                        vipTier: user.vipTier,
+                        vipExpiresAt: user.vipExpiresAt
+                    }).catch(() => {});
+                }
+            } catch (exNotifErr) {}
+
             const exchVipSig = Security.generateVipSignature(user.id, user.vipTier, user.vipExpiresAt);
 
             return res.json({
                 status: true,
-                message: `🎉 Selamat! Berhasil menukar ${pointsNeeded} Poin dengan "${targetPkg.title}"! Status VIP Anda telah berhasil diaktifkan.`,
+                message: `🎉 Selamat! Berhasil menukar ${pointsNeeded} Poin dengan "${targetPkg.title}"! Status VIP Anda telah berhasil diaktifkan & informasi detail dikirim ke email Anda.`,
                 remainingPoints: user.referralPoints,
                 package: targetPkg,
                 user: {

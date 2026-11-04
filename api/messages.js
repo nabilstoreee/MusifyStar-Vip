@@ -54,7 +54,7 @@ async function writeMessagesData(data) {
     return await storage.writeDataAsync(MESSAGES_FILE, data);
 }
 
-async function sendVipWelcomeMessage(userId, username, vipTier, duration) {
+async function sendVipWelcomeMessage(userId, username, vipTier, duration, extraInfo = {}) {
     try {
         const tier = String(vipTier || '1month').toLowerCase().trim();
         let tierLabel = 'VIP 1 Bulan';
@@ -71,27 +71,32 @@ async function sendVipWelcomeMessage(userId, username, vipTier, duration) {
             bordersText = 'Immortal, Legend, Master & Platinum';
         } else if (tier === 'permanent' || tier === 'lifetime' || tier === 'sultan' || tier === 'permanen') {
             tierLabel = 'VIP Permanen';
-            durationText = 'Permanen (Selamanya)';
-            bordersText = 'Semua Koleksi Border VIP (Immortal, Legend, Master, Platinum & Kustom)';
+            durationText = 'Permanen';
+            bordersText = 'Semua Koleksi Border VIP Immortal, Legend, Master, Platinum & Kustom';
         }
 
         if (duration && String(duration).trim()) {
             durationText = String(duration).trim();
         }
 
-        const title = `👑 Selamat! Status ${tierLabel} Anda Telah Aktif`;
-        const body = `Halo @${username || 'Pengguna'}! 🌟
+        const userEmail = extraInfo.email || '-';
+        const sourceCat = extraInfo.sourceCategory || 'Paket Durasi Utama VIP Penuh Berbayar';
 
-Selamat, VIP Anda telah aktif selama ${durationText} secara otomatis! Terima kasih telah bergabung ke VIP kami, selamat menikmati fitur-fitur VIP nya.
+        const title = `Selamat VIP Anda Aktif (${sourceCat})`;
+        const body = `Selamat VIP Anda Aktif!
 
-Fitur eksklusif VIP MusifyStar yang siap Anda nikmati:
-✨ Akses Seluruh Border Profil VIP (${bordersText})
-🎵 Kualitas Audio Musik Ultra HD (320kbps) & Bebas Iklan
-👑 Lencana Mahkota VIP Emas di Profil & Komentar
-📥 Download Musik Sepuasnya untuk Diputar Offline
-⚡ Bebas Skip Lagu Tanpa Batas & Akses Server Prioritas
+Email : ${userEmail}
+Username : @${username || 'Pengguna'}
+ID : ${userId || '-'}
+Masa Aktif VIP : ${durationText}
+Status VIP Dari : ${sourceCat}
 
-Terima kasih atas kepercayaan dan dukungan Anda untuk MusifyStar! Selamat mendengarkan musik favorit Anda. 🎶`;
+Cek status VIP kalian di sini Profile
+https://www.musifystar.web.id
+
+masalah VIP belum aktif?
+Hubungi developer di bawah, terima kasih:
+Email : musifystarofficial@gmail.com`;
 
         const data = await readMessagesData();
         const newMsg = {
@@ -103,7 +108,7 @@ Terima kasih atas kepercayaan dan dukungan Anda untuk MusifyStar! Selamat menden
             title: title,
             body: body,
             priority: 'vip',
-            actionUrl: '',
+            actionUrl: 'https://www.musifystar.web.id',
             createdAt: new Date().toISOString()
         };
 
