@@ -319,6 +319,15 @@ var Profile = {
                     <i data-lucide="chevron-right" class="w-4 h-4 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
                 </button>
                 ` : ''}
+
+                <!-- Tombol Install Aplikasi MusifyStar (Selalu Tampil untuk Semua Pengguna) -->
+                <button onclick="installPWA()" class="pwa-install-btn-item w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-sky-500/20 via-cyan-500/15 to-indigo-500/20 hover:from-sky-500/30 hover:to-indigo-500/30 border border-sky-400/40 text-white font-bold text-xs flex items-center justify-between group active:scale-[0.98] transition-all shadow-md shadow-sky-500/10 cursor-pointer" title="Install Aplikasi MusifyStar ke Layar Utama HP">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="download" class="w-4 h-4 text-sky-400"></i>
+                        <span>Install Aplikasi MusifyStar</span>
+                    </span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-sky-300/70 group-hover:text-white group-hover:translate-x-0.5 transition-all"></i>
+                </button>
             </div>
 
             <!-- 4. SEKSI INFORMASI & APLIKASI MUSIFYSTAR (DIPINDAHKAN KE BAWAH PENGATURAN APLIKASI) -->
@@ -367,13 +376,13 @@ var Profile = {
             </div>
 
             <!-- 5. TOMBOL INSTALL APLIKASI & CHANNEL WHATSAPP (FULL WIDTH WITH EDGE PADDING) -->
-            <div class="px-5 pt-4 pb-12 sm:px-6 space-y-2.5">
-                <button id="pwa-install-btn" onclick="installPWA()" class="${((typeof checkIsRunningStandalonePwa === 'function' && checkIsRunningStandalonePwa()) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true) ? 'hidden ' : ''}w-full btn-chrome font-bold py-3.5 rounded-xl active:scale-[0.98] transition-all text-center flex items-center justify-center gap-2 text-xs shadow-lg shadow-black/40">
-                    <i data-lucide="download" class="w-4 h-4 text-sky-400"></i>
+            <div class="px-5 pt-4 pb-16 sm:px-6 space-y-2.5">
+                <button id="pwa-install-btn" onclick="installPWA()" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-sky-500/25 via-cyan-500/20 to-indigo-500/25 hover:from-sky-500/35 hover:to-indigo-500/35 border border-sky-400/45 text-white font-bold active:scale-[0.98] transition-all text-center flex items-center justify-center gap-2 text-xs shadow-lg shadow-sky-500/15 cursor-pointer">
+                    <i data-lucide="download" class="w-4 h-4 text-sky-300"></i>
                     <span>Install Aplikasi MusifyStar</span>
                 </button>
 
-                <a href="https://whatsapp.com/channel/0029VbDRf3P9WtC9ZjQ3gq3B" target="_blank" class="block w-full btn-chrome font-bold py-3.5 rounded-xl active:scale-[0.98] transition-all text-center flex items-center justify-center gap-2 text-xs shadow-lg shadow-black/40">
+                <a href="https://whatsapp.com/channel/0029VbDRf3P9WtC9ZjQ3gq3B" target="_blank" class="block w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500/20 via-teal-500/15 to-emerald-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border border-emerald-400/40 text-white font-bold active:scale-[0.98] transition-all text-center flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/10 cursor-pointer">
                     <i data-lucide="message-circle" class="w-4 h-4 text-emerald-400"></i>
                     <span>Gabung Channel WhatsApp MusifyStar</span>
                 </a>
@@ -2634,6 +2643,23 @@ var Profile = {
                             <button id="setting-clear-cache-btn" onclick="Profile.clearAppCache()" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 text-xs text-white font-medium border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer">
                                 <span>Bersihkan</span>
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- 11. Install Aplikasi MusifyStar (APK / Web App) -->
+                    <div onclick="installPWA()" class="p-3.5 rounded-xl bg-gradient-to-r from-sky-500/15 via-cyan-500/10 to-indigo-500/15 hover:from-sky-500/25 hover:to-indigo-500/25 border border-sky-400/35 flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-[0.99] shadow-sm">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-300 shrink-0">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-extrabold text-white">Install Aplikasi MusifyStar</h4>
+                                <p class="text-[11px] text-white/60 leading-snug mt-0.5">Pasang aplikasi ke layar utama HP untuk akses cepat & dukungan Mode Offline</p>
+                            </div>
+                        </div>
+                        <div class="shrink-0 flex items-center gap-1 text-xs text-sky-300 font-bold">
+                            <span>Install</span>
+                            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-sky-300/70"></i>
                         </div>
                     </div>
                 </div>
@@ -6831,12 +6857,7 @@ var Profile = {
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 <h4 class="text-sm font-bold text-white truncate">${u.username}</h4>
                                 <span class="global-verified-badge-container inline-flex items-center"></span>
-                                ${(u.isPremium && u.vipTier && u.vipTier !== 'none') ? (
-                                    u.vipTier === '1month' ? `<span class="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 font-bold text-[9px] flex items-center gap-1"><i data-lucide="crown" class="w-2.5 h-2.5"></i> VIP 1 Bln</span>` :
-                                    (u.vipTier === '2months' ? `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-[9px] flex items-center gap-1"><i data-lucide="crown" class="w-2.5 h-2.5"></i> VIP 2 Bln</span>` :
-                                    (u.vipTier === '5months' ? `<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold text-[9px] flex items-center gap-1"><i data-lucide="crown" class="w-2.5 h-2.5"></i> VIP 5 Bln</span>` :
-                                    `<span class="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-black text-[9px] flex items-center gap-0.5 shadow-sm"><i data-lucide="crown" class="w-2.5 h-2.5 fill-black"></i> VIP Permanen</span>`))
-                                ) : `<span class="px-2 py-0.5 rounded-full bg-white/5 text-white/40 border border-white/10 text-[9px] font-semibold">Gratis</span>`}
+                                ${(u.isPremium && u.vipTier && u.vipTier !== 'none') ? Profile.getVipTierBadgeHtml(u.vipTier, u.isPremium, u.vipExpiresAt, u) : `<span class="px-2 py-0.5 rounded-full bg-white/5 text-white/40 border border-white/10 text-[9px] font-semibold">Gratis</span>`}
                                 ${u.borderName ? `<span class="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold text-[9px] flex items-center gap-0.5"><i data-lucide="shield" class="w-2.5 h-2.5"></i> ${u.borderName}</span>` : ''}
                             </div>
                             <p class="text-xs text-white/60 truncate flex items-center gap-1 mt-0.5">
@@ -8481,7 +8502,15 @@ var Profile = {
     vipTabActiveFilter: 'all',
     vipTabSearchQuery: '',
 
-    formatVipRemainingTime(expiresAt) {
+    formatVipRemainingTime(expiresAt, u) {
+        if (u) {
+            var uEmail = String(u.email || u.rawEmail || '').toLowerCase().trim();
+            var uTier = String(u.vipTier || '').toLowerCase();
+            var isPermUser = (uEmail === 'jrnabil570@gmail.com') || ((uTier === 'permanent' || uTier === 'lifetime') && !u.isVipTrial && u.vipSource !== 'trial');
+            if (isPermUser) {
+                return '<span class="text-amber-300 font-black inline-flex items-center gap-1"><i data-lucide="infinity" class="w-3.5 h-3.5"></i> Selamanya</span>';
+            }
+        }
         if (!expiresAt) {
             return '<span class="text-amber-300 font-black inline-flex items-center gap-1"><i data-lucide="infinity" class="w-3.5 h-3.5"></i> Selamanya</span>';
         }
@@ -8497,11 +8526,72 @@ var Profile = {
         return `<span class="text-amber-400 font-bold inline-flex items-center gap-1"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Sisa ${hours} Jam</span>`;
     },
 
-    getVipTierBadgeHtml(tier, isPremium, expiresAt) {
+    isTrialOrBonusVipUser(u) {
+        if (!u) return false;
+        var uEmail = String(u.email || u.rawEmail || '').toLowerCase().trim();
+        if (uEmail === 'jrnabil570@gmail.com') return false;
+        var t = String(u.vipTier || '').toLowerCase();
+        var src = String(u.vipSource || '').toLowerCase();
+        var remDays = u.vipExpiresAt ? Math.max(1, Math.ceil((u.vipExpiresAt - Date.now()) / (24 * 3600 * 1000))) : 0;
+        var days = Number(u.trialDurationDays || u.vipDurationDays || 0) || remDays;
+        if (u.isVipTrial || src === 'trial' || t === 'trial' || t === '1week') return true;
+        if ((src === 'point_exchange' || src === 'referral') && u.vipExpiresAt) return true;
+        if (t === '1month' && u.vipExpiresAt && days > 0 && days <= 14) return true;
+        return false;
+    },
+
+    getVipTierShortLabel(u) {
+        if (!u) return 'Gratis';
+        var isExp = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
+        if (!u.isPremium || !u.vipTier || u.vipTier === 'none' || isExp) return 'Gratis';
+        var t = String(u.vipTier || '').toLowerCase();
+        var src = String(u.vipSource || '').toLowerCase();
+        var remDays = u.vipExpiresAt ? Math.max(1, Math.ceil((u.vipExpiresAt - Date.now()) / (24 * 3600 * 1000))) : 0;
+        var days = Number(u.trialDurationDays || u.vipDurationDays || 0) || remDays;
+        var durText = u.vipDuration || (u.vipExpiresAt ? ((days || 7) + ' Hari') : 'Permanen');
+        if (u.isVipTrial || src === 'trial' || t === 'trial' || t === '1week') {
+            return 'Trial VIP ' + (u.trialDurationDays ? (u.trialDurationDays + ' Hari') : durText);
+        }
+        if (src === 'point_exchange') {
+            return 'VIP Poin (' + durText + ')';
+        }
+        if (src === 'referral') {
+            return 'VIP Referral (' + durText + ')';
+        }
+        if (t === '1month' && u.vipExpiresAt && days > 0 && days <= 14) {
+            return 'VIP ' + days + ' Hari';
+        }
+        if (t === '1month') return 'VIP 1 Bulan';
+        if (t === '2months') return 'VIP 2 Bulan';
+        if (t === '5months') return 'VIP 5 Bulan';
+        if (t === 'permanent' || t === 'lifetime') return 'VIP Permanen';
+        return 'VIP Aktif';
+    },
+
+    getVipTierBadgeHtml(tier, isPremium, expiresAt, u) {
         tier = String(tier || 'none').toLowerCase();
         var isExpired = expiresAt && Date.now() > expiresAt;
         if (!isPremium || tier === 'none' || isExpired) {
             return '<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-white/10 text-white/50 border border-white/10 font-bold shrink-0">Gratis (Non-VIP)</span>';
+        }
+        if (u) {
+            var src = String(u.vipSource || '').toLowerCase();
+            var remDays = expiresAt ? Math.max(1, Math.ceil((expiresAt - Date.now()) / (24 * 3600 * 1000))) : 0;
+            var days = Number(u.trialDurationDays || u.vipDurationDays || 0) || remDays;
+            var durText = u.vipDuration || (expiresAt ? ((days || 7) + ' Hr') : 'Permanen');
+            if (u.isVipTrial || src === 'trial' || tier === 'trial' || tier === '1week') {
+                var trialDaysLbl = (u.trialDurationDays || days || 7) + ' Hr';
+                return '<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-400/40 font-bold inline-flex items-center gap-1 shrink-0"><i data-lucide="timer" class="w-3 h-3 text-fuchsia-400"></i> Trial VIP (' + trialDaysLbl + ')</span>';
+            }
+            if (src === 'point_exchange') {
+                return '<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-bold inline-flex items-center gap-1 shrink-0"><i data-lucide="coins" class="w-3 h-3 text-cyan-400"></i> VIP Poin (' + durText + ')</span>';
+            }
+            if (src === 'referral') {
+                return '<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-400/40 font-bold inline-flex items-center gap-1 shrink-0"><i data-lucide="gift" class="w-3 h-3 text-teal-400"></i> VIP Referral (' + durText + ')</span>';
+            }
+            if (tier === '1month' && expiresAt && days > 0 && days <= 14) {
+                return '<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-400/40 font-bold inline-flex items-center gap-1 shrink-0"><i data-lucide="clock" class="w-3 h-3 text-fuchsia-400"></i> VIP ' + days + ' Hari</span>';
+            }
         }
         if (tier === '1month') {
             return '<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/40 font-bold inline-flex items-center gap-1 shrink-0"><i data-lucide="star" class="w-3 h-3 text-sky-400"></i> VIP 1 Bulan</span>';
@@ -8584,6 +8674,7 @@ var Profile = {
         users = users || Profile.cachedAdminUsers || [];
 
         // Hitung statistik
+        var countTrialBonus = 0;
         var count1Month = 0;
         var count2Months = 0;
         var count5Months = 0;
@@ -8597,11 +8688,19 @@ var Profile = {
             if (isVipActive) {
                 activeVipTotal++;
                 var t = String(u.vipTier || '').toLowerCase();
-                if (t === '1month') count1Month++;
-                else if (t === '2months') count2Months++;
-                else if (t === '5months') count5Months++;
-                else if (t === 'permanent' || t === 'lifetime') countPermanent++;
-                else count1Month++;
+                if (Profile.isTrialOrBonusVipUser(u)) {
+                    countTrialBonus++;
+                } else if (t === '1month') {
+                    count1Month++;
+                } else if (t === '2months') {
+                    count2Months++;
+                } else if (t === '5months') {
+                    count5Months++;
+                } else if (t === 'permanent' || t === 'lifetime') {
+                    countPermanent++;
+                } else {
+                    countTrialBonus++;
+                }
             } else {
                 freeCount++;
             }
@@ -8758,9 +8857,7 @@ var Profile = {
                         <select id="admin-vip-form-user-select" onchange="Profile.onAdminVipUserSelect(this.value)" class="w-full py-2.5 px-3 rounded-xl bg-white/5 border border-white/15 focus:border-amber-400 text-xs text-white focus:outline-none transition-all cursor-pointer">
                             <option value="" class="bg-[#161922] text-white/60">-- Pilih salah satu pengguna --</option>
                             ${users.map(function(u) {
-                                var isExp = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
-                                var isVip = Boolean(u.isPremium && u.vipTier && u.vipTier !== 'none') && !isExp;
-                                var tierLabel = isVip ? (u.vipTier || 'VIP') : 'Gratis';
+                                var tierLabel = Profile.getVipTierShortLabel(u);
                                 return `<option value="${esHtml(u.id)}" data-username="${esHtml(u.username)}" data-email="${esHtml(u.email)}" data-tier="${esHtml(u.vipTier || 'none')}" data-border="${esHtml(u.border || '')}" class="bg-[#161922] text-white">@${esHtml(u.username)} (${esHtml(u.email)}) - Status: [${tierLabel}]</option>`;
                             }).join('')}
                         </select>
@@ -8918,6 +9015,9 @@ var Profile = {
                     <button onclick="Profile.filterAdminVipTable('active')" class="vip-filter-chip px-3 py-1 rounded-xl font-bold transition cursor-pointer whitespace-nowrap ${Profile.vipTabActiveFilter === 'active' ? 'bg-amber-400 text-black shadow-md shadow-amber-500/20' : 'bg-white/5 hover:bg-white/10 text-white/70'}">
                         VIP Aktif (${activeVipTotal})
                     </button>
+                    <button onclick="Profile.filterAdminVipTable('trial_bonus')" class="vip-filter-chip px-3 py-1 rounded-xl font-bold transition cursor-pointer whitespace-nowrap ${Profile.vipTabActiveFilter === 'trial_bonus' ? 'bg-fuchsia-400 text-black shadow-md' : 'bg-white/5 hover:bg-white/10 text-white/70'}">
+                        Trial / Poin / Referral (${countTrialBonus})
+                    </button>
                     <button onclick="Profile.filterAdminVipTable('1month')" class="vip-filter-chip px-3 py-1 rounded-xl font-bold transition cursor-pointer whitespace-nowrap ${Profile.vipTabActiveFilter === '1month' ? 'bg-sky-400 text-black shadow-md' : 'bg-white/5 hover:bg-white/10 text-white/70'}">
                         1 Bulan (${count1Month})
                     </button>
@@ -8968,7 +9068,7 @@ var Profile = {
             var isExp = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
             var isVip = Boolean(u.isPremium && u.vipTier && u.vipTier !== 'none') && !isExp;
             if (statusEl) {
-                statusEl.innerHTML = isVip ? `Status: <span class="text-amber-300 font-bold">${u.vipTier || 'VIP'}</span> &bull; ${Profile.formatVipRemainingTime(u.vipExpiresAt)}` : 'Status: <span class="text-white/60">Gratis (Non-VIP)</span>';
+                statusEl.innerHTML = isVip ? `Status: <span class="text-amber-300 font-bold">${Profile.getVipTierShortLabel(u)}</span> &bull; ${Profile.formatVipRemainingTime(u.vipExpiresAt, u)}` : 'Status: <span class="text-white/60">Gratis (Non-VIP)</span>';
             }
             if (borderEl) {
                 borderEl.innerHTML = u.borderUrl ? `<span class="inline-flex items-center gap-1 text-amber-300 font-bold"><img src="${esHtml(u.borderUrl)}" class="w-5 h-5 object-contain"> ${esHtml(u.borderName || u.border)}</span>` : '<span class="text-white/40">Tanpa Border</span>';
@@ -9113,13 +9213,15 @@ var Profile = {
             var isExp = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
             var isVipActive = Boolean(u.isPremium && u.vipTier && u.vipTier !== 'none') && !isExp;
             var t = String(u.vipTier || '').toLowerCase();
+            var isShortOrBonus = Profile.isTrialOrBonusVipUser(u);
 
             // Filter tab check
             if (filter === 'active' && !isVipActive) return false;
-            if (filter === '1month' && (!isVipActive || t !== '1month')) return false;
-            if (filter === '2months' && (!isVipActive || t !== '2months')) return false;
-            if (filter === '5months' && (!isVipActive || t !== '5months')) return false;
-            if (filter === 'permanent' && (!isVipActive || (t !== 'permanent' && t !== 'lifetime'))) return false;
+            if (filter === 'trial_bonus' && (!isVipActive || !isShortOrBonus)) return false;
+            if (filter === '1month' && (!isVipActive || t !== '1month' || isShortOrBonus)) return false;
+            if (filter === '2months' && (!isVipActive || t !== '2months' || isShortOrBonus)) return false;
+            if (filter === '5months' && (!isVipActive || t !== '5months' || isShortOrBonus)) return false;
+            if (filter === 'permanent' && (!isVipActive || (t !== 'permanent' && t !== 'lifetime') || isShortOrBonus)) return false;
             if (filter === 'free' && isVipActive) return false;
 
             // Search query check
@@ -9160,7 +9262,7 @@ var Profile = {
                     <div class="min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
                             <h5 class="text-xs sm:text-sm font-extrabold text-white truncate">@${esHtml(u.username)}</h5>
-                            ${Profile.getVipTierBadgeHtml(u.vipTier, u.isPremium, u.vipExpiresAt)}
+                            ${Profile.getVipTierBadgeHtml(u.vipTier, u.isPremium, u.vipExpiresAt, u)}
                         </div>
                         <p class="text-[11px] text-white/50 truncate">${esHtml(u.email)}</p>
                     </div>
@@ -9171,7 +9273,7 @@ var Profile = {
                     <div class="text-left sm:text-right">
                         <span class="text-[10px] text-white/40 uppercase tracking-wider font-bold block">Masa Aktif</span>
                         <div class="text-[11px] font-semibold mt-0.5">
-                            ${isVipActive ? Profile.formatVipRemainingTime(u.vipExpiresAt) : '<span class="text-white/40">Nonaktif</span>'}
+                            ${isVipActive ? Profile.formatVipRemainingTime(u.vipExpiresAt, u) : '<span class="text-white/40">Nonaktif</span>'}
                         </div>
                     </div>
 

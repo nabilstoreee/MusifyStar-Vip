@@ -18,11 +18,7 @@
 var deferredInstallPrompt=null;
 function checkIsRunningStandalonePwa() {
     return Boolean(
-        (window.matchMedia && (
-            window.matchMedia('(display-mode: standalone)').matches ||
-            window.matchMedia('(display-mode: fullscreen)').matches ||
-            window.matchMedia('(display-mode: minimal-ui)').matches
-        )) ||
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
         window.navigator.standalone === true ||
         (typeof document !== 'undefined' && document.referrer && document.referrer.indexOf('android-app://') === 0)
     );
@@ -121,15 +117,16 @@ window.addEventListener('beforeinstallprompt',function(e){
     e.preventDefault();
     deferredInstallPrompt=e;
     var btn=document.getElementById('pwa-install-btn');
-    if(btn&&!isStandaloneApp)btn.classList.remove('hidden');
+    if(btn)btn.classList.remove('hidden');
+    document.querySelectorAll('.pwa-install-btn-item').forEach(function(el){
+        el.classList.remove('hidden');
+    });
 });
 window.addEventListener('appinstalled',function(){
     deferredInstallPrompt=null;
     try { localStorage.setItem('pwa_installed', 'true'); } catch(e){}
-    isStandaloneApp = true;
-    var btn=document.getElementById('pwa-install-btn');
-    if(btn)btn.classList.add('hidden');
-    showToast('MusifyStar berhasil diinstall!');
+    isStandaloneApp = checkIsRunningStandalonePwa();
+    showToast('MusifyStar berhasil diinstall ke perangkat Anda!');
 });
 
 function isPwaInstalled() {
@@ -168,22 +165,85 @@ function showPwaRequiredModal() {
     if (window.lucide) lucide.createIcons();
 }
 
+function showInstallGuideModal() {
+    var existing = document.getElementById('pwa-install-guide-modal');
+    if (existing) existing.remove();
+
+    var isRunningStandalone = checkIsRunningStandalonePwa();
+    var modal = document.createElement('div');
+    modal.id = 'pwa-install-guide-modal';
+    modal.className = 'fixed inset-0 z-[950] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in select-none';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+
+    var stepsHtml = '';
+    if (isRunningStandalone) {
+        stepsHtml = '<div class="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-left space-y-1.5">' +
+            '<div class="flex items-center gap-2 text-emerald-300 font-extrabold text-xs">' +
+                '<i data-lucide="check-circle-2" class="w-4 h-4 shrink-0"></i>' +
+                '<span>Aplikasi Sudah Terpasang & Aktif</span>' +
+            '</div>' +
+            '<p class="text-[11px] text-white/75 leading-relaxed">Anda saat ini sudah menjalankan MusifyStar dalam mode Aplikasi (Standalone APK/PWA).</p>' +
+        '</div>';
+    } else if (isIOSDevice) {
+        stepsHtml = '<div class="p-3.5 rounded-2xl bg-white/[0.05] border border-white/15 text-left space-y-2.5">' +
+            '<div class="text-xs font-extrabold text-sky-300 flex items-center gap-1.5">' +
+                '<i data-lucide="smartphone" class="w-4 h-4"></i>' +
+                '<span>Cara Install di iPhone / iPad (Safari):</span>' +
+            '</div>' +
+            '<ol class="text-[11px] text-white/80 space-y-2 list-decimal list-inside leading-relaxed">' +
+                '<li>Ketuk ikon <strong>Bagikan (Share)</strong> di bagian bawah browser Safari.</li>' +
+                '<li>Geser ke bawah lalu pilih <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong>.</li>' +
+                '<li>Ketuk <strong>Tambah (Add)</strong> di pojok kanan atas.</li>' +
+            '</ol>' +
+        '</div>';
+    } else {
+        stepsHtml = '<div class="p-3.5 rounded-2xl bg-white/[0.05] border border-white/15 text-left space-y-2.5">' +
+            '<div class="text-xs font-extrabold text-sky-300 flex items-center gap-1.5">' +
+                '<i data-lucide="smartphone" class="w-4 h-4"></i>' +
+                '<span>Cara Install di Android / Chrome:</span>' +
+            '</div>' +
+            '<ol class="text-[11px] text-white/80 space-y-2 list-decimal list-inside leading-relaxed">' +
+                '<li>Ketuk ikon <strong>Titik Tiga (⋮)</strong> di pojok kanan atas browser Chrome.</li>' +
+                '<li>Pilih menu <strong>"Install aplikasi"</strong> atau <strong>"Tambahkan ke Layar utama"</strong>.</li>' +
+                '<li>Konfirmasi dengan menekan <strong>Install</strong>, maka aplikasi MusifyStar akan muncul di layar HP Anda.</li>' +
+            '</ol>' +
+        '</div>';
+    }
+
+    modal.innerHTML = '<div class="bg-[#12151f] border border-sky-500/35 rounded-3xl p-5 sm:p-6 max-w-sm w-full text-center space-y-4 shadow-2xl relative" onclick="event.stopPropagation()">' +
+        '<button onclick="document.getElementById(\'pwa-install-guide-modal\')?.remove()" class="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center active:scale-95 transition cursor-pointer">' +
+            '<i data-lucide="x" class="w-4 h-4"></i>' +
+        '</button>' +
+        '<div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-500/25 via-indigo-500/20 to-purple-500/25 border border-sky-400/40 flex items-center justify-center mx-auto shadow-lg overflow-hidden p-1.5">' +
+            '<img src="/logo.png" alt="MusifyStar" class="w-full h-full object-cover rounded-xl" onerror="this.style.display=\'none\'">' +
+        '</div>' +
+        '<div class="space-y-1">' +
+            '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-400/35 uppercase tracking-wider">Official Web APK</span>' +
+            '<h3 class="text-white font-black text-base sm:text-lg tracking-tight">Install Aplikasi MusifyStar</h3>' +
+            '<p class="text-white/60 text-xs leading-relaxed">Nikmati akses instan dari layar utama HP, tampilan penuh tanpa bar browser, dan dukungan Mode Offline.</p>' +
+        '</div>' +
+        stepsHtml +
+        '<button onclick="document.getElementById(\'pwa-install-guide-modal\')?.remove()" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-400 via-cyan-400 to-indigo-500 hover:opacity-95 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 active:scale-95 transition cursor-pointer">' +
+            'Mengerti & Tutup' +
+        '</button>' +
+    '</div>';
+
+    document.body.appendChild(modal);
+    if (window.lucide) lucide.createIcons();
+}
+
 function installPWA(){
     if(deferredInstallPrompt){
         deferredInstallPrompt.prompt();
         deferredInstallPrompt.userChoice.then(function(choice){
             if(choice.outcome==='accepted') {
                 try { localStorage.setItem('pwa_installed', 'true'); } catch(e){}
-                showToast('Menginstall MusifyStar...');
-                var btn=document.getElementById('pwa-install-btn');
-                if(btn&&checkIsRunningStandalonePwa())btn.classList.add('hidden');
+                showToast('Menginstall Aplikasi MusifyStar...');
             }
             deferredInstallPrompt=null;
         });
-    }else if(isIOSDevice){
-        showToast('Tap ikon Bagikan lalu pilih "Add to Home Screen"');
-    }else{
-        showToast('Petunjuk: Buka menu browser lalu pilih "Tambah ke Layar Utama" / "Install Aplikasi"');
+    } else {
+        showInstallGuideModal();
     }
 }
 

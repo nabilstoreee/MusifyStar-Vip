@@ -1409,6 +1409,10 @@ var Auth = {
                     <i data-lucide="trophy" class="w-3.5 h-3.5 text-amber-400"></i>
                     <span>Global Stats & Leaderboard</span>
                 </button>
+                <button onclick="gid('header-auth-dropdown-wrapper')?.remove(); if(typeof installPWA === 'function') installPWA();" class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-sky-500/20 via-cyan-500/15 to-indigo-500/20 hover:from-sky-500/30 hover:to-indigo-500/30 border border-sky-400/35 text-sky-200 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-sm">
+                    <i data-lucide="download" class="w-3.5 h-3.5 text-sky-400"></i>
+                    <span>Install Aplikasi MusifyStar</span>
+                </button>
                 ${isMasterAdmin ? `
                 <button onclick="gid('header-auth-dropdown-wrapper')?.remove(); if(typeof Profile !== 'undefined') Profile.openAdminModal();" class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600/30 via-rose-600/30 to-purple-600/30 hover:from-purple-600/40 hover:to-rose-600/40 border border-purple-500/50 text-purple-200 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer shadow-md">
                     <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-400"></i>
@@ -1451,12 +1455,37 @@ var Auth = {
         var userIp = u.ip || u.lastIp || Auth.clientIp || '114.122.45.10';
 
         var rawTier = String(u.vipTier || '').toLowerCase();
+        var rawSource = String(u.vipSource || '').toLowerCase();
+        var isTrulyPermVip = isMasterAdmin || ((rawTier === 'permanent' || rawTier === 'lifetime' || rawTier === 'sultan') && !u.isVipTrial && rawSource !== 'trial');
+        if (isTrulyPermVip && u.vipExpiresAt) {
+            u.vipExpiresAt = null;
+            try { localStorage.setItem('musifystar_auth_user', JSON.stringify(u)); } catch(e){}
+        }
+        var remDaysEst = u.vipExpiresAt ? Math.max(1, Math.ceil((u.vipExpiresAt - Date.now()) / (24 * 3600 * 1000))) : 0;
+        var grantedDays = Number(u.trialDurationDays || u.vipDurationDays || 0) || remDaysEst;
+        var durLabel = u.vipDuration || (u.vipExpiresAt ? ((grantedDays || 7) + ' Hari') : 'Permanen');
         var vipTierDisplay = 'VIP Member';
-        if (rawTier === '1month') vipTierDisplay = 'Paket 1 Bulan (Platinum & Master)';
-        else if (rawTier === '2months') vipTierDisplay = 'Paket 2 Bulan (+ Legend)';
-        else if (rawTier === '5months') vipTierDisplay = 'Paket 5 Bulan (+ Immortal)';
-        else if (rawTier === 'permanent' || rawTier === 'lifetime' || rawTier === 'sultan' || isMasterAdmin) vipTierDisplay = 'Paket Permanen';
-        else if (isUserVip) vipTierDisplay = 'Paket VIP Aktif';
+        if (isMasterAdmin) {
+            vipTierDisplay = 'Paket Permanen (Owner)';
+        } else if (u.isVipTrial || rawSource === 'trial' || rawTier === 'trial' || rawTier === '1week') {
+            vipTierDisplay = 'Trial VIP Percobaan (' + (u.trialDurationDays ? (u.trialDurationDays + ' Hari') : durLabel) + ')';
+        } else if (rawSource === 'point_exchange') {
+            vipTierDisplay = 'VIP Penukaran Poin (' + durLabel + ')';
+        } else if (rawSource === 'referral') {
+            vipTierDisplay = 'VIP Undang Teman (' + durLabel + ')';
+        } else if (rawTier === '1month' && u.vipExpiresAt && grantedDays > 0 && grantedDays <= 14) {
+            vipTierDisplay = 'Paket VIP ' + grantedDays + ' Hari';
+        } else if (rawTier === '1month') {
+            vipTierDisplay = 'Paket 1 Bulan (Platinum & Master)';
+        } else if (rawTier === '2months') {
+            vipTierDisplay = 'Paket 2 Bulan (+ Legend)';
+        } else if (rawTier === '5months') {
+            vipTierDisplay = 'Paket 5 Bulan (+ Immortal)';
+        } else if (rawTier === 'permanent' || rawTier === 'lifetime' || rawTier === 'sultan') {
+            vipTierDisplay = 'Paket Permanen';
+        } else if (isUserVip) {
+            vipTierDisplay = 'Paket VIP Aktif (' + durLabel + ')';
+        }
 
         var activeBorderUrl = Auth.getBorderUrl(u);
         var activeBorderName = Auth.getBorderName(u);
@@ -2173,6 +2202,23 @@ var Auth = {
                     </div>
                     <div class="flex items-center gap-1.5">
                         <i data-lucide="chevron-right" class="w-4 h-4 text-white/40"></i>
+                    </div>
+                </button>
+
+                <!-- Tombol Install Aplikasi MusifyStar -->
+                <button type="button" onclick="if(typeof installPWA === 'function') installPWA();" class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-sky-500/20 via-cyan-500/15 to-indigo-500/20 hover:from-sky-500/30 hover:to-indigo-500/30 border border-sky-400/40 text-white transition-all cursor-pointer backdrop-blur-xl shadow-md shadow-sky-500/10 active:scale-[0.99]" title="Install Aplikasi MusifyStar">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-300">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                        </div>
+                        <div class="text-left">
+                            <span class="text-xs font-extrabold text-white block">Install Aplikasi MusifyStar</span>
+                            <span class="text-[10px] text-sky-200/75 block">Pasang ke layar utama HP & Mode Offline</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-bold text-sky-300 px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-400/30">APK</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-sky-300"></i>
                     </div>
                 </button>
 

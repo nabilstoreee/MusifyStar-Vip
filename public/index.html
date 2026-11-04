@@ -101,16 +101,41 @@
             // Hindari double-reload: catat apakah halaman saat load sudah dikontrol Service Worker
             var hadController = !!navigator.serviceWorker.controller;
             window._isReloadingApp = false;
+            window._appBootTime = Date.now();
 
-            // Kunci anti-double-reload beruntun (minimal jeda 5 detik antar reload)
+            // Helper aman untuk menyimpan ke localStorage (otomatis bersihkan cache lama jika memori penuh / QuotaExceededError)
+            window.safeSetLocalStorage = function(key, val) {
+                try {
+                    localStorage.setItem(key, val);
+                    return true;
+                } catch (e) {
+                    try {
+                        localStorage.removeItem('pwa_audio_cache');
+                        localStorage.removeItem('pwa_lyrics_cache');
+                        localStorage.removeItem('musifystar_home_sections_cache_v4');
+                        localStorage.setItem(key, val);
+                        return true;
+                    } catch (e2) {
+                        return false;
+                    }
+                }
+            };
+
+            // Kunci anti-reload berulang agar sistem Android (ColorOS / Realme / Xiaomi) tidak mendeteksi "Gagal memulai beberapa kali"
             window.reloadAppSafely = function(reason) {
                 if (window._isReloadingApp || window.musifyAuthInProgress) return;
+                // Jangan pernah reload paksa saat aplikasi baru saja dibuka (< 6 detik pertama)
+                if ((Date.now() - (window._appBootTime || 0)) < 6000) {
+                    return;
+                }
                 try {
-                    var lastLock = sessionStorage.getItem('musify_reload_lock');
-                    if (lastLock && (Date.now() - parseInt(lastLock, 10)) < 5000) {
-                        return; // Blokir reload kedua jika baru saja reload dalam 5 detik
+                    var lastLock = sessionStorage.getItem('musify_reload_lock') || localStorage.getItem('musify_reload_lock');
+                    if (lastLock && (Date.now() - parseInt(lastLock, 10)) < 60000) {
+                        return; // Maksimal 1x reload dalam 60 detik
                     }
-                    sessionStorage.setItem('musify_reload_lock', String(Date.now()));
+                    var nowStr = String(Date.now());
+                    try { sessionStorage.setItem('musify_reload_lock', nowStr); } catch(e){}
+                    window.safeSetLocalStorage('musify_reload_lock', nowStr);
                 } catch(e){}
 
                 window._isReloadingApp = true;
@@ -119,7 +144,7 @@
             };
 
             navigator.serviceWorker.addEventListener('controllerchange', function() {
-                // Jika halaman baru pertama kali diklaim oleh SW (bukan update), JANGAN reload
+                // Jika halaman baru pertama kali diklaim oleh SW, JANGAN reload
                 if (!hadController) {
                     hadController = true;
                     return;
@@ -147,7 +172,7 @@
                 });
             });
 
-            // Universal PWA Version Watcher: Check every 30s & on focus
+            // Universal PWA Version Watcher: Check every 45s & on focus
             try {
                 window.activeAppVersion = localStorage.getItem('musify_app_version') || null;
             } catch(e) {
@@ -178,10 +203,8 @@
 
                     if (!window.activeAppVersion) {
                         window.activeAppVersion = data.version;
-                        try {
-                            localStorage.setItem('musify_app_version', data.version);
-                            if (data.buildTimestamp) localStorage.setItem('musify_last_reloaded_build', String(data.buildTimestamp));
-                        } catch(e){}
+                        window.safeSetLocalStorage('musify_app_version', data.version);
+                        if (data.buildTimestamp) window.safeSetLocalStorage('musify_last_reloaded_build', String(data.buildTimestamp));
                         return;
                     }
 
@@ -191,7 +214,7 @@
                     var isNewerVersion = (window.compareMusifyVersion(data.version, window.activeAppVersion) > 0);
                     var isNewerBuild = Boolean(data.buildTimestamp && lastReloadedBuild && Number(data.buildTimestamp) > Number(lastReloadedBuild));
                     if (!lastReloadedBuild && data.buildTimestamp) {
-                        try { localStorage.setItem('musify_last_reloaded_build', String(data.buildTimestamp)); } catch(e){}
+                        window.safeSetLocalStorage('musify_last_reloaded_build', String(data.buildTimestamp));
                     }
                     var shouldReload = isNewerVersion || (data.forceReload && isNewerBuild);
 
@@ -200,10 +223,12 @@
                         console.log('[PWA UPDATE] Newer version/build detected:', data.version, 'Current:', window.activeAppVersion);
                         
                         window.activeAppVersion = data.version;
-                        try {
-                            localStorage.setItem('musify_app_version', data.version);
-                            if (data.buildTimestamp) localStorage.setItem('musify_last_reloaded_build', String(data.buildTimestamp));
-                        } catch(e){}
+                        var savedOk = window.safeSetLocalStorage('musify_app_version', data.version);
+                        if (data.buildTimestamp) window.safeSetLocalStorage('musify_last_reloaded_build', String(data.buildTimestamp));
+
+                        if (!savedOk) {
+                            return; // Jangan reload jika storage gagal menyimpan versi baru agar tidak terjadi infinite reload loop
+                        }
 
                         if (window.musifySwRegistration && typeof window.musifySwRegistration.update === 'function') {
                             try {
@@ -217,20 +242,12 @@
                         // Delay sedikit agar pengguna sempat melihat notifikasi update, lalu reload 1x
                         setTimeout(function() {
                             window.reloadAppSafely('pwa-version-bump');
-                        }, 1200);
+                        }, 1500);
                     }
                 } catch(e) {}
             };
 
-            setInterval(window.checkPwaVersionUpdate, 30000);
-            window.addEventListener('focus', function() {
-                setTimeout(window.checkPwaVersionUpdate, 1000);
-            });
-            document.addEventListener('visibilitychange', function() {
-                if (document.visibilityState === 'visible') {
-                    window.checkPwaVersionUpdate();
-                }
-            });
+            setInterval(window.checkPwaVersionUpdate, 45000);
         }
     </script>
     <meta charset="UTF-8">
@@ -2294,13 +2311,13 @@
     <div id="yt-player" style="position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;"></div>
     <audio id="audio-player" preload="auto" style="display:none;"></audio>
 
-    <script src="/player.js?v=120"></script>
-    <script src="/auth.js?v=120"></script>
+    <script src="/player.js?v=121"></script>
+    <script src="/auth.js?v=121"></script>
     <script src="/home.js?v=101"></script>
     <script src="/search.js?v=120"></script>
     <script src="/liked.js?v=101"></script>
     <script src="/library.js?v=101"></script>
-    <script src="/profile.js?v=120"></script>
+    <script src="/profile.js?v=121"></script>
     <script src="/miniplayer.js?v=101"></script>
     <script src="/fullplayer.js?v=101"></script>
     <script src="/artist.js?v=101"></script>
@@ -2310,7 +2327,7 @@
     <script src="/global-stats.js?v=116"></script>
     <script src="/admin-chat.js?v=101"></script>
     <script src="/dynamic-island.js?v=101"></script>
-    <script src="/app.js?v=120"></script>
+    <script src="/app.js?v=121"></script>
     <script>(function () {
   document.addEventListener('visibilitychange', function () {
     document.documentElement.classList.toggle('tab-hidden', document.hidden);
