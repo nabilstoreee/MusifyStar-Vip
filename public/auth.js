@@ -498,6 +498,22 @@ var Auth = {
             }
         }
 
+        // Toggle Header Diamond Button & Sync Balance Count (Only available when logged in)
+        var diamondBtn = gid('header-diamond-topup-btn');
+        if (diamondBtn) {
+            if (Auth.currentUser) {
+                diamondBtn.classList.remove('hidden');
+            } else {
+                diamondBtn.classList.add('hidden');
+                gid('musifystar-diamond-topup-modal')?.remove();
+                gid('musifystar-rewarded-ad-modal')?.remove();
+            }
+        }
+        var diamondCountEl = gid('header-diamond-count');
+        if (diamondCountEl) {
+            diamondCountEl.textContent = Auth.currentUser ? Number(Auth.currentUser.diamonds || 0).toLocaleString('id-ID') : '0';
+        }
+
         // Ensure bottom navigation dev tab retains code icon
         var navDev = gid('nav-dev');
         if (navDev) {
@@ -1649,8 +1665,8 @@ var Auth = {
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5 flex-wrap">
                                     <h4 class="text-xs font-black text-white group-hover:text-fuchsia-300 transition-colors">Efek Nama Berwarna / Gradien Animasi</h4>
-                                    ${(u.isVipTrial && !Auth.canUserUseNameGlow(u))
-                                        ? `<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-rose-500/25 text-rose-300 border border-rose-400/40 uppercase tracking-wider">🔒 DIKUNCI ADMIN (TRIAL)</span>`
+                                    ${(isUserVip && !Auth.canUserUseNameGlow(u))
+                                        ? `<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-rose-500/25 text-rose-300 border border-rose-400/40 uppercase tracking-wider">🔒 DIKUNCI ADMIN</span>`
                                         : `<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-fuchsia-500/25 text-fuchsia-200 border border-fuchsia-400/40 uppercase tracking-wider">VIP ONLY</span>`}
                                 </div>
                                 <p class="text-[9.5px] text-white/55 leading-tight truncate">Gaya teks username neon/gradien bergerak khusus Member VIP</p>
@@ -3027,8 +3043,9 @@ var Auth = {
 
         var selectedBorderObj = borders.find(function(b){ return b.id === currentBorder; }) || borders[0];
 
-        // Default tab: if user requested specific tab, or if user VIP is active and opened via VIP shortcut, or 'unlocked' / 'all'
-        var initialTab = defaultTab || (isUserVip ? 'unlocked' : 'all');
+        // Default tab: if user requested specific tab, or if user VIP is active / has unlocked diamond borders, or 'all'
+        var hasDiamondBorders = Array.isArray(u.unlockedDiamondBorders) && u.unlockedDiamondBorders.length > 0;
+        var initialTab = defaultTab || ((isUserVip || hasDiamondBorders) ? 'unlocked' : 'all');
         Auth.borderActiveFilterTab = initialTab;
 
         var modal = document.createElement('div');
@@ -3084,10 +3101,10 @@ var Auth = {
                 <!-- TAB PILIHAN: Border VIP Kebuka, Semua, Platinum, Master, Legend, Immortal, Permanen -->
                 <div class="p-3 bg-[#13151f] border border-white/10 rounded-2xl shadow-xl">
                     <div class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
-                        ${isUserVip ? `
+                        ${(isUserVip || hasDiamondBorders) ? `
                         <button type="button" onclick="Auth.switchBorderCategoryTab('unlocked')" id="border-cat-tab-unlocked" class="px-3 py-1.5 rounded-xl font-extrabold text-[11px] whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${Auth.borderActiveFilterTab === 'unlocked' ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-amber-500/25' : 'bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 border border-amber-400/30'}">
                             <i data-lucide="unlock" class="w-3.5 h-3.5"></i>
-                            <span>Border VIP Kebuka</span>
+                            <span>${isUserVip ? 'Border VIP Kebuka' : 'Border Milikku (💎)'}</span>
                             <span class="text-[9px] px-1.5 py-0.2 rounded-full ${Auth.borderActiveFilterTab === 'unlocked' ? 'bg-black text-amber-300' : 'bg-amber-400 text-black'} font-black" id="badge-count-unlocked">0</span>
                         </button>
                         ` : ''}
@@ -3992,9 +4009,9 @@ var Auth = {
                 color: '#facc15',
                 reqHours: 0,
                 reqLabel: 'VIP Active',
-                specialReq: (u.isVipTrial || u.vipSource === 'point_exchange') ? 'Dikunci Admin (Khusus VIP Penuh)' : 'Memerlukan Akun VIP Aktif',
+                specialReq: (isUserVip && typeof Profile !== 'undefined' && Profile.isVipFeatureAllowed && !Profile.isVipFeatureAllowed('vipSultanBadge')) ? 'Dikunci Admin pada Paket VIP Anda' : 'Memerlukan Akun VIP Aktif',
                 desc: 'Lencana Mahkota Emas Sultan khusus Pengguna VIP.',
-                unlocked: isUserVip && ((!u.isVipTrial && u.vipSource !== 'point_exchange') || (typeof Profile === 'undefined' || !Profile.isVipFeatureAllowed || Profile.isVipFeatureAllowed('vipSultanBadge')))
+                unlocked: isUserVip && (typeof Profile === 'undefined' || !Profile.isVipFeatureAllowed || Profile.isVipFeatureAllowed('vipSultanBadge'))
             },
             {
                 id: 'badge_top_champion',
@@ -4548,6 +4565,9 @@ var Auth = {
             return { unlocked: true, lockBadge: '', toast: '' };
         }
         u = u || Auth.currentUser || {};
+        if (Array.isArray(u.unlockedDiamondBorders) && u.unlockedDiamondBorders.includes(b.id)) {
+            return { unlocked: true, lockBadge: '', toast: '' };
+        }
         var isMasterAdmin = (window.Security && typeof window.Security.isVerifiedMaster === 'function')
             ? window.Security.isVerifiedMaster(u)
             : (String(u.email || u.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com' && Boolean(u.vipSignature));
@@ -4559,8 +4579,8 @@ var Auth = {
         if (!isUserVip) {
             return {
                 unlocked: false,
-                lockBadge: 'Khusus VIP',
-                toast: `Border ${b.name} khusus Member VIP! Buka paket VIP Anda sekarang.`
+                lockBadge: 'Khusus VIP / 💎',
+                toast: `Border ${b.name} khusus Member VIP atau dapat dibeli di Toko Berlian (💎)!`
             };
         }
 
@@ -5229,16 +5249,14 @@ var Auth = {
     canUserUseNameGlow(user) {
         var u = user || Auth.currentUser;
         if (!u) return false;
-        // Jika pengguna sedang dalam masa Percobaan VIP (Trial) atau Penukaran Poin VIP, wajib patuhi centang Admin!
-        if (u.isVipTrial || u.vipSource === 'point_exchange') {
-            if (u.trialAllowedFeatures && u.trialAllowedFeatures.nameGlow === false) {
-                return false;
-            }
-            if (typeof Profile !== 'undefined' && typeof Profile.isVipFeatureAllowed === 'function') {
-                return Profile.isVipFeatureAllowed('nameGlow');
-            }
-        }
         var isMasterAdmin = Boolean(((u.email || u.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com') || ((u.username || '').toLowerCase().trim() === 'musifystar') || u.isMasterAdmin);
+        if (isMasterAdmin) return true;
+        if (u.trialAllowedFeatures && u.trialAllowedFeatures.nameGlow === false) {
+            return false;
+        }
+        if ((u.isVipTrial || u.vipSource === 'point_exchange' || u.trialAllowedFeatures) && typeof Profile !== 'undefined' && typeof Profile.isVipFeatureAllowed === 'function') {
+            return Profile.isVipFeatureAllowed('nameGlow');
+        }
         var isVipExpired = u.vipExpiresAt && Date.now() > u.vipExpiresAt;
         var isTierActive = Boolean(u.vipTier && u.vipTier !== 'none');
         var isUserVip = (isMasterAdmin || ((Boolean(u.isPremium || u.is_premium || isTierActive)) && u.vipTier !== 'none')) && !isVipExpired;

@@ -969,18 +969,23 @@ var Profile = {
             availableMethods: availableMethods
         };
 
+        var isDiamondTopup = Boolean(pkg && pkg.isDiamondTopup);
+        var backBtnAction = isDiamondTopup
+            ? "gid('musifystar-qris-payment-modal')?.remove(); if(!gid('musifystar-diamond-topup-modal')) Profile.openDiamondTopupModal('berlian');"
+            : ("gid('musifystar-qris-payment-modal')?.remove(); Profile.openVipPackagesModal('" + (pkg.id || '') + "');");
+
         var modal = document.createElement('div');
         modal.id = 'musifystar-qris-payment-modal';
-        modal.className = 'fixed inset-0 z-[800] bg-[#07090e] flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in';
+        modal.className = 'fixed inset-0 z-[10070] bg-[#07090e] flex flex-col select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in';
         modal.innerHTML = `
         <!-- Full Page Sticky Header -->
         <div class="pt-5 sm:pt-6 pb-3.5 px-4 shrink-0 border-b border-white/10 shadow-2xl transition-all flex items-center justify-between" style="background: linear-gradient(180deg, rgba(13, 15, 22, 0.92) 0%, rgba(13, 15, 22, 0.98) 100%), url('/banner.png') center/cover no-repeat; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);">
             <div class="flex items-center gap-3">
-                <button type="button" onclick="gid('musifystar-qris-payment-modal')?.remove(); Profile.openVipPackagesModal('${pkg.id || ''}');" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali ke Paket">
+                <button type="button" onclick="${backBtnAction}" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer shadow-sm" title="Kembali">
                     <i data-lucide="arrow-left" class="w-5 h-5"></i>
                 </button>
                 <div>
-                    <h1 class="text-lg sm:text-xl font-black text-white tracking-tight drop-shadow-md leading-tight">Pembayaran VIP MusifyStar</h1>
+                    <h1 class="text-lg sm:text-xl font-black text-white tracking-tight drop-shadow-md leading-tight">${isDiamondTopup ? 'Pembayaran Top-Up Berlian 💎' : 'Pembayaran VIP MusifyStar'}</h1>
                     <p class="text-white/60 text-xs leading-tight mt-0.5">${availableMethods.length > 1 ? 'Pilih pembayaran via QRIS atau E-Wallet (GoPay / DANA / OVO)' : 'Scan kode QRIS di bawah dengan m-Banking atau E-Wallet'}</p>
                 </div>
             </div>
@@ -993,9 +998,9 @@ var Profile = {
         <div class="flex-1 overflow-y-auto overscroll-contain hide-scrollbar p-4 sm:p-6 max-w-2xl mx-auto w-full pb-32 space-y-4">
             
             <!-- Package Summary Tagihan -->
-            <div class="p-4 rounded-2xl bg-white/[0.04] border border-amber-400/30 flex items-center justify-between gap-3">
+            <div class="p-4 rounded-2xl bg-white/[0.04] border ${isDiamondTopup ? 'border-cyan-400/40' : 'border-amber-400/30'} flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                    <span class="text-xs text-amber-300 font-mono font-bold uppercase tracking-wider block">${Profile.escapeHtml(pkg.name)} (${Profile.escapeHtml(pkg.duration)})</span>
+                    <span class="text-xs ${isDiamondTopup ? 'text-cyan-300' : 'text-amber-300'} font-mono font-bold uppercase tracking-wider block">${Profile.escapeHtml(pkg.name)} (${Profile.escapeHtml(pkg.duration)})</span>
                     <span class="text-lg sm:text-xl font-black text-white block mt-0.5">Total: Rp ${priceFmt}</span>
                     ${pkg.invoiceId ? `<span class="text-[10px] text-rose-300 font-mono block mt-0.5">No. Tagihan: ${Profile.escapeHtml(pkg.invoiceId)}</span>` : ''}
                 </div>
@@ -1065,21 +1070,33 @@ var Profile = {
         if (adminWa.startsWith('0')) adminWa = '62' + adminWa.slice(1);
         if (!adminWa) adminWa = '6285702526159';
 
-        var waText = encodeURIComponent(
-            `Halo Admin MusifyStar! Saya sudah melakukan pembayaran / Scan ${payMethod} untuk perpanjangan VIP:\n\n` +
-            `• Username: @${username}\n` +
-            `• User ID: ${userId}\n` +
-            `• Email: ${userEmail}\n` +
-            `• Paket: ${packageName} (${duration})\n` +
-            `• Total Bayar: Rp ${Number(amount || 10000).toLocaleString('id-ID')}\n` +
-            `• Metode: ${payMethod}\n` +
-            (invoiceId ? `• No. Tagihan: ${invoiceId}\n` : '') +
-            `\nBerikut saya lampirkan foto bukti transfernya. Mohon bantu perpanjang VIP akun saya ya Admin. Terima kasih!`
-        );
+        var isDiamondTopup = Boolean(Profile.currentPaymentModalMeta && Profile.currentPaymentModalMeta.pkg && Profile.currentPaymentModalMeta.pkg.isDiamondTopup);
+        var waText = isDiamondTopup
+            ? encodeURIComponent(
+                `Halo Admin MusifyStar! Saya sudah melakukan pembayaran / Transfer ${payMethod} untuk Top-Up Berlian 💎:\n\n` +
+                `• Username: @${username}\n` +
+                `• Musify ID: ${userId}\n` +
+                `• Email: ${userEmail}\n` +
+                `• Paket Berlian: ${packageName} (${duration})\n` +
+                `• Total Bayar: Rp ${Number(amount || 1800).toLocaleString('id-ID')}\n` +
+                `• Metode Pembayaran: ${payMethod}\n\n` +
+                `Berikut saya lampirkan foto bukti transfernya. Mohon bantu tambahkan Berlian 💎 ke akun saya ya Admin. Terima kasih!`
+            )
+            : encodeURIComponent(
+                `Halo Admin MusifyStar! Saya sudah melakukan pembayaran / Scan ${payMethod} untuk perpanjangan VIP:\n\n` +
+                `• Username: @${username}\n` +
+                `• User ID: ${userId}\n` +
+                `• Email: ${userEmail}\n` +
+                `• Paket: ${packageName} (${duration})\n` +
+                `• Total Bayar: Rp ${Number(amount || 10000).toLocaleString('id-ID')}\n` +
+                `• Metode: ${payMethod}\n` +
+                (invoiceId ? `• No. Tagihan: ${invoiceId}\n` : '') +
+                `\nBerikut saya lampirkan foto bukti transfernya. Mohon bantu perpanjang VIP akun saya ya Admin. Terima kasih!`
+            );
         var waUrl = `https://wa.me/${adminWa}?text=${waText}`;
 
         // Catat ke server bahwa pengguna sudah scan QRIS dan sedang mengirim bukti TF ke WA Admin
-        if (u && u.id) {
+        if (u && u.id && !isDiamondTopup) {
             try {
                 var res = await fetch('/api/user-auth?action=user_trial_invoice_action', {
                     method: 'POST',
@@ -1778,27 +1795,25 @@ var Profile = {
         var mappedKey = (featureKey === 'liquidGlassIos26') ? 'liquidGlassIos27' : featureKey;
         var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : null;
         if (mappedKey === 'homeTheme' || mappedKey === 'navTheme') {
-            if (u && (u.isVipTrial || u.vipSource === 'point_exchange') && u.trialAllowedFeatures && u.trialAllowedFeatures[mappedKey] === false) {
+            if (u && u.trialAllowedFeatures && u.trialAllowedFeatures[mappedKey] === false) {
                 return false;
             }
             return true;
         }
         if (!Profile.isCurrentUserVip()) return false;
         if (!u) return false;
-        if (u.isVipTrial || u.vipSource === 'point_exchange') {
-            var userFeatures = (u.trialAllowedFeatures && typeof u.trialAllowedFeatures === 'object')
-                ? u.trialAllowedFeatures
+        var userFeatures = (u.trialAllowedFeatures && typeof u.trialAllowedFeatures === 'object')
+            ? u.trialAllowedFeatures
+            : null;
+        if (userFeatures && userFeatures[mappedKey] !== undefined) {
+            return Boolean(userFeatures[mappedKey]);
+        }
+        if (u.isVipTrial) {
+            var cfgFeatures = (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.vipTrialConfig && Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures)
+                ? Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures
                 : null;
-            if (userFeatures && userFeatures[mappedKey] !== undefined) {
-                return Boolean(userFeatures[mappedKey]);
-            }
-            if (u.isVipTrial) {
-                var cfgFeatures = (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.vipTrialConfig && Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures)
-                    ? Profile.cachedPaymentConfig.vipTrialConfig.allowedFeatures
-                    : null;
-                if (cfgFeatures && cfgFeatures[mappedKey] !== undefined) {
-                    return Boolean(cfgFeatures[mappedKey]);
-                }
+            if (cfgFeatures && cfgFeatures[mappedKey] !== undefined) {
+                return Boolean(cfgFeatures[mappedKey]);
             }
         }
         return true;
@@ -3296,6 +3311,11 @@ var Profile = {
                         <span>Trial VIP & Tagihan Email</span>
                         <span class="text-[9px] bg-emerald-400 text-black px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider">BARU</span>
                     </button>
+                    <button id="admin-tab-btn-diamondstore" onclick="Profile.setAdminTab('diamondstore')" class="px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 hover:text-white whitespace-nowrap shadow-sm shadow-cyan-500/20">
+                        <i data-lucide="gem" class="w-4 h-4 text-cyan-400"></i>
+                        <span>Kelola Top-Up & Toko Berlian</span>
+                        <span class="text-[9px] bg-gradient-to-r from-cyan-400 to-purple-400 text-black px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider">BARU</span>
+                    </button>
                     <button id="admin-tab-btn-messages" onclick="Profile.setAdminTab('messages')" class="px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-white/5 hover:bg-white/10 text-white/70 hover:text-white whitespace-nowrap">
                         <i data-lucide="send" class="w-4 h-4 text-emerald-400"></i>
                         <span>Pesan Pengguna (Direct)</span>
@@ -3497,6 +3517,16 @@ var Profile = {
                     </div>
                 </div>
 
+                <!-- TAB 18B: KELOLA TOP-UP & TOKO BERLIAN (DIAMOND STORE: PAKET HARGA, BINTANG VIP, CUSTOM ID, BORDER PROFIL) -->
+                <div id="admin-view-diamondstore" class="hidden space-y-4">
+                    <div id="admin-diamondstore-container" class="space-y-4">
+                        <div class="text-center py-12 text-white/50 space-y-2">
+                            <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-cyan-400"></i>
+                            <p class="text-xs">Memuat pengaturan Top-Up & Katalog Toko Berlian (Berlian, Bintang VIP, Custom ID, Border Profil)...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- TAB 19: PANTAU IP TERBLOKIR OTOMATIS & PENGGUNAAN WEBSITE REAL-TIME -->
                 <div id="admin-view-ipmonitor" class="hidden space-y-4">
                     <div id="admin-ipmonitor-container" class="space-y-4">
@@ -3526,7 +3556,7 @@ var Profile = {
             if (gid('musifystar-admin-modal')) {
                 var activeEl = document.activeElement;
                 var isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
-                if (!isTyping && Profile.adminActiveTab !== 'vouchers' && Profile.adminActiveTab !== 'viptrial') {
+                if (!isTyping && Profile.adminActiveTab !== 'vouchers' && Profile.adminActiveTab !== 'viptrial' && Profile.adminActiveTab !== 'diamondstore') {
                     Profile.refreshAdminData(true);
                 }
             } else {
@@ -3550,6 +3580,7 @@ var Profile = {
         var btnUsers = gid('admin-tab-btn-users');
         var btnVip = gid('admin-tab-btn-vip');
         var btnVipTrial = gid('admin-tab-btn-viptrial');
+        var btnDiamondStore = gid('admin-tab-btn-diamondstore');
         var btnVouchers = gid('admin-tab-btn-vouchers');
         var btnBans = gid('admin-tab-btn-bans');
         var btnIpMonitor = gid('admin-tab-btn-ipmonitor');
@@ -3571,6 +3602,7 @@ var Profile = {
         var viewUsers = gid('admin-view-users');
         var viewVip = gid('admin-view-vip');
         var viewVipTrial = gid('admin-view-viptrial');
+        var viewDiamondStore = gid('admin-view-diamondstore');
         var viewVouchers = gid('admin-view-vouchers');
         var viewBans = gid('admin-view-bans');
         var viewIpMonitor = gid('admin-view-ipmonitor');
@@ -3598,6 +3630,9 @@ var Profile = {
         if (btnUsers) btnUsers.className = tab === 'users' ? activeBtnClass : inactiveBtnClass;
         if (btnVip) btnVip.className = tab === 'vip' ? activeVipBtnClass : inactiveVipBtnClass;
         if (btnVipTrial) btnVipTrial.className = tab === 'viptrial' ? activeVipBtnClass : inactiveVipBtnClass;
+        if (btnDiamondStore) btnDiamondStore.className = tab === 'diamondstore'
+            ? 'px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-gradient-to-r from-cyan-400 to-purple-500 text-black shadow-lg shadow-cyan-500/30 whitespace-nowrap'
+            : 'px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-400/40 hover:text-white whitespace-nowrap shadow-sm shadow-cyan-500/20';
         if (btnVouchers) btnVouchers.className = tab === 'vouchers' ? activeVipBtnClass : inactiveVipBtnClass;
         if (btnBans) btnBans.className = tab === 'bans' ? activeBtnClass : inactiveBtnClass;
         if (btnIpMonitor) btnIpMonitor.className = tab === 'ipmonitor' ? activeBtnClass : 'px-3.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 border border-rose-400/40 hover:text-white whitespace-nowrap shadow-sm shadow-rose-500/20';
@@ -3620,6 +3655,7 @@ var Profile = {
         if (viewUsers) viewUsers.classList.toggle('hidden', tab !== 'users');
         if (viewVip) viewVip.classList.toggle('hidden', tab !== 'vip');
         if (viewVipTrial) viewVipTrial.classList.toggle('hidden', tab !== 'viptrial');
+        if (viewDiamondStore) viewDiamondStore.classList.toggle('hidden', tab !== 'diamondstore');
         if (viewVouchers) viewVouchers.classList.toggle('hidden', tab !== 'vouchers');
         if (viewBans) viewBans.classList.toggle('hidden', tab !== 'bans');
         if (viewIpMonitor) viewIpMonitor.classList.toggle('hidden', tab !== 'ipmonitor');
@@ -3652,6 +3688,8 @@ var Profile = {
             Profile.loadAdminVipTab();
         } else if (tab === 'viptrial') {
             Profile.loadAdminVipTrialTab();
+        } else if (tab === 'diamondstore') {
+            Profile.loadAdminDiamondStoreTab();
         } else if (tab === 'vouchers') {
             Profile.loadAdminVouchersTab();
         } else if (tab === 'bans') {
@@ -3713,6 +3751,8 @@ var Profile = {
             Profile.loadAdminVipTab();
         } else if (Profile.adminActiveTab === 'viptrial') {
             Profile.loadAdminVipTrialTab();
+        } else if (Profile.adminActiveTab === 'diamondstore') {
+            Profile.loadAdminDiamondStoreTab();
         } else if (Profile.adminActiveTab === 'vouchers') {
             Profile.loadAdminVouchersTab();
         } else if (Profile.adminActiveTab === 'referrals') {
@@ -8225,6 +8265,14 @@ var Profile = {
         currentTier = String(currentTier || 'none').toLowerCase();
         currentBorder = String(currentBorder || '').trim();
 
+        var cachedUsers = Profile.cachedAdminUsers || [];
+        var matchedUser = cachedUsers.find(function(x) {
+            return (userId && x.id === userId) || (username && String(x.username || '').toLowerCase() === String(username).toLowerCase());
+        }) || {};
+        var mf = (matchedUser && matchedUser.trialAllowedFeatures && typeof matchedUser.trialAllowedFeatures === 'object')
+            ? matchedUser.trialAllowedFeatures
+            : {};
+
         var modal = document.createElement('div');
         modal.id = 'admin-vip-access-modal';
         modal.className = 'fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn';
@@ -8348,6 +8396,73 @@ var Profile = {
                     </div>
                 </div>
 
+                <!-- 4. Fitur VIP yang Dibuka (12 Fitur Lengkap) -->
+                <div class="p-3 rounded-2xl bg-black/40 border border-white/10 space-y-2.5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
+                        <div>
+                            <span class="text-[11px] font-black text-amber-300 flex items-center gap-1.5">
+                                <i data-lucide="check-square" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i>
+                                <span>Fitur VIP yang Dibuka (12 Fitur Lengkap)</span>
+                            </span>
+                            <span class="text-[10px] text-white/45 block mt-0.5">Fitur yang tidak dicentang otomatis dikunci untuk pengguna ini.</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onclick="document.querySelectorAll('.adm-modal-vip-feat-chk').forEach(function(c){c.checked=true;})" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/35 text-emerald-300 text-[10px] font-extrabold cursor-pointer">Centang Semua</button>
+                            <button type="button" onclick="document.querySelectorAll('.adm-modal-vip-feat-chk').forEach(function(c){c.checked=false;})" class="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/35 text-rose-300 text-[10px] font-extrabold cursor-pointer">Lepas Semua</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2 text-xs text-white/90">
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-customid" ${mf.customId !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Custom ID VIP</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-glow" ${mf.nameGlow !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Efek Nama Glow</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-liquid" ${mf.liquidGlassIos27 !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Liquid Glass iOS 27</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-avatar" ${mf.vipAvatar !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Katalog Avatar VIP</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-island" ${mf.dynamicIsland !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Dynamic Island iOS</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-audio" ${mf.highAudio !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Audio Ultra HD</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-bgplay" ${mf.backgroundPlay !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Putar Latar Belakang</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-awake" ${mf.keepScreenAwake !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Layar Tetap Menyala</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-swipe" ${mf.swipeGestures !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Gestur Usap Layar</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-badge" ${mf.vipSultanBadge !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Lencana VIP Sultan</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-hometheme" ${mf.homeTheme !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Tema Home Screen</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                            <input type="checkbox" id="adm-modal-vip-feat-navtheme" ${mf.navTheme !== false ? 'checked' : ''} class="adm-modal-vip-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                            <span class="text-[10.5px] font-bold truncate">Tema Navigasi Bawah</span>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Action Buttons -->
                 <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-white/10">
                     <button type="button" onclick="gid('admin-vip-access-modal')?.remove()" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer">
@@ -8403,13 +8518,29 @@ var Profile = {
         }
 
         try {
+            var allowedFeatures = {
+                customId: Boolean(gid('adm-modal-vip-feat-customid')?.checked),
+                nameGlow: Boolean(gid('adm-modal-vip-feat-glow')?.checked),
+                liquidGlassIos27: Boolean(gid('adm-modal-vip-feat-liquid')?.checked),
+                vipAvatar: Boolean(gid('adm-modal-vip-feat-avatar')?.checked),
+                dynamicIsland: Boolean(gid('adm-modal-vip-feat-island')?.checked),
+                highAudio: Boolean(gid('adm-modal-vip-feat-audio')?.checked),
+                backgroundPlay: Boolean(gid('adm-modal-vip-feat-bgplay')?.checked),
+                keepScreenAwake: Boolean(gid('adm-modal-vip-feat-awake')?.checked),
+                swipeGestures: Boolean(gid('adm-modal-vip-feat-swipe')?.checked),
+                vipSultanBadge: Boolean(gid('adm-modal-vip-feat-badge')?.checked),
+                homeTheme: Boolean(gid('adm-modal-vip-feat-hometheme')?.checked),
+                navTheme: Boolean(gid('adm-modal-vip-feat-navtheme')?.checked)
+            };
+
             var payload = {
                 targetId: userId,
                 userId: userId,
                 id: userId,
                 username: username,
                 email: email,
-                vipTier: finalTier
+                vipTier: finalTier,
+                allowedFeatures: allowedFeatures
             };
             if (durationDays !== null && !isNaN(durationDays)) {
                 payload.durationDays = durationDays;
@@ -8446,6 +8577,7 @@ var Profile = {
                         Auth.currentUser.border = data.user.border || '';
                         Auth.currentUser.borderUrl = data.user.borderUrl || '';
                         Auth.currentUser.borderName = data.user.borderName || '';
+                        Auth.currentUser.trialAllowedFeatures = data.user.trialAllowedFeatures || null;
                         if (typeof Auth.saveUser === 'function') {
                             Auth.saveUser(Auth.currentUser);
                         } else {
@@ -8976,6 +9108,75 @@ var Profile = {
                         </div>
                     </div>
 
+                    <!-- 4. Fitur VIP yang Dibuka (12 Fitur Lengkap) -->
+                    <div class="space-y-2.5 pt-2 border-t border-white/10">
+                        <div class="p-3 rounded-2xl bg-black/40 border border-white/10 space-y-2.5">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
+                                <div>
+                                    <span class="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                                        <i data-lucide="check-square" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i>
+                                        <span>4. Fitur VIP yang Dibuka untuk Pengguna Ini (12 Fitur Lengkap)</span>
+                                    </span>
+                                    <span class="text-[10px] text-white/45 block mt-0.5">Fitur yang dicentang akan aktif, sedangkan yang dilepas centangnya otomatis terkunci untuk akun tersebut.</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <button type="button" onclick="document.querySelectorAll('.adm-vip-tab-feat-chk').forEach(function(c){c.checked=true;})" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/35 text-emerald-300 text-[10px] font-extrabold cursor-pointer">Centang Semua</button>
+                                    <button type="button" onclick="document.querySelectorAll('.adm-vip-tab-feat-chk').forEach(function(c){c.checked=false;})" class="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/35 text-rose-300 text-[10px] font-extrabold cursor-pointer">Lepas Semua</button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2 text-xs text-white/90">
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-customid" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Custom ID VIP</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-glow" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Efek Nama Glow</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-liquid" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Liquid Glass iOS 27</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-avatar" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Katalog Avatar VIP</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-island" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Dynamic Island iOS</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-audio" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Audio Ultra HD</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-bgplay" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Putar Latar Belakang</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-awake" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Layar Tetap Menyala</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-swipe" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Gestur Usap Layar</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-badge" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Lencana VIP Sultan</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-hometheme" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Tema Home Screen</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/35 cursor-pointer transition-all">
+                                    <input type="checkbox" id="adm-vip-tab-feat-navtheme" checked class="adm-vip-tab-feat-chk accent-emerald-400 rounded w-3.5 h-3.5 shrink-0" />
+                                    <span class="text-[10.5px] font-bold truncate">Tema Navigasi Bawah</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Submit Action Button -->
                     <div class="pt-3 border-t border-white/10 flex items-center justify-end">
                         <button id="admin-vip-tab-submit-btn" type="button" onclick="Profile.submitAdminVipTabForm()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-500 text-black text-xs font-black flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer shadow-[0_0_25px_rgba(245,158,11,0.35)]">
@@ -9076,9 +9277,25 @@ var Profile = {
         }
 
         // Set radio buttons according to user's current status if VIP
-        var currentTier = isVip ? String(u.vipTier || 'permanent').toLowerCase() : 'none';
+        var currentTier = isVip ? String(u.vipTier || 'permanent').toLowerCase() : '1month';
         var radio = document.querySelector(`input[name="admin_vip_tab_tier_radio"][value="${currentTier}"]`);
         if (radio) radio.checked = true;
+
+        // Sync 12 VIP feature checkboxes according to user's current trialAllowedFeatures
+        var tf = (u.trialAllowedFeatures && typeof u.trialAllowedFeatures === 'object') ? u.trialAllowedFeatures : {};
+        var setChk = function(id, val) { var el = gid(id); if (el) el.checked = (val !== false); };
+        setChk('adm-vip-tab-feat-customid', tf.customId);
+        setChk('adm-vip-tab-feat-glow', tf.nameGlow);
+        setChk('adm-vip-tab-feat-liquid', tf.liquidGlassIos27);
+        setChk('adm-vip-tab-feat-avatar', tf.vipAvatar);
+        setChk('adm-vip-tab-feat-island', tf.dynamicIsland);
+        setChk('adm-vip-tab-feat-audio', tf.highAudio);
+        setChk('adm-vip-tab-feat-bgplay', tf.backgroundPlay);
+        setChk('adm-vip-tab-feat-awake', tf.keepScreenAwake);
+        setChk('adm-vip-tab-feat-swipe', tf.swipeGestures);
+        setChk('adm-vip-tab-feat-badge', tf.vipSultanBadge);
+        setChk('adm-vip-tab-feat-hometheme', tf.homeTheme);
+        setChk('adm-vip-tab-feat-navtheme', tf.navTheme);
     },
 
     async submitAdminVipTabForm() {
@@ -9101,6 +9318,21 @@ var Profile = {
         var selectedTier = document.querySelector('input[name="admin_vip_tab_tier_radio"]:checked')?.value || '1month';
         var selectedBorder = document.querySelector('input[name="admin_vip_tab_border_radio"]:checked')?.value || 'keep';
 
+        var allowedFeatures = {
+            customId: Boolean(gid('adm-vip-tab-feat-customid')?.checked),
+            nameGlow: Boolean(gid('adm-vip-tab-feat-glow')?.checked),
+            liquidGlassIos27: Boolean(gid('adm-vip-tab-feat-liquid')?.checked),
+            vipAvatar: Boolean(gid('adm-vip-tab-feat-avatar')?.checked),
+            dynamicIsland: Boolean(gid('adm-vip-tab-feat-island')?.checked),
+            highAudio: Boolean(gid('adm-vip-tab-feat-audio')?.checked),
+            backgroundPlay: Boolean(gid('adm-vip-tab-feat-bgplay')?.checked),
+            keepScreenAwake: Boolean(gid('adm-vip-tab-feat-awake')?.checked),
+            swipeGestures: Boolean(gid('adm-vip-tab-feat-swipe')?.checked),
+            vipSultanBadge: Boolean(gid('adm-vip-tab-feat-badge')?.checked),
+            homeTheme: Boolean(gid('adm-vip-tab-feat-hometheme')?.checked),
+            navTheme: Boolean(gid('adm-vip-tab-feat-navtheme')?.checked)
+        };
+
         var btn = gid('admin-vip-tab-submit-btn');
         if (btn) {
             btn.disabled = true;
@@ -9115,7 +9347,8 @@ var Profile = {
                 id: userId,
                 username: u.username || '',
                 email: u.email || '',
-                vipTier: selectedTier
+                vipTier: selectedTier,
+                allowedFeatures: allowedFeatures
             };
             if (selectedBorder !== 'keep') {
                 payload.border = selectedBorder;
@@ -9147,6 +9380,7 @@ var Profile = {
                         Auth.currentUser.border = data.user.border || '';
                         Auth.currentUser.borderUrl = data.user.borderUrl || '';
                         Auth.currentUser.borderName = data.user.borderName || '';
+                        Auth.currentUser.trialAllowedFeatures = data.user.trialAllowedFeatures || null;
                         if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
                         Auth.updateHeaderUI();
                     }
@@ -15402,7 +15636,7 @@ var Profile = {
 
         el.classList.remove('hidden');
 
-        if (u && u.isVipTrial && !Profile.isVipFeatureAllowed('customId')) {
+        if (u && !Profile.isVipFeatureAllowed('customId')) {
             el.className = 'p-2.5 rounded-xl bg-rose-500/10 border border-rose-400/35 space-y-1.5 my-1.5';
             el.innerHTML = `
                 <div class="flex items-center justify-between text-[10px]">
@@ -15413,7 +15647,7 @@ var Profile = {
                     <span class="text-rose-300 font-extrabold text-[9.5px]">No Akses</span>
                 </div>
                 <p class="text-[9.5px] text-white/60 leading-snug">
-                    Fitur Custom ID VIP tidak dibuka oleh Admin selama masa Percobaan VIP (Free Trial). Upgrade ke VIP Penuh untuk memakai Custom ID!
+                    Fitur Custom ID VIP tidak diaktifkan oleh Admin pada paket VIP Anda saat ini.
                 </p>
             `;
             if (window.lucide) lucide.createIcons();
@@ -15508,7 +15742,7 @@ var Profile = {
             return;
         }
 
-        if (u && u.isVipTrial && !Profile.isVipFeatureAllowed('customId')) {
+        if (u && !Profile.isVipFeatureAllowed('customId')) {
             container.innerHTML = `
             <div class="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/35 space-y-2.5 text-center backdrop-blur-xl shadow-xl">
                 <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-400/40 text-rose-300 flex items-center justify-center mx-auto">
@@ -15516,7 +15750,7 @@ var Profile = {
                 </div>
                 <h4 class="text-xs font-black text-rose-300">No Akses Custom ID VIP</h4>
                 <p class="text-[11px] text-white/65 leading-relaxed">
-                    Fitur Custom ID VIP tidak diaktifkan oleh Admin untuk paket Percobaan VIP Free Trial. Upgrade ke paket VIP Penuh untuk menggunakan Custom ID keren!
+                    Fitur Custom ID VIP tidak diaktifkan oleh Admin untuk paket VIP Anda saat ini.
                 </p>
                 <button type="button" onclick="Profile.openVipPackagesModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-black text-xs cursor-pointer">
                     Upgrade ke VIP Penuh
@@ -20138,7 +20372,7 @@ var Profile = {
                             </div>
                         </div>
 
-                        <!-- Kartu GoPay, DANA, OVO dengan masing-masing tombol ON/OFF -->
+                        <!-- Kartu GoPay, DANA, OVO dengan masing-masing tombol ON/OFF & Link Deep-Link -->
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="p-3 rounded-xl bg-black/45 border border-sky-500/30 space-y-2">
                                 <div class="flex items-center justify-between">
@@ -20150,6 +20384,7 @@ var Profile = {
                                 </div>
                                 <input type="text" id="adm-vt-gopay-num" value="${Profile.escapeHtml(ew.gopay?.number || '081234567890')}" placeholder="Nomor GoPay" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white font-mono text-xs" />
                                 <input type="text" id="adm-vt-gopay-holder" value="${Profile.escapeHtml(ew.gopay?.holder || payCfg.qrisHolder || 'NABIL (MusifyStar Official)')}" placeholder="Atas Nama GoPay" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white/80 text-xs" />
+                                <input type="text" id="adm-vt-gopay-link" value="${Profile.escapeHtml(ew.gopay?.link || '')}" placeholder="Link GoPay (Opsional)" class="w-full px-2.5 py-1.5 bg-black/60 border border-sky-500/30 rounded-lg text-sky-300 font-mono text-[11px]" />
                             </div>
 
                             <div class="p-3 rounded-xl bg-black/45 border border-blue-500/30 space-y-2">
@@ -20162,6 +20397,7 @@ var Profile = {
                                 </div>
                                 <input type="text" id="adm-vt-dana-num" value="${Profile.escapeHtml(ew.dana?.number || '081234567890')}" placeholder="Nomor DANA" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white font-mono text-xs" />
                                 <input type="text" id="adm-vt-dana-holder" value="${Profile.escapeHtml(ew.dana?.holder || payCfg.qrisHolder || 'NABIL (MusifyStar Official)')}" placeholder="Atas Nama DANA" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white/80 text-xs" />
+                                <input type="text" id="adm-vt-dana-link" value="${Profile.escapeHtml(ew.dana?.link || '')}" placeholder="Link DANA (https://link.dana.id/...)" class="w-full px-2.5 py-1.5 bg-black/60 border border-blue-500/35 rounded-lg text-blue-300 font-mono text-[11px]" />
                             </div>
 
                             <div class="p-3 rounded-xl bg-black/45 border border-purple-500/30 space-y-2">
@@ -20174,6 +20410,7 @@ var Profile = {
                                 </div>
                                 <input type="text" id="adm-vt-ovo-num" value="${Profile.escapeHtml(ew.ovo?.number || '081234567890')}" placeholder="Nomor OVO" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white font-mono text-xs" />
                                 <input type="text" id="adm-vt-ovo-holder" value="${Profile.escapeHtml(ew.ovo?.holder || payCfg.qrisHolder || 'NABIL (MusifyStar Official)')}" placeholder="Atas Nama OVO" class="w-full px-2.5 py-1.5 bg-black/60 border border-white/15 rounded-lg text-white/80 text-xs" />
+                                <input type="text" id="adm-vt-ovo-link" value="${Profile.escapeHtml(ew.ovo?.link || '')}" placeholder="Link OVO (Opsional)" class="w-full px-2.5 py-1.5 bg-black/60 border border-purple-500/30 rounded-lg text-purple-300 font-mono text-[11px]" />
                             </div>
                         </div>
                     </div>
@@ -20417,17 +20654,20 @@ var Profile = {
                 gopay: {
                     enabled: gid('adm-vt-gopay-on') ? Boolean(gid('adm-vt-gopay-on').checked) : true,
                     number: (gid('adm-vt-gopay-num')?.value || '081234567890').trim(),
-                    holder: (gid('adm-vt-gopay-holder')?.value || qrisHolder).trim()
+                    holder: (gid('adm-vt-gopay-holder')?.value || qrisHolder).trim(),
+                    link: (gid('adm-vt-gopay-link')?.value || '').trim()
                 },
                 dana: {
                     enabled: gid('adm-vt-dana-on') ? Boolean(gid('adm-vt-dana-on').checked) : true,
                     number: (gid('adm-vt-dana-num')?.value || '081234567890').trim(),
-                    holder: (gid('adm-vt-dana-holder')?.value || qrisHolder).trim()
+                    holder: (gid('adm-vt-dana-holder')?.value || qrisHolder).trim(),
+                    link: (gid('adm-vt-dana-link')?.value || '').trim()
                 },
                 ovo: {
                     enabled: gid('adm-vt-ovo-on') ? Boolean(gid('adm-vt-ovo-on').checked) : true,
                     number: (gid('adm-vt-ovo-num')?.value || '081234567890').trim(),
-                    holder: (gid('adm-vt-ovo-holder')?.value || qrisHolder).trim()
+                    holder: (gid('adm-vt-ovo-holder')?.value || qrisHolder).trim(),
+                    link: (gid('adm-vt-ovo-link')?.value || '').trim()
                 }
             },
             vipTrialConfig: {
@@ -20507,6 +20747,1309 @@ var Profile = {
         }
     },
 
+    _adminDiamondInputAmount: '550',
+
+    setAdminDiamondQuickAmount(val) {
+        Profile._adminDiamondInputAmount = String(val);
+        var el = gid('adm-diamond-amount');
+        if (el) el.value = String(val);
+    },
+
+    async adminUpdateUserDiamonds(mode, directUserId, directAmount) {
+        var token = Profile.getAdminToken();
+        if (!token) return;
+        var targetId = String(directUserId || gid('adm-diamond-target-user')?.value || Profile._adminDiamondDraft?.selectedUserId || '').trim();
+        var inputEl = gid('adm-diamond-amount');
+        var rawAmt = (directAmount !== undefined && directAmount !== null)
+            ? String(directAmount)
+            : (inputEl ? String(inputEl.value) : String(Profile._adminDiamondInputAmount || '0'));
+        var cleanedAmt = rawAmt.replace(/[^0-9-]/g, '').trim();
+        if (cleanedAmt === '' && mode === 'set') cleanedAmt = '0';
+        var amount = parseInt(cleanedAmt, 10);
+        if (!targetId) {
+            if (typeof showToast === 'function') showToast('Pilih akun pengguna terlebih dahulu!');
+            return;
+        }
+        if (isNaN(amount)) {
+            if (typeof showToast === 'function') showToast('Masukkan angka jumlah Berlian yang valid (contoh: 0, 1, 550)!');
+            return;
+        }
+        if (directAmount === undefined || directAmount === null) {
+            Profile._adminDiamondInputAmount = String(Math.abs(amount));
+        }
+        try {
+            var res = await fetch('/api/user-auth?action=admin_set_diamonds', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-token': token
+                },
+                body: JSON.stringify({
+                    action: 'admin_set_diamonds',
+                    userId: targetId,
+                    mode: mode || 'add',
+                    amount: amount
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                var newBal = (data.user && data.user.diamonds !== undefined) ? Math.max(0, Number(data.user.diamonds) || 0) : 0;
+                if (typeof Auth !== 'undefined' && Auth.currentUser && (
+                    String(Auth.currentUser.id) === String(targetId) ||
+                    String(Auth.currentUser.originalId) === String(targetId) ||
+                    (data.user && (String(Auth.currentUser.id) === String(data.user.id) || String(Auth.currentUser.originalId) === String(data.user.originalId)))
+                )) {
+                    Auth.currentUser.diamonds = newBal;
+                    if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                    if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+                }
+                if (Profile._adminDiamondDraft) {
+                    Profile._adminDiamondDraft.selectedUserId = targetId;
+                    if (Array.isArray(Profile._adminDiamondDraft.users)) {
+                        Profile._adminDiamondDraft.users.forEach(function(u) {
+                            if (u && (String(u.id) === String(targetId) || String(u.originalId) === String(targetId))) {
+                                u.diamonds = newBal;
+                            }
+                        });
+                    }
+                }
+                if (typeof showToast === 'function') showToast(data.message || 'Saldo Berlian berhasil diperbarui!');
+                if (Profile.adminActiveTab === 'diamondstore') {
+                    if (Profile._adminDiamondDraft && Array.isArray(Profile._adminDiamondDraft.users) && Profile._adminDiamondDraft.users.length > 0) {
+                        Profile.renderAdminDiamondStoreDraft();
+                    } else {
+                        await Profile.loadAdminDiamondStoreTab();
+                    }
+                } else {
+                    await Profile.loadAdminVipTrialTab();
+                }
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal memperbarui saldo Berlian');
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Gagal menghubungi server.');
+        }
+    },
+
+    // =========================================================
+    // TAB KHUSUS ADMIN: KELOLA TOP-UP & TOKO BERLIAN
+    // =========================================================
+    _adminDiamondDraft: null,
+    _adminDiamondSubTab: 'all',
+
+    async loadAdminDiamondStoreTab() {
+        var container = gid('admin-diamondstore-container');
+        var token = Profile.getAdminToken();
+        if (!container || !token) return;
+
+        var prevSelectedUser = Profile._adminDiamondDraft?.selectedUserId || '';
+        var prevSubTab = Profile._adminDiamondSubTab || 'all';
+
+        try {
+            var [payRes, usersRes, customIdsRes, bordersRes] = await Promise.all([
+                fetch('/api/payment-config').then(function(r) { return r.json(); }).catch(function() { return {}; }),
+                fetch('/api/user-auth?action=admin_get_users', { headers: { 'x-admin-token': token }, cache: 'no-store' }).then(function(r) { return r.json(); }).catch(function() { return {}; }),
+                fetch('/api/user-auth?action=get_custom_ids').then(function(r) { return r.json(); }).catch(function() { return {}; }),
+                fetch('/api/borders?action=list_all').then(function(r) { return r.json(); }).catch(function() { return {}; })
+            ]);
+
+            var payCfg = (payRes && payRes.config) ? payRes.config : (Profile.cachedPaymentConfig || {});
+            Profile.cachedPaymentConfig = payCfg;
+
+            var users = (usersRes && Array.isArray(usersRes.users)) ? usersRes.users : [];
+            if (typeof Auth !== 'undefined' && Array.isArray(bordersRes?.borders) && bordersRes.borders.length > 0) {
+                Auth.availableBorders = bordersRes.borders;
+            }
+            // Pastikan akun yang sedang login juga selalu masuk di daftar jika belum ada
+            if (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.id) {
+                var cu = Auth.currentUser;
+                var hasCu = users.some(function(x) {
+                    return x && (String(x.id) === String(cu.id) || (cu.originalId && String(x.originalId) === String(cu.originalId)));
+                });
+                if (!hasCu) {
+                    users.unshift({
+                        id: cu.id,
+                        originalId: cu.originalId || cu.id,
+                        username: cu.username || 'MusifyStar',
+                        email: cu.email || '',
+                        avatar: cu.avatar || '',
+                        border: cu.border || '',
+                        borderUrl: cu.borderUrl || '',
+                        borderName: cu.borderName || '',
+                        isPremium: Boolean(cu.isPremium),
+                        vipTier: cu.vipTier || 'none',
+                        diamonds: Number(cu.diamonds) || 0
+                    });
+                }
+            }
+
+            var ew = payCfg.ewallets || {};
+
+            var diamondPackages = Array.isArray(payCfg.diamondPackages) && payCfg.diamondPackages.length
+                ? JSON.parse(JSON.stringify(payCfg.diamondPackages))
+                : JSON.parse(JSON.stringify(Profile._diamondTopupPackages));
+
+            var starVipPackages = Array.isArray(payCfg.diamondStarVipPackages) && payCfg.diamondStarVipPackages.length
+                ? JSON.parse(JSON.stringify(payCfg.diamondStarVipPackages))
+                : [
+                    { id: 'star_7days', title: 'VIP 7 Hari (Border Platinum)', desc: 'Akses penuh fitur VIP + Border Platinum selama 7 hari', cost: 250, days: 7, tier: '1month', border: 'border_platinum', borderName: 'Platinum', borderUrl: '/borders/Platinum.png', enabled: true },
+                    { id: 'star_1month', title: 'VIP 1 Bulan (Border Platinum & Master)', desc: 'Akses penuh fitur VIP + Border Platinum & Master selama 30 hari', cost: 550, days: 30, tier: '1month', border: 'border_master', borderName: 'Master', borderUrl: '/borders/Master.png', enabled: true },
+                    { id: 'star_2months', title: 'VIP 2 Bulan (+Border Legend)', desc: 'Akses penuh fitur VIP + Border Legend selama 60 hari', cost: 1650, days: 60, tier: '2months', border: 'border_legend', borderName: 'Legend', borderUrl: '/borders/Legend.png', enabled: true },
+                    { id: 'star_5months', title: 'VIP 5 Bulan (+Border Immortal)', desc: 'Akses penuh fitur VIP + Border Immortal selama 150 hari', cost: 4000, days: 150, tier: '5months', border: 'border_immortal', borderName: 'Immortal', borderUrl: '/borders/Imortal.png', enabled: true },
+                    { id: 'star_permanent', title: 'VIP Permanen (Semua Border & Fitur Selamanya)', desc: 'Buka semua Border eksklusif & fitur VIP selamanya', cost: 15000, days: 0, tier: 'permanent', border: 'border_immortal', borderName: 'Immortal', borderUrl: '/borders/Imortal.png', enabled: true }
+                ];
+
+            var shopCustomIds = Array.isArray(payCfg.diamondShopCustomIds)
+                ? JSON.parse(JSON.stringify(payCfg.diamondShopCustomIds))
+                : [
+                    { id: 'dmid_88888888', customId: '88888888', title: 'ID Sultan Hoki 8x', desc: 'Musify ID Langka Angka Kembar 8', cost: 1200, days: 0, isPermanent: true, enabled: true },
+                    { id: 'dmid_99999999', customId: '99999999', title: 'ID King Immortal 9x', desc: 'Musify ID Eksklusif Angka Kembar 9', cost: 1500, days: 0, isPermanent: true, enabled: true },
+                    { id: 'dmid_77777777', customId: '77777777', title: 'ID Lucky Seven 7x', desc: 'Musify ID Spesial Jackpot 77777777', cost: 950, days: 0, isPermanent: true, enabled: true },
+                    { id: 'dmid_12345678', customId: '12345678', title: 'ID Urut Cantik 1-8', desc: 'Musify ID Cantik Berurutan', cost: 650, days: 30, isPermanent: false, enabled: true }
+                ];
+
+            // Sinkronkan otomatis semua Custom ID dari katalog Custom ID VIP agar Admin tinggal centang
+            var catalogCustomIds = (customIdsRes && Array.isArray(customIdsRes.customIds))
+                ? customIdsRes.customIds
+                : ((customIdsRes && Array.isArray(customIdsRes.catalog)) ? customIdsRes.catalog : []);
+            catalogCustomIds.forEach(function(cItem) {
+                if (!cItem) return;
+                var codeStr = String(cItem.code || cItem.customId || cItem.id || '').trim();
+                if (!codeStr) return;
+                var exists = shopCustomIds.some(function(x) { return String(x.customId) === codeStr; });
+                if (!exists) {
+                    shopCustomIds.push({
+                        id: 'dmid_' + codeStr,
+                        customId: codeStr,
+                        title: cItem.label || cItem.title || ('Musify ID #' + codeStr),
+                        desc: 'Musify ID Pilihan Admin',
+                        cost: 800,
+                        days: cItem.isPermanent ? 0 : (Number(cItem.trialDays) || 30),
+                        isPermanent: Boolean(cItem.isPermanent),
+                        enabled: true
+                    });
+                }
+            });
+
+            var shopBorders = Array.isArray(payCfg.diamondShopBorders) && payCfg.diamondShopBorders.length
+                ? JSON.parse(JSON.stringify(payCfg.diamondShopBorders))
+                : [
+                    { id: 'dmbd_platinum', borderId: 'border_platinum', name: 'Border Platinum VIP', url: '/borders/Platinum.png', badge: 'PLATINUM', cost: 300, days: 0, isPermanent: true, enabled: true },
+                    { id: 'dmbd_master', borderId: 'border_master', name: 'Border Master VIP', url: '/borders/Master.png', badge: 'MASTER', cost: 650, days: 0, isPermanent: true, enabled: true },
+                    { id: 'dmbd_legend', borderId: 'border_legend', name: 'Border Legend VIP', url: '/borders/Legend.png', badge: 'LEGEND', cost: 1400, days: 0, isPermanent: true, enabled: true },
+                    { id: 'dmbd_immortal', borderId: 'border_immortal', name: 'Border Immortal Sultan', url: '/borders/Imortal.png', badge: 'IMMORTAL', cost: 3200, days: 0, isPermanent: true, enabled: true }
+                ];
+
+            // Otomatis sambungkan semua 35+ Border dari /api/borders?action=list_all beserta metadata scale/offset
+            var sysBordersMap = {};
+            if (bordersRes && Array.isArray(bordersRes.borders)) {
+                bordersRes.borders.forEach(function(bItem) {
+                    if (!bItem || !bItem.id || bItem.id === 'none') return;
+                    sysBordersMap[String(bItem.id)] = bItem;
+                    var bUrl = bItem.url || ('/borders/' + (bItem.file || 'Platinum.png'));
+                    var existing = shopBorders.find(function(x) {
+                        return String(x.borderId) === String(bItem.id) || String(x.id) === String(bItem.id);
+                    });
+                    if (existing) {
+                        if (bItem.url) existing.url = bItem.url;
+                        if (bItem.file) existing.file = bItem.file;
+                        if (typeof bItem.scale === 'number') existing.scale = bItem.scale;
+                        if (typeof bItem.offsetY === 'number') existing.offsetY = bItem.offsetY;
+                        if (typeof bItem.offsetX === 'number') existing.offsetX = bItem.offsetX;
+                    } else {
+                        var catLow = String(bItem.category || bItem.requiredTier || '').toLowerCase();
+                        var defCost = 450;
+                        if (catLow === 'platinum' || catLow === '1month') defCost = 300;
+                        else if (catLow === 'master') defCost = 650;
+                        else if (catLow === 'legend' || catLow === '2months') defCost = 1400;
+                        else if (catLow === 'immortal' || catLow === '5months') defCost = 3200;
+                        else if (catLow === 'permanent') defCost = 5000;
+
+                        shopBorders.push({
+                            id: 'dmbd_' + bItem.id,
+                            borderId: String(bItem.id),
+                            name: bItem.name || 'Border Profil',
+                            url: bUrl,
+                            file: bItem.file || '',
+                            scale: typeof bItem.scale === 'number' ? bItem.scale : 1.30,
+                            offsetY: typeof bItem.offsetY === 'number' ? bItem.offsetY : 0,
+                            offsetX: typeof bItem.offsetX === 'number' ? bItem.offsetX : 0,
+                            badge: String(bItem.badge || bItem.category || 'EKSKLUSIF').toUpperCase(),
+                            cost: defCost,
+                            days: 0,
+                            isPermanent: true,
+                            enabled: true
+                        });
+                    }
+                });
+            }
+
+            var defaultTargetUser = prevSelectedUser || (Auth?.currentUser?.id ? String(Auth.currentUser.id) : (users[0]?.id ? String(users[0].id) : ''));
+
+            var rawAdCfg = (payCfg && payCfg.rewardedAdConfig && typeof payCfg.rewardedAdConfig === 'object') ? payCfg.rewardedAdConfig : {};
+            var rewardedAdConfig = {
+                enabled: rawAdCfg.enabled !== undefined ? Boolean(rawAdCfg.enabled) : true,
+                adsenseClientId: (rawAdCfg.adsenseClientId && String(rawAdCfg.adsenseClientId).trim()) ? String(rawAdCfg.adsenseClientId).trim() : 'ca-pub-4386441636957031',
+                adsenseSlotId: rawAdCfg.adsenseSlotId ? String(rawAdCfg.adsenseSlotId).trim() : '',
+                rewardDiamonds: Math.max(1, Number(rawAdCfg.rewardDiamonds) || 8),
+                watchDurationSec: Math.max(5, Math.min(60, Number(rawAdCfg.watchDurationSec) || 15)),
+                maxClaimsPerDay: Math.max(1, Number(rawAdCfg.maxClaimsPerDay) || 5),
+                customVideoUrl: rawAdCfg.customVideoUrl ? String(rawAdCfg.customVideoUrl).trim() : '',
+                customClickUrl: rawAdCfg.customClickUrl ? String(rawAdCfg.customClickUrl).trim() : ''
+            };
+
+            Profile._adminDiamondDraft = {
+                diamondPackages: diamondPackages,
+                diamondStarVipPackages: starVipPackages,
+                diamondShopCustomIds: shopCustomIds,
+                diamondShopBorders: shopBorders,
+                rewardedAdConfig: rewardedAdConfig,
+                ewallets: ew,
+                adminWhatsapp: payCfg.adminWhatsapp || '6281234567890',
+                qrisHolder: payCfg.qrisHolder || 'NABIL (MusifyStar Official)',
+                users: users,
+                selectedUserId: defaultTargetUser
+            };
+            Profile._adminDiamondSubTab = prevSubTab;
+
+            Profile.renderAdminDiamondStoreDraft();
+        } catch (err) {
+            container.innerHTML = '<div class="p-6 text-center text-rose-400 text-xs">Terjadi kesalahan saat memuat tab Kelola Top-Up & Toko Berlian.</div>';
+        }
+    },
+
+    switchAdminDiamondSubTab(subTab) {
+        Profile._adminDiamondSubTab = subTab || 'all';
+        var tabs = ['all', 'users', 'topup', 'bintang', 'customid', 'border'];
+        tabs.forEach(function(t) {
+            var btn = gid('adm-dm-subtab-btn-' + t);
+            var isAct = (t === Profile._adminDiamondSubTab);
+            if (btn) {
+                btn.className = isAct
+                    ? 'px-3.5 py-2 rounded-xl font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition shadow-md bg-gradient-to-r from-cyan-400 to-purple-500 text-black whitespace-nowrap'
+                    : 'px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap';
+            }
+        });
+        var panels = ['users', 'topup', 'bintang', 'customid', 'border'];
+        panels.forEach(function(p) {
+            var el = gid('adm-dm-subpanel-' + p);
+            if (el) {
+                var show = (Profile._adminDiamondSubTab === 'all' || Profile._adminDiamondSubTab === p);
+                el.classList.toggle('hidden', !show);
+            }
+        });
+    },
+
+    selectAdminDiamondUserCard(userId) {
+        if (!userId) return;
+        if (Profile._adminDiamondDraft) {
+            Profile._adminDiamondDraft.selectedUserId = String(userId);
+        }
+        var sel = gid('adm-diamond-target-user');
+        if (sel) sel.value = String(userId);
+        var allCards = document.querySelectorAll('[data-adm-dm-user-card]');
+        allCards.forEach(function(card) {
+            var cid = card.getAttribute('data-adm-dm-user-card');
+            if (String(cid) === String(userId)) {
+                card.classList.add('ring-2', 'ring-cyan-400', 'bg-cyan-500/15', 'border-cyan-400/60');
+                card.classList.remove('bg-black/45', 'border-white/10');
+            } else {
+                card.classList.remove('ring-2', 'ring-cyan-400', 'bg-cyan-500/15', 'border-cyan-400/60');
+                card.classList.add('bg-black/45', 'border-white/10');
+            }
+        });
+        var selectedBanner = gid('adm-diamond-selected-user-label');
+        if (selectedBanner && Profile._adminDiamondDraft) {
+            var uObj = (Profile._adminDiamondDraft.users || []).find(function(u) { return String(u.id) === String(userId); });
+            if (uObj) {
+                selectedBanner.innerHTML = `Target Aktif: <strong class="text-white">@${Profile.escapeHtml(uObj.username)}</strong> <span class="text-white/50">(ID: ${Profile.escapeHtml(uObj.id)})</span> — Saldo Saat Ini: <strong class="text-cyan-300">${Number(uObj.diamonds || 0).toLocaleString('id-ID')}</strong>`;
+            }
+        }
+    },
+
+    filterAdminDiamondUserCards(query) {
+        var q = String(query || '').toLowerCase().trim();
+        var cards = document.querySelectorAll('[data-adm-dm-user-card]');
+        cards.forEach(function(card) {
+            var searchStr = (card.getAttribute('data-adm-dm-search') || '').toLowerCase();
+            card.classList.toggle('hidden', Boolean(q && !searchStr.includes(q)));
+        });
+    },
+
+    filterAdminDiamondBorderRows(query) {
+        var q = String(query || '').toLowerCase().trim();
+        var rows = document.querySelectorAll('[data-adm-dmbd-row]');
+        rows.forEach(function(row) {
+            var searchStr = (row.getAttribute('data-adm-dmbd-search') || '').toLowerCase();
+            row.classList.toggle('hidden', Boolean(q && !searchStr.includes(q)));
+        });
+    },
+
+    renderAdminDiamondStoreDraft() {
+        var container = gid('admin-diamondstore-container');
+        var draft = Profile._adminDiamondDraft;
+        if (!container || !draft) return;
+
+        var users = draft.users || [];
+        var ew = draft.ewallets || {};
+        var dmPkgs = draft.diamondPackages || [];
+        var starPkgs = draft.diamondStarVipPackages || [];
+        var customIds = draft.diamondShopCustomIds || [];
+        var borders = draft.diamondShopBorders || [];
+        var selectedUid = draft.selectedUserId || (users[0]?.id ? String(users[0].id) : '');
+        var selectedUserObj = users.find(function(u) { return String(u.id) === String(selectedUid); }) || users[0] || null;
+        if (selectedUserObj && !selectedUid) selectedUid = String(selectedUserObj.id);
+        var currentInputAmount = (Profile._adminDiamondInputAmount !== undefined && Profile._adminDiamondInputAmount !== null)
+            ? String(Profile._adminDiamondInputAmount)
+            : '550';
+
+        var enabledBordersCount = borders.filter(function(b) { return b && b.enabled !== false; }).length;
+        var enabledCustomIdsCount = customIds.filter(function(c) { return c && c.enabled !== false; }).length;
+        var enabledStarCount = starPkgs.filter(function(s) { return s && s.enabled !== false; }).length;
+        var sampleAvatar = (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.avatar)
+            ? Auth.currentUser.avatar
+            : 'https://api.dicebear.com/7.x/bottts/svg?seed=MusifyStar';
+
+        container.innerHTML = `
+            <div class="space-y-4">
+                <!-- HEADER BANNER UTAMA -->
+                <div class="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-[#17233b] via-[#1c1b33] to-[#231938] border border-cyan-400/35 shadow-xl space-y-3.5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-start sm:items-center gap-3.5">
+                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500/25 to-purple-500/25 border border-cyan-400/40 flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/15">
+                                ${Profile.getMiniDiamondSvg('w-7 h-7')}
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="text-base sm:text-lg font-black text-white tracking-tight">Pusat Kendali Top-Up & Toko Berlian</h3>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r from-cyan-400 to-purple-400 text-black">4 Tab Pengguna</span>
+                                </div>
+                                <p class="text-xs text-white/65 leading-relaxed">
+                                    Kelola saldo Berlian akun pengguna, harga paket Top-Up, serta katalog <strong>Bintang VIP</strong>, <strong>Custom ID</strong>, dan <strong>35+ Border Profil</strong>.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                            <button type="button" onclick="Profile.openDiamondTopupModal('berlian')" class="px-3.5 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-200 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                                <span>Lihat Tampilan Pengguna</span>
+                            </button>
+                            <button type="button" onclick="Profile.saveAdminDiamondStoreConfig()" id="adm-dmstore-save-top-btn" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-300 hover:to-purple-400 text-black font-black text-xs flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 cursor-pointer active:scale-95 transition">
+                                <i data-lucide="save" class="w-4 h-4"></i>
+                                <span>Simpan Semua Perubahan</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- RINGKASAN CEPAT STATISTIK TOKO BERLIAN -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                        <div onclick="Profile.switchAdminDiamondSubTab('users')" class="p-3 rounded-2xl bg-black/35 border border-cyan-400/25 hover:border-cyan-400/50 cursor-pointer transition flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-cyan-500/15 text-cyan-300 flex items-center justify-center shrink-0">
+                                <i data-lucide="users" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] text-white/50 font-bold uppercase">Akun Terdaftar</div>
+                                <div class="text-sm font-black text-white truncate">${users.length} Akun</div>
+                            </div>
+                        </div>
+                        <div onclick="Profile.switchAdminDiamondSubTab('bintang')" class="p-3 rounded-2xl bg-black/35 border border-amber-400/25 hover:border-amber-400/50 cursor-pointer transition flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center shrink-0">
+                                <i data-lucide="crown" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] text-white/50 font-bold uppercase">Paket Bintang VIP</div>
+                                <div class="text-sm font-black text-amber-300 truncate">${enabledStarCount}/${starPkgs.length} Aktif</div>
+                            </div>
+                        </div>
+                        <div onclick="Profile.switchAdminDiamondSubTab('customid')" class="p-3 rounded-2xl bg-black/35 border border-indigo-400/25 hover:border-indigo-400/50 cursor-pointer transition flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-indigo-500/15 text-indigo-300 flex items-center justify-center shrink-0">
+                                <i data-lucide="hash" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] text-white/50 font-bold uppercase">Katalog Custom ID</div>
+                                <div class="text-sm font-black text-indigo-300 truncate">${enabledCustomIdsCount}/${customIds.length} Aktif</div>
+                            </div>
+                        </div>
+                        <div onclick="Profile.switchAdminDiamondSubTab('border')" class="p-3 rounded-2xl bg-black/35 border border-pink-400/25 hover:border-pink-400/50 cursor-pointer transition flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-pink-500/15 text-pink-300 flex items-center justify-center shrink-0">
+                                <i data-lucide="shield" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] text-white/50 font-bold uppercase">Border Profil</div>
+                                <div class="text-sm font-black text-pink-300 truncate">${enabledBordersCount}/${borders.length} Aktif</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NAVIGASI SUB-TAB ADMIN BERLIAN -->
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar">
+                        <button type="button" id="adm-dm-subtab-btn-all" onclick="Profile.switchAdminDiamondSubTab('all')" class="px-3.5 py-2 rounded-xl font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition shadow-md bg-gradient-to-r from-cyan-400 to-purple-500 text-black whitespace-nowrap">
+                            <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                            <span>Semua Bagian</span>
+                        </button>
+                        <button type="button" id="adm-dm-subtab-btn-users" onclick="Profile.switchAdminDiamondSubTab('users')" class="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap">
+                            <i data-lucide="users" class="w-3.5 h-3.5 text-cyan-300"></i>
+                            <span>1. Akun & Saldo (${users.length})</span>
+                        </button>
+                        <button type="button" id="adm-dm-subtab-btn-topup" onclick="Profile.switchAdminDiamondSubTab('topup')" class="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap">
+                            <i data-lucide="wallet" class="w-3.5 h-3.5 text-purple-300"></i>
+                            <span>2. Paket Berlian & E-Wallet (${dmPkgs.length})</span>
+                        </button>
+                        <button type="button" id="adm-dm-subtab-btn-bintang" onclick="Profile.switchAdminDiamondSubTab('bintang')" class="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap">
+                            <i data-lucide="star" class="w-3.5 h-3.5 text-amber-300"></i>
+                            <span>3. Bintang VIP (${starPkgs.length})</span>
+                        </button>
+                        <button type="button" id="adm-dm-subtab-btn-customid" onclick="Profile.switchAdminDiamondSubTab('customid')" class="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap">
+                            <i data-lucide="hash" class="w-3.5 h-3.5 text-indigo-300"></i>
+                            <span>4. Custom ID (${customIds.length})</span>
+                        </button>
+                        <button type="button" id="adm-dm-subtab-btn-border" onclick="Profile.switchAdminDiamondSubTab('border')" class="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap">
+                            <i data-lucide="shield" class="w-3.5 h-3.5 text-pink-300"></i>
+                            <span>5. Border Profil (${borders.length})</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- SUB-PANEL 1: KELOLA SALDO BERLIAN AKUN PENGGUNA & DAFTAR AKUN -->
+                <!-- ============================================================== -->
+                <div id="adm-dm-subpanel-users" class="p-4 sm:p-5 rounded-3xl bg-[#141826]/90 border border-cyan-400/30 space-y-4 shadow-lg">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 font-black text-xs flex items-center justify-center">1</span>
+                                <h4 class="text-sm font-black uppercase tracking-wider text-cyan-300">Kelola Akun & Isi Saldo Berlian Pengguna (${users.length} Akun)</h4>
+                            </div>
+                            <p class="text-[11px] text-white/55 mt-0.5">Klik salah satu kartu akun pengguna di bawah atau pilih dari daftar untuk menambah, mengurangi, atau mengatur jumlah Berlian secara instan.</p>
+                        </div>
+                        <span class="self-start sm:self-auto px-2.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-200 text-[10px] font-black uppercase">Realtime Database</span>
+                    </div>
+
+                    <!-- KONTROL PENGISIAN CEPAT SALDO BERLIAN -->
+                    <div class="p-3.5 sm:p-4 rounded-2xl bg-black/50 border border-cyan-400/30 space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div id="adm-diamond-selected-user-label" class="text-xs text-cyan-200">
+                                ${selectedUserObj
+                                    ? `Target Aktif: <strong class="text-white">@${Profile.escapeHtml(selectedUserObj.username)}</strong> <span class="text-white/50">(ID: ${Profile.escapeHtml(selectedUserObj.id)})</span> — Saldo Saat Ini: <strong class="text-cyan-300">${Number(selectedUserObj.diamonds || 0).toLocaleString('id-ID')}</strong>`
+                                    : 'Pilih salah satu akun pengguna di bawah:'}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+                            <div class="sm:col-span-5">
+                                <select id="adm-diamond-target-user" onchange="Profile.selectAdminDiamondUserCard(this.value)" style="background: #0f1320 !important; border: 1px solid rgba(34, 211, 238, 0.35) !important; box-shadow: none !important;" class="w-full px-3 py-2.5 bg-[#0f1320] border border-cyan-400/35 rounded-xl text-white font-bold text-xs focus:outline-none focus:border-cyan-400">
+                                    ${users.length === 0 ? `<option value="">-- Belum Ada Akun Terdaftar --</option>` : ''}
+                                    ${users.map(function(u) {
+                                        var dCount = Number(u.diamonds || 0).toLocaleString('id-ID');
+                                        var isSel = String(u.id) === String(selectedUid);
+                                        return `<option value="${Profile.escapeHtml(u.id)}" ${isSel ? 'selected' : ''}>@${Profile.escapeHtml(u.username)} (ID: ${Profile.escapeHtml(u.id)}) — Saldo: ${dCount} Berlian</option>`;
+                                    }).join('')}
+                                </select>
+                            </div>
+                            <div class="sm:col-span-3 relative">
+                                <div class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center">
+                                    ${Profile.getMiniDiamondSvg('w-4 h-4')}
+                                </div>
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" id="adm-diamond-amount" oninput="Profile._adminDiamondInputAmount=this.value.replace(/[^0-9]/g,'');this.value=Profile._adminDiamondInputAmount;" placeholder="Ketik angka (0, 1, 550...)" value="${Profile.escapeHtml(currentInputAmount)}" style="background: #0f1320 !important; border: 1px solid rgba(34, 211, 238, 0.35) !important; box-shadow: none !important;" class="w-full pl-9 pr-3 py-2.5 bg-[#0f1320] border border-cyan-400/35 rounded-xl text-cyan-300 font-mono font-black text-xs focus:outline-none focus:border-cyan-400" />
+                            </div>
+                            <div class="sm:col-span-4 flex items-center gap-1.5">
+                                <button type="button" onclick="Profile.adminUpdateUserDiamonds('add')" class="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-400 to-sky-400 hover:from-cyan-300 hover:to-sky-300 text-black font-black text-xs cursor-pointer active:scale-95 transition flex items-center justify-center gap-1 shadow-md">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5 stroke-[3]"></i>
+                                    <span>Tambah</span>
+                                </button>
+                                <button type="button" onclick="Profile.adminUpdateUserDiamonds('sub')" class="py-2.5 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/35 text-rose-300 font-extrabold text-xs cursor-pointer active:scale-95 transition">
+                                    - Kurangi
+                                </button>
+                                <button type="button" onclick="Profile.adminUpdateUserDiamonds('set')" class="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs cursor-pointer active:scale-95 transition">
+                                    Set Pasti
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- TOMBOL NOMINAL CEPAT SESUAI PAKET TOP-UP -->
+                        <div class="flex items-center gap-1.5 flex-wrap pt-0.5">
+                            <span class="text-[10px] text-white/50 font-bold uppercase tracking-wider mr-1">Nominal Cepat:</span>
+                            <button type="button" onclick="Profile.setAdminDiamondQuickAmount(0);Profile.adminUpdateUserDiamonds('set', null, 0);" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/35 text-rose-200 text-[11px] font-extrabold cursor-pointer flex items-center gap-1 transition" title="Langsung atur saldo Berlian akun aktif menjadi 0">
+                                <span>Set 0 (Reset)</span>
+                            </button>
+                            <button type="button" onclick="Profile.setAdminDiamondQuickAmount(1);" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-[11px] font-extrabold cursor-pointer flex items-center gap-1 transition">
+                                ${Profile.getMiniDiamondSvg('w-3 h-3')}
+                                <span>1</span>
+                            </button>
+                            ${dmPkgs.map(function(p) {
+                                var tot = (Number(p.diamonds) || 0) + (Number(p.bonus) || 0);
+                                return `<button type="button" onclick="Profile.setAdminDiamondQuickAmount(${tot});" class="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/30 text-cyan-200 text-[11px] font-extrabold cursor-pointer flex items-center gap-1 transition">
+                                    ${Profile.getMiniDiamondSvg('w-3 h-3')}
+                                    <span>+${tot.toLocaleString('id-ID')}</span>
+                                    <span class="text-[9px] text-white/45">(${p.diamonds}+${p.bonus})</span>
+                                </button>`;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- PENCARIAN & DAFTAR KARTU AKUN PENGGUNA -->
+                    <div class="space-y-2.5">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div class="text-xs font-extrabold text-white/85 flex items-center gap-1.5">
+                                <i data-lucide="user-check" class="w-4 h-4 text-cyan-400"></i>
+                                <span>Daftar Akun Pengguna (${users.length} Akun) — Klik Kartu untuk Memilih</span>
+                            </div>
+                            <div class="relative w-full sm:w-64">
+                                <i data-lucide="search" class="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10"></i>
+                                <input type="text" oninput="Profile.filterAdminDiamondUserCards(this.value)" placeholder="Cari username, email, atau ID..." style="background: #0f1320 !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; box-shadow: none !important;" class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/60 border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-cyan-400" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+                            ${users.map(function(u) {
+                                var isSel = String(u.id) === String(selectedUid);
+                                var uAvatar = u.avatar || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + encodeURIComponent(u.username || 'user'));
+                                var uBorderUrl = u.borderUrl || (u.isPremium ? '/borders/Platinum.png' : '');
+                                var uScaleStyle = (uBorderUrl && typeof Auth !== 'undefined' && Auth.getBorderScaleStyle)
+                                    ? Auth.getBorderScaleStyle(uBorderUrl)
+                                    : 'transform: translate(-50%, -50%) scale(1.30);';
+                                var dBal = Number(u.diamonds || 0);
+                                var searchKey = `${u.username || ''} ${u.id || ''} ${u.originalId || ''} ${u.email || ''}`;
+                                return `
+                                <div data-adm-dm-user-card="${Profile.escapeHtml(u.id)}" data-adm-dm-search="${Profile.escapeHtml(searchKey)}" onclick="Profile.selectAdminDiamondUserCard('${Profile.escapeHtml(u.id)}')" class="p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${isSel ? 'ring-2 ring-cyan-400 bg-cyan-500/15 border-cyan-400/60' : 'bg-black/45 border-white/10 hover:bg-white/[0.05]'}">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="relative w-14 h-14 flex items-center justify-center shrink-0">
+                                            <div class="w-9 h-9 rounded-full overflow-hidden bg-black border border-white/20 flex items-center justify-center">
+                                                <img src="${Profile.escapeHtml(uAvatar)}" class="w-full h-full object-cover rounded-full" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=user'" />
+                                            </div>
+                                            ${uBorderUrl ? `<img src="${Profile.escapeHtml(uBorderUrl)}" style="${uScaleStyle}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 max-w-none object-contain z-10 select-none" onerror="this.style.display='none'" />` : ''}
+                                        </div>
+                                        <div class="min-w-0 space-y-0.5">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <span class="font-extrabold text-xs sm:text-sm text-white truncate">@${Profile.escapeHtml(u.username || 'User')}</span>
+                                                ${u.isPremium ? `<span class="px-1.5 py-0.2 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[9px] font-black uppercase">${Profile.escapeHtml(u.vipTier || 'VIP')}</span>` : `<span class="px-1.5 py-0.2 rounded-full bg-white/10 text-white/50 text-[9px] font-bold">Reguler</span>`}
+                                            </div>
+                                            <div class="text-[11px] text-white/55 font-mono truncate">ID: <span class="text-cyan-300 font-bold">${Profile.escapeHtml(u.id)}</span></div>
+                                            ${u.email ? `<div class="text-[10px] text-white/40 truncate">${Profile.escapeHtml(u.email)}</div>` : ''}
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col items-end gap-1.5 shrink-0" onclick="event.stopPropagation()">
+                                        <div class="px-2.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/35 flex items-center gap-1.5">
+                                            ${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}
+                                            <span class="font-mono font-black text-xs text-white">${dBal.toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1">
+                                            <button type="button" onclick="Profile.adminUpdateUserDiamonds('set', '${Profile.escapeHtml(u.id)}', 0)" class="px-1.5 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 border border-rose-400/40 text-rose-200 font-black text-[10px] cursor-pointer transition" title="Reset Saldo ke 0">0</button>
+                                            <button type="button" onclick="Profile.adminUpdateUserDiamonds('add', '${Profile.escapeHtml(u.id)}', 65)" class="px-2 py-0.5 rounded-lg bg-cyan-400/20 hover:bg-cyan-400/35 border border-cyan-400/40 text-cyan-200 font-black text-[10px] cursor-pointer transition" title="Tambah +65 Berlian">+65</button>
+                                            <button type="button" onclick="Profile.adminUpdateUserDiamonds('add', '${Profile.escapeHtml(u.id)}', 550)" class="px-2 py-0.5 rounded-lg bg-purple-500/25 hover:bg-purple-500/40 border border-purple-400/40 text-purple-200 font-black text-[10px] cursor-pointer transition" title="Tambah +550 Berlian">+550</button>
+                                            <button type="button" onclick="Profile.selectAdminDiamondUserCard('${Profile.escapeHtml(u.id)}')" class="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 font-bold text-[10px] cursor-pointer transition">Pilih</button>
+                                        </div>
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- SUB-PANEL 2: PAKET TOP-UP BERLIAN & REKENING E-WALLET -->
+                <!-- ============================================================== -->
+                <div id="adm-dm-subpanel-topup" class="space-y-4">
+                    <!-- 2A. NOMOR & LINK REDIRECT DANA / GOPAY / OVO -->
+                    <div class="p-4 sm:p-5 rounded-3xl bg-[#141826]/90 border border-blue-400/30 space-y-3.5 shadow-lg">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-400/40 text-blue-300 font-black text-xs flex items-center justify-center">2A</span>
+                                <div>
+                                    <h4 class="text-sm font-black uppercase tracking-wider text-blue-300">Rekening Tujuan E-Wallet (DANA, GoPay, OVO)</h4>
+                                    <p class="text-[11px] text-white/55">Nomor dan link pembayaran saat pengguna membeli paket Berlian.</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 font-bold">Terintegrasi dengan QRIS VIP</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            <div class="p-3.5 rounded-2xl bg-black/50 border border-blue-500/35 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-black text-blue-400 text-xs">DANA</span>
+                                    <span class="text-[10px] text-white/40 font-mono">E-Wallet</span>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-white/50 mb-0.5">Nomor DANA Admin:</label>
+                                    <input type="text" id="adm-dm-dana-num" value="${Profile.escapeHtml(ew.dana?.number || '081234567890')}" placeholder="No. DANA" class="w-full px-3 py-2 bg-black/70 border border-white/15 rounded-xl text-white font-mono font-bold text-xs" />
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-white/50 mb-0.5">Link DANA (Opsional):</label>
+                                    <input type="text" id="adm-dm-dana-link" value="${Profile.escapeHtml(ew.dana?.link || '')}" placeholder="https://link.dana.id/..." class="w-full px-3 py-1.5 bg-black/70 border border-blue-400/30 rounded-xl text-blue-300 font-mono text-[11px]" />
+                                </div>
+                            </div>
+                            <div class="p-3.5 rounded-2xl bg-black/50 border border-sky-500/35 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-black text-sky-400 text-xs">GO-PAY</span>
+                                    <span class="text-[10px] text-white/40 font-mono">E-Wallet</span>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-white/50 mb-0.5">Nomor GoPay Admin:</label>
+                                    <input type="text" id="adm-dm-gopay-num" value="${Profile.escapeHtml(ew.gopay?.number || '081234567890')}" placeholder="No. GoPay" class="w-full px-3 py-2 bg-black/70 border border-white/15 rounded-xl text-white font-mono font-bold text-xs" />
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-white/50 mb-0.5">Link GoPay (Opsional):</label>
+                                    <input type="text" id="adm-dm-gopay-link" value="${Profile.escapeHtml(ew.gopay?.link || '')}" placeholder="Link GoPay (Opsional)" class="w-full px-3 py-1.5 bg-black/70 border border-sky-400/30 rounded-xl text-sky-300 font-mono text-[11px]" />
+                                </div>
+                            </div>
+                            <div class="p-3.5 rounded-2xl bg-black/50 border border-purple-500/35 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-black text-purple-400 text-xs">OVO</span>
+                                    <span class="text-[10px] text-white/40 font-mono">E-Wallet</span>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-white/50 mb-0.5">Nomor OVO Admin:</label>
+                                    <input type="text" id="adm-dm-ovo-num" value="${Profile.escapeHtml(ew.ovo?.number || '081234567890')}" placeholder="No. OVO" class="w-full px-3 py-2 bg-black/70 border border-white/15 rounded-xl text-white font-mono font-bold text-xs" />
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-white/50 mb-0.5">Link OVO (Opsional):</label>
+                                    <input type="text" id="adm-dm-ovo-link" value="${Profile.escapeHtml(ew.ovo?.link || '')}" placeholder="Link OVO (Opsional)" class="w-full px-3 py-1.5 bg-black/70 border border-purple-400/30 rounded-xl text-purple-300 font-mono text-[11px]" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2B. HARGA PAKET TOP-UP BERLIAN (TAB 1: BERLIAN) -->
+                    <div class="p-4 sm:p-5 rounded-3xl bg-[#141826]/90 border border-purple-400/30 space-y-3.5 shadow-lg">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-purple-500/20 border border-purple-400/40 text-purple-300 font-black text-xs flex items-center justify-center">2B</span>
+                                <div>
+                                    <h4 class="text-sm font-black uppercase tracking-wider text-purple-300">Katalog & Harga Paket Top-Up Berlian (${dmPkgs.length} Paket)</h4>
+                                    <p class="text-[11px] text-white/55">Atur jumlah Berlian utama, Bonus Berlian, dan Harga Rupiah (Rp) yang tampil di tab <strong>Berlian</strong>.</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="Profile.addAdminDiamondPackageRow()" class="px-3.5 py-2 rounded-xl bg-purple-500/25 hover:bg-purple-500/35 border border-purple-400/40 text-purple-200 font-black text-xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>Tambah Paket Berlian</span>
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            ${dmPkgs.map(function(pkg, idx) {
+                                return `
+                                <div class="p-3.5 rounded-2xl bg-black/50 border border-white/10 hover:border-purple-400/35 transition space-y-3 relative">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center overflow-hidden p-1">
+                                                ${Profile.getMiniDiamondSvg('w-5 h-5')}
+                                            </div>
+                                            <div>
+                                                <div class="text-xs font-black text-white">Paket Berlian #${idx + 1}</div>
+                                                <div class="text-[10px] text-emerald-300 font-bold">Rp ${(Number(pkg.price) || 1800).toLocaleString('id-ID')}</div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <label class="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-400/30 text-[10px] font-bold text-amber-300 cursor-pointer">
+                                                <input type="checkbox" onchange="Profile.syncAdminDiamondDraftFromInputs(); Profile._adminDiamondDraft.diamondPackages[${idx}].hot = this.checked;" ${pkg.hot || pkg.isHot ? 'checked' : ''} class="accent-amber-400 rounded" />
+                                                <span>Populer</span>
+                                            </label>
+                                            ${dmPkgs.length > 1 ? `
+                                            <button type="button" onclick="Profile.removeAdminDiamondPackageRow(${idx})" class="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg bg-rose-500/10 cursor-pointer" title="Hapus Paket">
+                                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                            </button>` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                            <label class="block text-[10px] text-white/50 mb-0.5">Berlian Utama:</label>
+                                            <input type="number" id="adm-dmpkg-diamonds-${idx}" value="${Number(pkg.diamonds) || 55}" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white font-mono font-bold text-xs" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-purple-300 mb-0.5">Bonus Berlian (+):</label>
+                                            <input type="number" id="adm-dmpkg-bonus-${idx}" value="${Number(pkg.bonus) || 0}" class="w-full px-2.5 py-1.5 bg-black/70 border border-purple-400/30 rounded-lg text-purple-300 font-mono font-bold text-xs" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-emerald-300 font-bold mb-0.5">Harga (Rp):</label>
+                                            <input type="number" id="adm-dmpkg-price-${idx}" value="${Number(pkg.price) || 1800}" class="w-full px-2.5 py-1.5 bg-black/70 border border-emerald-400/35 rounded-lg text-emerald-300 font-mono font-bold text-xs" />
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-white/50 mb-0.5">Tipe Visual:</label>
+                                            <select id="adm-dmpkg-icon-${idx}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white text-[11px]">
+                                                <option value="single" ${pkg.iconType === 'single' ? 'selected' : ''}>1 Berlian</option>
+                                                <option value="double" ${pkg.iconType === 'double' ? 'selected' : ''}>2 Berlian</option>
+                                                <option value="triple" ${pkg.iconType === 'triple' ? 'selected' : ''}>3 Berlian</option>
+                                                <option value="pile" ${(pkg.iconType === 'pile' || pkg.iconType === 'pile_lg') ? 'selected' : ''}>Tumpukan Berlian</option>
+                                                <option value="chest" ${pkg.iconType === 'chest' ? 'selected' : ''}>Peti Berlian</option>
+                                                <option value="chest_gold" ${(pkg.iconType === 'chest_gold' || pkg.iconType === 'chest_lg') ? 'selected' : ''}>Peti Sultan Emas</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- 2C. PENGATURAN NONTON IKLAN BERHADIAH (GOOGLE ADSENSE EKSKLUSIF) -->
+                    <div class="p-4 rounded-2xl bg-black/45 border border-purple-400/35 space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="clapperboard" class="w-4 h-4 text-purple-300"></i>
+                                <div>
+                                    <span class="text-xs font-extrabold uppercase tracking-wider text-purple-200 block">2C. Pengaturan Nonton Iklan Berhadiah (Google AdSense Resmi)</span>
+                                    <span class="text-[10px] text-white/55 block">Iklan HANYA muncul saat pengguna menekan tombol "Nonton Iklan" di Toko Berlian (tidak mengganggu pemutar musik).</span>
+                                </div>
+                            </div>
+                            <label class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-500/15 border border-purple-400/35 cursor-pointer self-start sm:self-auto shrink-0">
+                                <input type="checkbox" id="adm-dm-ad-enabled" ${(draft.rewardedAdConfig && draft.rewardedAdConfig.enabled !== false) ? 'checked' : ''} class="w-4 h-4 accent-purple-400 rounded cursor-pointer" />
+                                <span class="text-xs font-black text-purple-200">Aktifkan Nonton Iklan</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                            <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1">
+                                <label class="text-[10px] font-extrabold text-emerald-300 block">ID Google AdSense Publisher:</label>
+                                <input type="text" id="adm-dm-ad-client" value="${Profile.escapeHtml((draft.rewardedAdConfig && draft.rewardedAdConfig.adsenseClientId) || 'ca-pub-4386441636957031')}" placeholder="ca-pub-4386441636957031" class="w-full px-2.5 py-1.5 bg-black/70 border border-emerald-400/35 rounded-lg text-emerald-300 font-mono font-bold text-xs" />
+                                <span class="text-[9.5px] text-white/45 block">Terhubung ke domain musifystar.web.id &amp; /ads.txt</span>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1">
+                                <label class="text-[10px] font-extrabold text-purple-300 block">AdSense Slot ID (Opsional):</label>
+                                <input type="text" id="adm-dm-ad-slot" value="${Profile.escapeHtml((draft.rewardedAdConfig && draft.rewardedAdConfig.adsenseSlotId) || '')}" placeholder="Contoh: 1234567890 (Kosongkan = Otomatis)" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white font-mono text-xs" />
+                                <span class="text-[9.5px] text-white/45 block">Isi jika punya kode Unit Iklan Display spesifik</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1.5 p-2.5 rounded-xl bg-white/[0.03] border border-white/10">
+                                <div>
+                                    <label class="text-[9.5px] font-bold text-cyan-300 block mb-1">Hadiah 💎:</label>
+                                    <input type="number" id="adm-dm-ad-reward" min="1" value="${Number((draft.rewardedAdConfig && draft.rewardedAdConfig.rewardDiamonds) || 8)}" class="w-full px-2 py-1.5 bg-black/70 border border-cyan-400/35 rounded-lg text-cyan-300 font-mono font-black text-xs text-center" />
+                                </div>
+                                <div>
+                                    <label class="text-[9.5px] font-bold text-amber-300 block mb-1">Durasi (Dtk):</label>
+                                    <input type="number" id="adm-dm-ad-duration" min="5" max="60" value="${Number((draft.rewardedAdConfig && draft.rewardedAdConfig.watchDurationSec) || 15)}" class="w-full px-2 py-1.5 bg-black/70 border border-amber-400/35 rounded-lg text-amber-300 font-mono font-black text-xs text-center" />
+                                </div>
+                                <div>
+                                    <label class="text-[9.5px] font-bold text-purple-300 block mb-1">Batas/Hari:</label>
+                                    <input type="number" id="adm-dm-ad-maxday" min="1" value="${Number((draft.rewardedAdConfig && draft.rewardedAdConfig.maxClaimsPerDay) || 5)}" class="w-full px-2 py-1.5 bg-black/70 border border-purple-400/35 rounded-lg text-purple-200 font-mono font-black text-xs text-center" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                            <div>
+                                <label class="block text-[10px] text-white/55 mb-1">URL Video Sponsor / Iklan MP4 Kustom (Opsional - Cadangan Saat AdSense Ditinjau):</label>
+                                <input type="text" id="adm-dm-ad-video" value="${Profile.escapeHtml((draft.rewardedAdConfig && draft.rewardedAdConfig.customVideoUrl) || '')}" placeholder="https://... (Kosongkan untuk memakai penayang Google AdSense + Visual Resmi)" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white/85 font-mono text-[11px]" />
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-white/55 mb-1">Link Tujuan Saat Banner Sponsor Diklik (Opsional):</label>
+                                <input type="text" id="adm-dm-ad-click" value="${Profile.escapeHtml((draft.rewardedAdConfig && draft.rewardedAdConfig.customClickUrl) || '')}" placeholder="https://musifystar.web.id" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white/85 font-mono text-[11px]" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- SUB-PANEL 3: KELOLA TAB "BINTANG (VIP)" -->
+                <!-- ============================================================== -->
+                <div id="adm-dm-subpanel-bintang" class="p-4 sm:p-5 rounded-3xl bg-[#141826]/90 border border-amber-400/30 space-y-3.5 shadow-lg">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 font-black text-xs flex items-center justify-center">3</span>
+                            <div>
+                                <h4 class="text-sm font-black uppercase tracking-wider text-amber-300">Katalog Tab "Bintang VIP" (${enabledStarCount}/${starPkgs.length} Ditampilkan)</h4>
+                                <p class="text-[11px] text-white/55">Paket VIP yang dicentang otomatis tampil di tab <strong>Bintang</strong> untuk ditukar dengan Berlian.</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="Profile.addAdminDiamondStarVipRow()" class="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 font-black text-xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                            <span>Tambah Paket Bintang VIP</span>
+                        </button>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        ${starPkgs.map(function(sp, idx) {
+                            return `
+                            <div class="p-3.5 rounded-2xl bg-black/50 border ${sp.enabled !== false ? 'border-amber-400/40' : 'border-white/10 opacity-65'} grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+                                <label class="sm:col-span-2 flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="adm-dmstar-en-${idx}" ${sp.enabled !== false ? 'checked' : ''} class="w-4 h-4 accent-amber-400 rounded cursor-pointer" />
+                                    <span class="text-xs font-black text-amber-300">Tampilkan</span>
+                                </label>
+                                <div class="sm:col-span-3">
+                                    <label class="block text-[10px] text-white/45 mb-0.5">Nama Paket VIP:</label>
+                                    <input type="text" id="adm-dmstar-title-${idx}" value="${Profile.escapeHtml(sp.title || '')}" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white font-bold text-xs" />
+                                </div>
+                                <div class="sm:col-span-3">
+                                    <label class="block text-[10px] text-white/45 mb-0.5">Keterangan Singkat:</label>
+                                    <input type="text" id="adm-dmstar-desc-${idx}" value="${Profile.escapeHtml(sp.desc || '')}" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white/80 text-xs" />
+                                </div>
+                                <div class="sm:col-span-1">
+                                    <label class="block text-[10px] text-cyan-300 font-bold mb-0.5">Harga Berlian:</label>
+                                    <input type="number" id="adm-dmstar-cost-${idx}" value="${Number(sp.cost) || 250}" class="w-full px-2 py-1.5 bg-black/70 border border-cyan-400/35 rounded-lg text-cyan-300 font-mono font-bold text-xs" />
+                                </div>
+                                <div class="sm:col-span-1">
+                                    <label class="block text-[10px] text-white/45 mb-0.5">Durasi Hari:</label>
+                                    <input type="number" id="adm-dmstar-days-${idx}" value="${Number(sp.days) || 0}" title="0 = Permanen" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white font-mono text-xs" />
+                                </div>
+                                <div class="sm:col-span-2 flex items-center gap-1.5">
+                                    <div class="flex-1">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Hadiah Border:</label>
+                                        <select id="adm-dmstar-border-${idx}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-amber-300 text-[11px] font-bold">
+                                            <option value="border_platinum" ${sp.border === 'border_platinum' ? 'selected' : ''}>Platinum</option>
+                                            <option value="border_master" ${sp.border === 'border_master' ? 'selected' : ''}>Master</option>
+                                            <option value="border_legend" ${sp.border === 'border_legend' ? 'selected' : ''}>Legend</option>
+                                            <option value="border_immortal" ${sp.border === 'border_immortal' ? 'selected' : ''}>Immortal</option>
+                                        </select>
+                                    </div>
+                                    ${starPkgs.length > 1 ? `
+                                    <button type="button" onclick="Profile.removeAdminDiamondStarVipRow(${idx})" class="mt-4 text-rose-400 hover:text-rose-300 p-1.5 rounded-lg bg-rose-500/10 cursor-pointer" title="Hapus">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>` : ''}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- SUB-PANEL 4: KELOLA TAB "CUSTOM ID" -->
+                <!-- ============================================================== -->
+                <div id="adm-dm-subpanel-customid" class="p-4 sm:p-5 rounded-3xl bg-[#141826]/90 border border-indigo-400/35 space-y-3.5 shadow-lg">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 font-black text-xs flex items-center justify-center">4</span>
+                            <div>
+                                <h4 class="text-sm font-black uppercase tracking-wider text-indigo-300">Katalog Tab "Custom ID" (${enabledCustomIdsCount}/${customIds.length} Ditampilkan)</h4>
+                                <p class="text-[11px] text-white/55">Centang nomor cantik yang ingin ditampilkan di tab <strong>Custom ID</strong> beserta harga Berliannya.</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5 self-start sm:self-auto shrink-0">
+                            <button type="button" onclick="Profile.toggleAllAdminDiamondCustomIds(true)" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+                                <span>Centang Semua</span>
+                            </button>
+                            <button type="button" onclick="Profile.toggleAllAdminDiamondCustomIds(false)" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white/75 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                                <span>Hapus Centang</span>
+                            </button>
+                            <button type="button" onclick="Profile.addAdminDiamondCustomIdRow()" class="px-3.5 py-1.5 rounded-xl bg-indigo-500/25 hover:bg-indigo-500/35 border border-indigo-400/40 text-indigo-200 font-black text-xs flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>Tambah Custom ID</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        ${customIds.length === 0 ? `
+                        <div class="p-4 rounded-xl bg-black/40 border border-white/10 text-center text-xs text-white/45">
+                            Belum ada daftar Custom ID. Klik tombol <strong>Tambah Custom ID</strong> di atas untuk menambahkan!
+                        </div>
+                        ` : customIds.map(function(cid, idx) {
+                            return `
+                            <div class="p-3.5 rounded-2xl bg-black/50 border ${cid.enabled !== false ? 'border-indigo-400/45' : 'border-white/10 opacity-65'} grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+                                <label class="sm:col-span-2 flex items-center gap-2.5 cursor-pointer">
+                                    <input type="checkbox" id="adm-dmcid-en-${idx}" ${cid.enabled !== false ? 'checked' : ''} class="w-4 h-4 accent-indigo-400 rounded cursor-pointer" />
+                                    ${Profile.getCustomIdGemEmblemSvg('w-8 h-8')}
+                                </label>
+                                <div class="sm:col-span-3">
+                                    <label class="block text-[10px] text-indigo-300 font-bold mb-0.5">Nomor / Kode Custom ID:</label>
+                                    <input type="text" id="adm-dmcid-code-${idx}" value="${Profile.escapeHtml(cid.customId || '')}" placeholder="Contoh: 88888888" class="w-full px-2.5 py-1.5 bg-black/70 border border-indigo-400/35 rounded-lg text-white font-mono font-black text-xs" />
+                                </div>
+                                <div class="sm:col-span-3">
+                                    <label class="block text-[10px] text-white/45 mb-0.5">Nama / Julukan ID:</label>
+                                    <input type="text" id="adm-dmcid-title-${idx}" value="${Profile.escapeHtml(cid.title || '')}" placeholder="Contoh: ID Sultan Hoki 8x" class="w-full px-2.5 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white text-xs" />
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="block text-[10px] text-cyan-300 font-bold mb-0.5">Harga Berlian:</label>
+                                    <input type="number" id="adm-dmcid-cost-${idx}" value="${Number(cid.cost) || 500}" class="w-full px-2.5 py-1.5 bg-black/70 border border-cyan-400/35 rounded-lg text-cyan-300 font-mono font-bold text-xs" />
+                                </div>
+                                <div class="sm:col-span-2 flex items-center gap-1.5">
+                                    <div class="flex-1">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Hari (0=Permanen):</label>
+                                        <input type="number" id="adm-dmcid-days-${idx}" value="${cid.isPermanent ? 0 : (Number(cid.days) || 0)}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white font-mono text-xs" />
+                                    </div>
+                                    <button type="button" onclick="Profile.removeAdminDiamondCustomIdRow(${idx})" class="mt-4 text-rose-400 hover:text-rose-300 p-1.5 rounded-lg bg-rose-500/10 cursor-pointer" title="Hapus ID">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- ============================================================== -->
+                <!-- SUB-PANEL 5: KELOLA TAB "BORDER PROFIL" (35+ BORDER OTOMATIS) -->
+                <!-- ============================================================== -->
+                <div id="adm-dm-subpanel-border" class="p-4 sm:p-5 rounded-3xl bg-[#141826]/90 border border-pink-400/35 space-y-3.5 shadow-lg">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-pink-500/20 border border-pink-400/40 text-pink-300 font-black text-xs flex items-center justify-center">5</span>
+                            <div>
+                                <h4 class="text-sm font-black uppercase tracking-wider text-pink-300">Katalog Tab "Border Profil" (${enabledBordersCount}/${borders.length} Ditampilkan)</h4>
+                                <p class="text-[11px] text-white/55">Seluruh <strong>${borders.length} Border Profil</strong> otomatis tersambung. Centang border yang ingin dijual dengan Berlian (Khusus Border Profil, tidak memberi VIP).</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5 self-start sm:self-auto shrink-0">
+                            <button type="button" onclick="Profile.toggleAllAdminDiamondBorders(true)" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+                                <span>Centang Semua (${borders.length})</span>
+                            </button>
+                            <button type="button" onclick="Profile.toggleAllAdminDiamondBorders(false)" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white/75 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                                <span>Hapus Centang</span>
+                            </button>
+                            <button type="button" onclick="Profile.addAdminDiamondBorderRow()" class="px-3.5 py-1.5 rounded-xl bg-pink-500/25 hover:bg-pink-500/35 border border-pink-400/40 text-pink-200 font-black text-xs flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>Tambah Border Baru</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- FILTER PENCARIAN BORDER -->
+                    <div class="relative w-full sm:w-72">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        <input type="text" oninput="Profile.filterAdminDiamondBorderRows(this.value)" placeholder="Cari nama border atau kategori..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/60 border border-white/15 text-xs text-white placeholder:text-white/35 focus:outline-none focus:border-pink-400" />
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5 max-h-[540px] overflow-y-auto pr-1">
+                        ${borders.map(function(bd, idx) {
+                            var bdScaleStyle = (typeof Auth !== 'undefined' && Auth.getBorderScaleStyle)
+                                ? Auth.getBorderScaleStyle(bd)
+                                : 'transform: translate(-50%, -50%) scale(1.30);';
+                            var searchKey = `${bd.name || ''} ${bd.badge || ''} ${bd.borderId || ''}`;
+                            return `
+                            <div data-adm-dmbd-row="${idx}" data-adm-dmbd-search="${Profile.escapeHtml(searchKey)}" class="p-3 rounded-2xl bg-black/50 border ${bd.enabled !== false ? 'border-pink-400/40' : 'border-white/10 opacity-65'} flex flex-col gap-2.5">
+                                <div class="flex items-center justify-between gap-2.5">
+                                    <label class="flex items-center gap-3 cursor-pointer min-w-0">
+                                        <input type="checkbox" id="adm-dmbd-en-${idx}" ${bd.enabled !== false ? 'checked' : ''} class="w-4 h-4 accent-pink-400 rounded cursor-pointer shrink-0" />
+                                        <div class="relative w-14 h-14 flex items-center justify-center shrink-0">
+                                            <div class="w-9 h-9 rounded-full overflow-hidden bg-black border border-white/20 flex items-center justify-center">
+                                                <img src="${Profile.escapeHtml(sampleAvatar)}" class="w-full h-full object-cover rounded-full" />
+                                            </div>
+                                            <img id="adm-dmbd-prev-${idx}" src="${Profile.escapeHtml(bd.url || '/borders/Platinum.png')}" style="${bdScaleStyle}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 max-w-none object-contain z-10 select-none" onerror="this.src='/borders/Platinum.png'" />
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="text-xs font-extrabold text-white truncate">${Profile.escapeHtml(bd.name || 'Border Profil')}</div>
+                                            <div class="text-[10px] text-amber-300 font-bold uppercase">${Profile.escapeHtml(bd.badge || 'EKSKLUSIF')}</div>
+                                        </div>
+                                    </label>
+                                    ${borders.length > 1 ? `
+                                    <button type="button" onclick="Profile.removeAdminDiamondBorderRow(${idx})" class="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg bg-rose-500/10 cursor-pointer shrink-0" title="Hapus Border">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>` : ''}
+                                </div>
+                                <div class="grid grid-cols-12 gap-2 text-xs">
+                                    <div class="col-span-5">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Nama Border:</label>
+                                        <input type="text" id="adm-dmbd-name-${idx}" value="${Profile.escapeHtml(bd.name || '')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white font-bold text-xs" />
+                                    </div>
+                                    <div class="col-span-4">
+                                        <label class="block text-[10px] text-cyan-300 font-bold mb-0.5">Harga Berlian:</label>
+                                        <input type="number" id="adm-dmbd-cost-${idx}" value="${Number(bd.cost) || 300}" class="w-full px-2 py-1.5 bg-black/70 border border-cyan-400/35 rounded-lg text-cyan-300 font-mono font-bold text-xs" />
+                                    </div>
+                                    <div class="col-span-3">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Badge:</label>
+                                        <input type="text" id="adm-dmbd-badge-${idx}" value="${Profile.escapeHtml(bd.badge || 'EKSKLUSIF')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-amber-300 font-bold text-[10px]" />
+                                    </div>
+                                    <div class="col-span-12">
+                                        <label class="text-[10px] text-white/45 flex items-center justify-between mb-0.5">
+                                            <span>URL Gambar / Upload:</span>
+                                            <label class="text-pink-300 hover:underline cursor-pointer text-[10px] font-bold">
+                                                + Upload File
+                                                <input type="file" accept="image/png,image/webp,image/gif,image/jpeg" onchange="Profile.handleDiamondShopBorderFileUpload(event, ${idx})" class="hidden" />
+                                            </label>
+                                        </label>
+                                        <input type="text" id="adm-dmbd-url-${idx}" value="${Profile.escapeHtml(bd.url || '/borders/Platinum.png')}" oninput="var p=gid('adm-dmbd-prev-${idx}');if(p)p.src=this.value;" class="w-full px-2.5 py-1 bg-black/70 border border-white/15 rounded-lg text-white/75 font-mono text-[10px]" />
+                                    </div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- TOMBOL SIMPAN UTAMA DI BAWAH -->
+                <div class="flex justify-end pt-2">
+                    <button type="button" onclick="Profile.saveAdminDiamondStoreConfig()" id="adm-dmstore-save-btn" class="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-purple-500 hover:from-cyan-300 hover:to-purple-400 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xl shadow-cyan-500/20 cursor-pointer active:scale-95 transition">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Simpan Semua Paket Harga, Bintang VIP, Custom ID & Border Profil</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        Profile.switchAdminDiamondSubTab(Profile._adminDiamondSubTab || 'all');
+        if (window.lucide) lucide.createIcons();
+    },
+
+    syncAdminDiamondDraftFromInputs() {
+        var draft = Profile._adminDiamondDraft;
+        if (!draft) return;
+
+        // Sync E-Wallets
+        if (!draft.ewallets) draft.ewallets = {};
+        if (!draft.ewallets.dana) draft.ewallets.dana = { enabled: true };
+        if (!draft.ewallets.gopay) draft.ewallets.gopay = { enabled: true };
+        if (!draft.ewallets.ovo) draft.ewallets.ovo = { enabled: true };
+
+        var dNum = gid('adm-dm-dana-num');
+        var dLink = gid('adm-dm-dana-link');
+        if (dNum) draft.ewallets.dana.number = dNum.value.trim();
+        if (dLink) draft.ewallets.dana.link = dLink.value.trim();
+
+        var gNum = gid('adm-dm-gopay-num');
+        var gLink = gid('adm-dm-gopay-link');
+        if (gNum) draft.ewallets.gopay.number = gNum.value.trim();
+        if (gLink) draft.ewallets.gopay.link = gLink.value.trim();
+
+        var oNum = gid('adm-dm-ovo-num');
+        var oLink = gid('adm-dm-ovo-link');
+        if (oNum) draft.ewallets.ovo.number = oNum.value.trim();
+        if (oLink) draft.ewallets.ovo.link = oLink.value.trim();
+
+        // Sync Diamond Packages
+        (draft.diamondPackages || []).forEach(function(pkg, idx) {
+            var dmEl = gid('adm-dmpkg-diamonds-' + idx);
+            var bnEl = gid('adm-dmpkg-bonus-' + idx);
+            var prEl = gid('adm-dmpkg-price-' + idx);
+            var icEl = gid('adm-dmpkg-icon-' + idx);
+            if (dmEl) pkg.diamonds = Math.max(1, Number(dmEl.value) || 55);
+            if (bnEl) pkg.bonus = Math.max(0, Number(bnEl.value) || 0);
+            if (prEl) pkg.price = Math.max(100, Number(prEl.value) || 1800);
+            if (icEl) pkg.iconType = icEl.value;
+        });
+
+        // Sync Star VIP Packages
+        (draft.diamondStarVipPackages || []).forEach(function(sp, idx) {
+            var enEl = gid('adm-dmstar-en-' + idx);
+            var tiEl = gid('adm-dmstar-title-' + idx);
+            var dsEl = gid('adm-dmstar-desc-' + idx);
+            var csEl = gid('adm-dmstar-cost-' + idx);
+            var dyEl = gid('adm-dmstar-days-' + idx);
+            var bdEl = gid('adm-dmstar-border-' + idx);
+            if (enEl) sp.enabled = Boolean(enEl.checked);
+            if (tiEl) sp.title = tiEl.value.trim();
+            if (dsEl) sp.desc = dsEl.value.trim();
+            if (csEl) sp.cost = Math.max(1, Number(csEl.value) || 250);
+            if (dyEl) sp.days = Math.max(0, Number(dyEl.value) || 0);
+            if (bdEl) sp.border = bdEl.value;
+        });
+
+        // Sync Custom IDs
+        (draft.diamondShopCustomIds || []).forEach(function(cid, idx) {
+            var enEl = gid('adm-dmcid-en-' + idx);
+            var cdEl = gid('adm-dmcid-code-' + idx);
+            var tiEl = gid('adm-dmcid-title-' + idx);
+            var csEl = gid('adm-dmcid-cost-' + idx);
+            var dyEl = gid('adm-dmcid-days-' + idx);
+            if (enEl) cid.enabled = Boolean(enEl.checked);
+            if (cdEl) cid.customId = cdEl.value.trim();
+            if (tiEl) cid.title = tiEl.value.trim();
+            if (csEl) cid.cost = Math.max(1, Number(csEl.value) || 500);
+            if (dyEl) {
+                var dVal = Math.max(0, Number(dyEl.value) || 0);
+                cid.days = dVal;
+                cid.isPermanent = (dVal === 0);
+            }
+        });
+
+        // Sync Borders
+        (draft.diamondShopBorders || []).forEach(function(bd, idx) {
+            var enEl = gid('adm-dmbd-en-' + idx);
+            var nmEl = gid('adm-dmbd-name-' + idx);
+            var urEl = gid('adm-dmbd-url-' + idx);
+            var csEl = gid('adm-dmbd-cost-' + idx);
+            var bgEl = gid('adm-dmbd-badge-' + idx);
+            if (enEl) bd.enabled = Boolean(enEl.checked);
+            if (nmEl) bd.name = nmEl.value.trim();
+            if (urEl) bd.url = urEl.value.trim();
+            if (csEl) bd.cost = Math.max(1, Number(csEl.value) || 300);
+            if (bgEl) bd.badge = bgEl.value.trim();
+        });
+
+        // Sync Rewarded Ad Config (Google AdSense)
+        if (!draft.rewardedAdConfig) draft.rewardedAdConfig = {};
+        var adEnEl = gid('adm-dm-ad-enabled');
+        var adClientEl = gid('adm-dm-ad-client');
+        var adSlotEl = gid('adm-dm-ad-slot');
+        var adRewardEl = gid('adm-dm-ad-reward');
+        var adDurEl = gid('adm-dm-ad-duration');
+        var adMaxEl = gid('adm-dm-ad-maxday');
+        var adVidEl = gid('adm-dm-ad-video');
+        var adClkEl = gid('adm-dm-ad-click');
+        if (adEnEl) draft.rewardedAdConfig.enabled = Boolean(adEnEl.checked);
+        if (adClientEl) draft.rewardedAdConfig.adsenseClientId = adClientEl.value.trim() || 'ca-pub-4386441636957031';
+        if (adSlotEl) draft.rewardedAdConfig.adsenseSlotId = adSlotEl.value.trim();
+        if (adRewardEl) draft.rewardedAdConfig.rewardDiamonds = Math.max(1, Number(adRewardEl.value) || 8);
+        if (adDurEl) draft.rewardedAdConfig.watchDurationSec = Math.max(5, Math.min(60, Number(adDurEl.value) || 15));
+        if (adMaxEl) draft.rewardedAdConfig.maxClaimsPerDay = Math.max(1, Number(adMaxEl.value) || 5);
+        if (adVidEl) draft.rewardedAdConfig.customVideoUrl = adVidEl.value.trim();
+        if (adClkEl) draft.rewardedAdConfig.customClickUrl = adClkEl.value.trim();
+    },
+
+    addAdminDiamondPackageRow() {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        Profile._adminDiamondDraft.diamondPackages.push({
+            id: 'dm_' + Date.now(),
+            diamonds: 1000,
+            bonus: 250,
+            price: 25000,
+            hot: false,
+            badgeColor: 'purple',
+            iconType: 'triple'
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    removeAdminDiamondPackageRow(idx) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        Profile._adminDiamondDraft.diamondPackages.splice(idx, 1);
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    addAdminDiamondStarVipRow() {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        Profile._adminDiamondDraft.diamondStarVipPackages.push({
+            id: 'star_' + Date.now(),
+            title: 'VIP Spesial (Border Legend)',
+            desc: 'Akses penuh fitur VIP + Border Legend',
+            cost: 800,
+            days: 30,
+            tier: '2months',
+            border: 'border_legend',
+            borderName: 'Legend',
+            borderUrl: '/borders/Legend.png',
+            enabled: true
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    removeAdminDiamondStarVipRow(idx) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        Profile._adminDiamondDraft.diamondStarVipPackages.splice(idx, 1);
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    addAdminDiamondCustomIdRow() {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        var randCode = String(Math.floor(10000000 + Math.random() * 90000000));
+        Profile._adminDiamondDraft.diamondShopCustomIds.unshift({
+            id: 'dmid_' + Date.now(),
+            customId: randCode,
+            title: 'ID Sultan Eksklusif #' + randCode,
+            desc: 'Musify ID Langka Pilihan',
+            cost: 750,
+            days: 0,
+            isPermanent: true,
+            enabled: true
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    removeAdminDiamondCustomIdRow(idx) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        Profile._adminDiamondDraft.diamondShopCustomIds.splice(idx, 1);
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    toggleAllAdminDiamondCustomIds(checked) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft || !Array.isArray(Profile._adminDiamondDraft.diamondShopCustomIds)) return;
+        Profile._adminDiamondDraft.diamondShopCustomIds.forEach(function(cid) {
+            if (cid) cid.enabled = Boolean(checked);
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    toggleAllAdminDiamondBorders(checked) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft || !Array.isArray(Profile._adminDiamondDraft.diamondShopBorders)) return;
+        Profile._adminDiamondDraft.diamondShopBorders.forEach(function(bd) {
+            if (bd) bd.enabled = Boolean(checked);
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    addAdminDiamondBorderRow() {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        Profile._adminDiamondDraft.diamondShopBorders.unshift({
+            id: 'dmbd_' + Date.now(),
+            borderId: 'border_custom_' + Date.now(),
+            name: 'Border Sultan Baru',
+            url: '/borders/Imortal.png',
+            badge: 'SULTAN',
+            cost: 1000,
+            days: 0,
+            isPermanent: true,
+            enabled: true
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    removeAdminDiamondBorderRow(idx) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        Profile._adminDiamondDraft.diamondShopBorders.splice(idx, 1);
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    handleDiamondShopBorderFileUpload(event, idx) {
+        var file = event?.target?.files?.[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var base64 = e.target.result;
+            var urlInput = gid('adm-dmbd-url-' + idx);
+            var prevImg = gid('adm-dmbd-prev-' + idx);
+            if (urlInput) urlInput.value = base64;
+            if (prevImg) prevImg.src = base64;
+            if (Profile._adminDiamondDraft && Profile._adminDiamondDraft.diamondShopBorders[idx]) {
+                Profile._adminDiamondDraft.diamondShopBorders[idx].url = base64;
+            }
+            if (typeof showToast === 'function') showToast('Gambar Border berhasil dimuat! Jangan lupa klik Simpan.');
+        };
+        reader.readAsDataURL(file);
+    },
+
+    async saveAdminDiamondStoreConfig() {
+        var token = Profile.getAdminToken();
+        if (!token) return;
+        Profile.syncAdminDiamondDraftFromInputs();
+        var draft = Profile._adminDiamondDraft;
+        if (!draft) return;
+
+        var btn1 = gid('adm-dmstore-save-btn');
+        var btn2 = gid('adm-dmstore-save-top-btn');
+        if (btn1) { btn1.disabled = true; btn1.innerHTML = '<span>Menyimpan...</span>'; }
+        if (btn2) { btn2.disabled = true; btn2.innerHTML = '<span>Menyimpan...</span>'; }
+
+        try {
+            var res = await fetch('/api/payment-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-token': token
+                },
+                body: JSON.stringify({
+                    ewallets: draft.ewallets,
+                    diamondPackages: draft.diamondPackages,
+                    diamondStarVipPackages: draft.diamondStarVipPackages,
+                    diamondShopCustomIds: draft.diamondShopCustomIds,
+                    diamondShopBorders: draft.diamondShopBorders,
+                    rewardedAdConfig: draft.rewardedAdConfig
+                })
+            });
+            var data = await res.json();
+            if (data && data.status && data.config) {
+                Profile.cachedPaymentConfig = data.config;
+                if (typeof showToast === 'function') {
+                    showToast('Pengaturan Harga Berlian, Bintang VIP, Custom ID & Border Profil berhasil disimpan!');
+                }
+                await Profile.loadAdminDiamondStoreTab();
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal menyimpan konfigurasi Toko Berlian.');
+            }
+        } catch (err) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan saat menyimpan.');
+        } finally {
+            if (btn1) { btn1.disabled = false; btn1.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Semua Paket Harga, Bintang VIP, Custom ID & Border Profil</span>'; }
+            if (btn2) { btn2.disabled = false; btn2.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Semua Perubahan</span>'; }
+            if (window.lucide) lucide.createIcons();
+        }
+    },
+
     async adminSendUserTrialInvoice(userId) {
         var token = Profile.getAdminToken();
         if (!token || !userId) return;
@@ -20581,7 +22124,6 @@ var Profile = {
             });
             var data = await res.json();
             if (data && data.status) {
-                // Sinkronkan sesi lokal jika Admin sedang menguji di akunnya sendiri agar kartu tagihan merah & pembatasan fitur langsung sinkron
                 if (typeof Auth !== 'undefined' && Auth.currentUser) {
                     if (String(Auth.currentUser.id) === String(userId) || String(Auth.currentUser.originalId) === String(userId)) {
                         if (data.user) {
@@ -20602,6 +22144,1174 @@ var Profile = {
         } catch (e) {
             if (typeof showToast === 'function') showToast('Gagal memproses aksi Trial pengguna.');
         }
+    },
+
+    // =========================================================
+    // FITUR TOP-UP BERLIAN & TOKO BERLIAN 4 TAB (BERLIAN | BINTANG | CUSTOM ID | BORDER PROFIL)
+    // =========================================================
+    _diamondTopupPackages: [
+        { id: 'dm_55', diamonds: 55, bonus: 10, price: 1800, priceText: 'Rp 1.800', iconType: 'single', isHot: false, isGoldBonus: false },
+        { id: 'dm_435', diamonds: 435, bonus: 115, price: 14000, priceText: 'Rp 14.000', iconType: 'double', isHot: false, isGoldBonus: false },
+        { id: 'dm_1310', diamonds: 1310, bonus: 340, price: 41927, priceText: 'Rp 41.927', iconType: 'triple', isHot: false, isGoldBonus: false },
+        { id: 'dm_3210', diamonds: 3210, bonus: 860, price: 102375, priceText: 'Rp 102.375', iconType: 'pile', isHot: false, isGoldBonus: false },
+        { id: 'dm_15380', diamonds: 15380, bonus: 4620, price: 490000, priceText: 'Rp 490.000', iconType: 'pile_lg', isHot: false, isGoldBonus: false },
+        { id: 'dm_36920', diamonds: 36920, bonus: 11080, price: 1176000, priceText: 'Rp 1.176.000', iconType: 'chest', isHot: true, isGoldBonus: false },
+        { id: 'dm_112300', diamonds: 112300, bonus: 33700, price: 3577000, priceText: 'Rp 3.577.000', iconType: 'chest_lg', isHot: false, isGoldBonus: true }
+    ],
+    _selectedDiamondPkg: null,
+    _selectedDiamondMethod: 'dana',
+
+    getActiveDiamondPackages() {
+        var cfg = Profile.cachedPaymentConfig || {};
+        if (Array.isArray(cfg.diamondPackages) && cfg.diamondPackages.length > 0) {
+            return cfg.diamondPackages.map(function(p, idx) {
+                var pr = Number(p.price) || 1800;
+                var dmCount = Number(p.diamonds) || 55;
+                var icType = p.iconType || 'single';
+                if (dmCount === 15380 && icType === 'single') icType = 'pile';
+                return {
+                    id: p.id || ('dm_' + idx),
+                    diamonds: dmCount,
+                    bonus: Number(p.bonus) || 0,
+                    price: pr,
+                    priceText: 'Rp ' + pr.toLocaleString('id-ID'),
+                    iconType: icType,
+                    isHot: false,
+                    isGoldBonus: (p.badgeColor === 'gold' || p.iconType === 'chest_gold' || p.iconType === 'chest_lg' || Boolean(p.isGoldBonus))
+                };
+            });
+        }
+        return Profile._diamondTopupPackages;
+    },
+
+    getDiamondIconSvg(type) {
+        var singleGem = `
+            <svg class="w-11 h-11 mx-auto drop-shadow-[0_4px_10px_rgba(56,189,248,0.45)]" viewBox="0 0 40 36" fill="none">
+                <path d="M10 3H30L38 13.5L20 33L2 13.5L10 3Z" fill="#22D3EE"/>
+                <path d="M10 3L20 13.5L30 3H10Z" fill="#CCFBF1"/>
+                <path d="M2 13.5L10 3L14 13.5H2Z" fill="#67E8F9"/>
+                <path d="M38 13.5L30 3L26 13.5H38Z" fill="#06B6D4"/>
+                <path d="M14 13.5H26L20 33L14 13.5Z" fill="#38BDF8"/>
+                <path d="M2 13.5H14L20 33L2 13.5Z" fill="#0EA5E9"/>
+                <path d="M26 13.5H38L20 33L26 13.5Z" fill="#0284C7"/>
+            </svg>`;
+        if (type === 'single') return singleGem;
+        if (type === 'double') {
+            return `
+            <div class="relative w-14 h-11 mx-auto flex items-center justify-center">
+                <svg class="w-9 h-9 -mr-3 -rotate-12 drop-shadow-[0_4px_8px_rgba(56,189,248,0.4)]" viewBox="0 0 40 36" fill="none">
+                    <path d="M10 3H30L38 13.5L20 33L2 13.5L10 3Z" fill="#38BDF8"/>
+                    <path d="M10 3L20 13.5L30 3H10Z" fill="#E0F2FE"/>
+                    <path d="M14 13.5H26L20 33L14 13.5Z" fill="#0EA5E9"/>
+                </svg>
+                <svg class="w-10 h-10 rotate-6 z-10 drop-shadow-[0_4px_10px_rgba(34,211,238,0.6)]" viewBox="0 0 40 36" fill="none">
+                    <path d="M10 3H30L38 13.5L20 33L2 13.5L10 3Z" fill="#22D3EE"/>
+                    <path d="M10 3L20 13.5L30 3H10Z" fill="#A5F3FC"/>
+                    <path d="M14 13.5H26L20 33L14 13.5Z" fill="#38BDF8"/>
+                    <path d="M26 13.5H38L20 33L26 13.5Z" fill="#0284C7"/>
+                </svg>
+            </div>`;
+        }
+        if (type === 'triple' || type === 'pile' || type === 'pile_lg' || type === 'heap') {
+            return `
+            <div class="relative w-16 h-11 mx-auto flex items-center justify-center">
+                <svg class="w-8 h-8 -mr-3.5 -rotate-15 translate-y-1 opacity-95" viewBox="0 0 40 36" fill="none">
+                    <path d="M10 3H30L38 13.5L20 33L2 13.5L10 3Z" fill="#0EA5E9"/>
+                    <path d="M10 3L20 13.5L30 3H10Z" fill="#BAE6FD"/>
+                </svg>
+                <svg class="w-10 h-10 z-10 -translate-y-0.5 drop-shadow-[0_4px_10px_rgba(34,211,238,0.65)]" viewBox="0 0 40 36" fill="none">
+                    <path d="M10 3H30L38 13.5L20 33L2 13.5L10 3Z" fill="#22D3EE"/>
+                    <path d="M10 3L20 13.5L30 3H10Z" fill="#CFFAFE"/>
+                    <path d="M14 13.5H26L20 33L14 13.5Z" fill="#38BDF8"/>
+                    <path d="M26 13.5H38L20 33L26 13.5Z" fill="#0284C7"/>
+                </svg>
+                <svg class="w-8 h-8 -ml-3.5 rotate-15 translate-y-1 opacity-95" viewBox="0 0 40 36" fill="none">
+                    <path d="M10 3H30L38 13.5L20 33L2 13.5L10 3Z" fill="#06B6D4"/>
+                    <path d="M10 3L20 13.5L30 3H10Z" fill="#A5F3FC"/>
+                </svg>
+            </div>`;
+        }
+        return `
+            <div class="relative w-16 h-11 mx-auto flex items-center justify-center">
+                <svg class="w-14 h-11 drop-shadow-[0_4px_12px_rgba(245,158,11,0.45)]" viewBox="0 0 56 44" fill="none">
+                    <!-- Diamonds inside chest -->
+                    <path d="M14 16L22 6L30 16H14Z" fill="#67E8F9"/>
+                    <path d="M24 16L33 4L42 16H24Z" fill="#22D3EE"/>
+                    <path d="M18 18L28 5L38 18H18Z" fill="#A5F3FC"/>
+                    <!-- Treasure Box Base -->
+                    <path d="M8 17H48L44 37C43.5 39 41.8 40 39.5 40H16.5C14.2 40 12.5 39 12 37L8 17Z" fill="#EA580C"/>
+                    <path d="M6 15H50V22H6V15Z" fill="#F97316" rx="3"/>
+                    <rect x="24" y="16" width="8" height="9" rx="2" fill="#FACC15"/>
+                </svg>
+            </div>`;
+    },
+
+    getMiniDiamondSvg(sizeClass) {
+        var cls = sizeClass || 'w-3.5 h-3.5';
+        return `<svg class="${cls} inline-block shrink-0" viewBox="0 0 36 32" fill="none">
+            <path d="M8.5 2L27.5 2L35 11.5L18 30L1 11.5L8.5 2Z" fill="#22D3EE"/>
+            <path d="M8.5 2L18 11.5L27.5 2H8.5Z" fill="#A5F3FC"/>
+            <path d="M12.5 11.5H23.5L18 30L12.5 11.5Z" fill="#38BDF8"/>
+        </svg>`;
+    },
+
+    getCustomIdGemEmblemSvg(sizeClass) {
+        var cls = sizeClass || 'w-10 h-10';
+        return `<div class="relative ${cls} flex items-center justify-center shrink-0 select-none">
+            <svg class="w-full h-full drop-shadow-[0_3px_8px_rgba(56,189,248,0.45)]" viewBox="0 0 48 44" fill="none">
+                <defs>
+                    <linearGradient id="idGemBody" x1="4" y1="4" x2="44" y2="40" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#A5F3FC"/>
+                        <stop offset="45%" stop-color="#818CF8"/>
+                        <stop offset="100%" stop-color="#C084FC"/>
+                    </linearGradient>
+                    <linearGradient id="idGemTop" x1="10" y1="4" x2="38" y2="18" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#ECFEFF"/>
+                        <stop offset="100%" stop-color="#67E8F9"/>
+                    </linearGradient>
+                </defs>
+                <path d="M12 4H36L45 16L24 41L3 16L12 4Z" fill="url(#idGemBody)" stroke="#E0E7FF" stroke-width="1.2"/>
+                <path d="M12 4L24 16L36 4H12Z" fill="url(#idGemTop)"/>
+                <path d="M3 16H45L24 41L3 16Z" fill="#6366F1" fill-opacity="0.35"/>
+                <rect x="11" y="12" width="26" height="14" rx="5" fill="#1E1B4B" fill-opacity="0.78" stroke="#A5F3FC" stroke-width="1"/>
+                <text x="24" y="22.5" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="10.5" letter-spacing="0.8">ID</text>
+            </svg>
+        </div>`;
+    },
+
+    async openDiamondTopupModal(initialTab) {
+        if (typeof Auth === 'undefined' || !Auth.currentUser) {
+            if (typeof showToast === 'function') showToast('Silakan Login terlebih dahulu untuk membuka Toko Berlian!');
+            if (typeof Auth !== 'undefined' && typeof Auth.openModal === 'function') Auth.openModal('login');
+            return;
+        }
+
+        // Muat konfigurasi terbaru & daftar lengkap 35+ Border (lengkap dengan scale/offset dari /api/borders)
+        try {
+            var [payRes, bordersRes] = await Promise.all([
+                fetch('/api/payment-config').then(function(r) { return r.json(); }).catch(function() { return {}; }),
+                fetch('/api/borders?action=list_all').then(function(r) { return r.json(); }).catch(function() { return {}; })
+            ]);
+            if (payRes && payRes.status && payRes.config) {
+                Profile.cachedPaymentConfig = payRes.config;
+            }
+            if (bordersRes && Array.isArray(bordersRes.borders) && bordersRes.borders.length > 0) {
+                Auth.availableBorders = bordersRes.borders;
+            }
+        } catch (e) {}
+
+        var existing = gid('musifystar-diamond-topup-modal');
+        if (existing) existing.remove();
+
+        var payCfg = Profile.cachedPaymentConfig || {};
+        var u = Auth.currentUser;
+        var uAvatar = u.avatar || '/logo.png';
+        var uBorder = (typeof Auth.getBorderUrl === 'function') ? Auth.getBorderUrl(u) : (u.borderUrl || '');
+        var uBorderScaleStyle = (typeof Auth.getBorderScaleStyle === 'function' && uBorder) ? Auth.getBorderScaleStyle(uBorder) : '';
+        var uId = u.id || u.originalId || '8589478687';
+        var uDiamonds = Number(u.diamonds || 0);
+        var validTabs = ['berlian', 'bintang', 'customid', 'border'];
+        var activeTab = validTabs.includes(initialTab) ? initialTab : 'berlian';
+
+        var activeDiamondPkgs = Profile.getActiveDiamondPackages();
+        var activeStarVipPkgs = (Array.isArray(payCfg.diamondStarVipPackages) && payCfg.diamondStarVipPackages.length
+            ? payCfg.diamondStarVipPackages
+            : [
+                { id: 'star_7days', title: 'VIP 7 Hari (Border Platinum)', desc: 'Akses penuh fitur VIP + Border Platinum selama 7 hari', cost: 250, days: 7, borderUrl: '/borders/Platinum.png', enabled: true },
+                { id: 'star_1month', title: 'VIP 1 Bulan (Border Platinum & Master)', desc: 'Akses penuh fitur VIP + Border Platinum & Master selama 30 hari', cost: 550, days: 30, borderUrl: '/borders/Master.png', enabled: true },
+                { id: 'star_2months', title: 'VIP 2 Bulan (+Border Legend)', desc: 'Akses penuh fitur VIP + Border Legend selama 60 hari', cost: 1650, days: 60, borderUrl: '/borders/Legend.png', enabled: true },
+                { id: 'star_5months', title: 'VIP 5 Bulan (+Border Immortal)', desc: 'Akses penuh fitur VIP + Border Immortal selama 150 hari', cost: 4000, days: 150, borderUrl: '/borders/Imortal.png', enabled: true },
+                { id: 'star_permanent', title: 'VIP Permanen (Semua Border & Fitur Selamanya)', desc: 'Buka semua Border eksklusif & fitur VIP selamanya', cost: 15000, days: 0, borderUrl: '/borders/Imortal.png', enabled: true }
+            ]).filter(function(item) { return item && item.enabled !== false; });
+
+        var activeCustomIds = (Array.isArray(payCfg.diamondShopCustomIds)
+            ? payCfg.diamondShopCustomIds
+            : [
+                { id: 'dmid_88888888', customId: '88888888', title: 'ID Sultan Hoki 8x', desc: 'Musify ID Langka Angka Kembar 8', cost: 1200, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmid_99999999', customId: '99999999', title: 'ID King Immortal 9x', desc: 'Musify ID Eksklusif Angka Kembar 9', cost: 1500, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmid_77777777', customId: '77777777', title: 'ID Lucky Seven 7x', desc: 'Musify ID Spesial Jackpot 77777777', cost: 950, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmid_12345678', customId: '12345678', title: 'ID Urut Cantik 1-8', desc: 'Musify ID Cantik Berurutan', cost: 650, days: 30, isPermanent: false, enabled: true }
+            ]).filter(function(item) { return item && item.enabled !== false; });
+
+        var sysBordersMap = {};
+        if (Array.isArray(Auth.availableBorders)) {
+            Auth.availableBorders.forEach(function(sb) {
+                if (sb && sb.id) sysBordersMap[String(sb.id)] = sb;
+            });
+        }
+
+        var activeBorders = (Array.isArray(payCfg.diamondShopBorders) && payCfg.diamondShopBorders.length
+            ? payCfg.diamondShopBorders
+            : [
+                { id: 'dmbd_platinum', borderId: 'border_platinum', name: 'Border Platinum VIP', url: '/borders/Platinum.png', badge: 'PLATINUM', cost: 300, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmbd_master', borderId: 'border_master', name: 'Border Master VIP', url: '/borders/Master.png', badge: 'MASTER', cost: 650, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmbd_legend', borderId: 'border_legend', name: 'Border Legend VIP', url: '/borders/Legend.png', badge: 'LEGEND', cost: 1400, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmbd_immortal', borderId: 'border_immortal', name: 'Border Immortal Sultan', url: '/borders/Imortal.png', badge: 'IMMORTAL', cost: 3200, days: 0, isPermanent: true, enabled: true }
+            ]).filter(function(item) { return item && item.enabled !== false; }).map(function(item) {
+                var matchedSys = sysBordersMap[String(item.borderId)] || sysBordersMap[String(item.id)];
+                if (matchedSys) {
+                    return Object.assign({}, item, {
+                        url: matchedSys.url || item.url,
+                        file: matchedSys.file || item.file,
+                        scale: matchedSys.scale !== undefined ? matchedSys.scale : item.scale,
+                        offsetY: matchedSys.offsetY !== undefined ? matchedSys.offsetY : item.offsetY,
+                        offsetX: matchedSys.offsetX !== undefined ? matchedSys.offsetX : item.offsetX
+                    });
+                }
+                return item;
+            });
+
+        var uName = u.username || 'Musisi';
+        var isUserVip = Boolean(u.isPremium || u.is_premium || (u.vipTier && u.vipTier !== 'none'));
+
+        var modal = document.createElement('div');
+        modal.id = 'musifystar-diamond-topup-modal';
+        modal.className = 'fixed inset-0 z-[10050] bg-[#121118] text-white overflow-y-auto flex flex-col select-none animate-fade-in';
+
+        modal.innerHTML = `
+            <!-- Header Atas Rapi & Proporsional -->
+            <div class="relative pt-4 pb-4 px-4 overflow-hidden shrink-0" style="background: linear-gradient(180deg, rgba(14, 16, 26, 0.78) 0%, rgba(18, 17, 24, 0.98) 100%), url('/banner.png') center/cover no-repeat;">
+                <div class="max-w-xl mx-auto">
+                    <!-- Top Navigation Row -->
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <button onclick="Profile.closeDiamondTopupModal()" class="w-9 h-9 rounded-full bg-black/55 hover:bg-black/75 border border-white/15 flex items-center justify-center text-white/90 hover:text-white active:scale-90 transition cursor-pointer shadow-md" title="Kembali">
+                                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                            </button>
+                            <span class="text-sm sm:text-base font-black tracking-tight text-white/95 drop-shadow">Pusat Berlian</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <!-- Pill Berlian di Atas -->
+                            <div onclick="Profile.switchDiamondTopupTab('berlian')" class="h-8 px-3 rounded-full flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 transition" style="background: rgba(24, 62, 84, 0.9); border: 1px solid rgba(56, 189, 248, 0.45);">
+                                ${Profile.getMiniDiamondSvg('w-4 h-4')}
+                                <span id="diamond-top-pill-count" class="text-xs font-black text-white">${uDiamonds.toLocaleString('id-ID')}</span>
+                                <span class="w-4 h-4 rounded-full flex items-center justify-center text-white text-[11px] font-black shadow-xs" style="background: linear-gradient(180deg, #67e8f9 0%, #0ea5e9 100%);">+</span>
+                            </div>
+                            <button onclick="Profile.closeDiamondTopupModal()" class="w-8 h-8 rounded-full bg-black/50 hover:bg-black/75 border border-white/15 flex items-center justify-center text-white/75 hover:text-white cursor-pointer transition">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Baris Profil Pengguna (Rasio Avatar & Border Sama Persis dengan Profile: w-12 h-12 avatar + w-[76px] h-[76px] border) -->
+                    <div class="flex items-center gap-3.5 bg-black/35 backdrop-blur-md border border-white/10 rounded-2xl p-2.5 mb-3 shadow-lg">
+                        <div class="relative w-20 h-20 flex items-center justify-center shrink-0">
+                            <div class="w-12 h-12 rounded-full overflow-hidden bg-black/90 flex items-center justify-center shadow-inner z-0">
+                                <img src="${Profile.escapeHtml(uAvatar)}" class="w-full h-full rounded-full object-cover" onerror="this.src='/logo.png'" />
+                            </div>
+                            <img id="diamond-modal-user-border" src="${Profile.escapeHtml(uBorder)}" style="${uBorderScaleStyle}" class="${uBorder ? '' : 'hidden'} pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[76px] h-[76px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]" onerror="this.classList.add('hidden')" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-sm sm:text-base font-black text-white truncate">@${Profile.escapeHtml(uName)}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${isUserVip ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black' : 'bg-white/10 text-white/60 border border-white/10'}">
+                                    <i data-lucide="crown" class="w-2.5 h-2.5 ${isUserVip ? 'fill-black' : ''}"></i>
+                                    <span>${isUserVip ? 'VIP' : 'MEMBER'}</span>
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-1.5 mt-1 text-white/70 text-xs font-semibold">
+                                <span>Musify ID: <strong id="diamond-modal-user-id" class="text-cyan-300 font-mono">${Profile.escapeHtml(uId)}</strong></span>
+                                <button onclick="var cidEl=gid('diamond-modal-user-id'); var val=cidEl?cidEl.textContent:'${Profile.escapeHtml(uId)}'; navigator.clipboard.writeText(val); if(typeof showToast==='function') showToast('Musify ID disalin: ' + val);" class="px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center gap-1 text-[10px] cursor-pointer transition" title="Salin ID">
+                                    <i data-lucide="copy" class="w-3 h-3"></i>
+                                    <span>Salin</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Banner Ungu Custom ID Berharga Akan Datang (Dengan Emblem Berlian 3D SVG Asli, Tanpa Emoji) -->
+                    <div class="relative rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2.5 shadow-lg overflow-hidden border border-purple-300/25" style="background: linear-gradient(90deg, #5b46e8 0%, #7c3aed 55%, #9333ea 100%);">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            ${Profile.getCustomIdGemEmblemSvg('w-10 h-10')}
+                            <div class="min-w-0">
+                                <span class="text-xs sm:text-sm font-extrabold text-white block truncate">Musify ID berharga akan datang</span>
+                                <span class="text-[10px] text-purple-100/80 block truncate">Pilih nomor ID cantik & langka khusus akunmu</span>
+                            </div>
+                        </div>
+                        <button onclick="Profile.switchDiamondTopupTab('customid')" class="px-3.5 py-1.5 rounded-full font-extrabold text-xs text-[#4a2900] shrink-0 shadow-md active:scale-95 transition cursor-pointer" style="background: linear-gradient(180deg, #fde68a 0%, #f59e0b 100%);">
+                            Memeriksa
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Container -->
+            <div class="flex-1 bg-[#181720] rounded-t-3xl flex flex-col max-w-xl w-full mx-auto pb-12 border-t border-white/10 shadow-2xl">
+                <!-- 4 Tab Bar Bersih Tanpa Emoji Sistem (Sesuai Referensi Foto 2) -->
+                <div class="grid grid-cols-4 border-b border-white/10 bg-[#1e1d28] rounded-t-3xl">
+                    <button id="dm-tab-btn-berlian" onclick="Profile.switchDiamondTopupTab('berlian')" class="py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate rounded-tl-3xl ${activeTab === 'berlian' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                        Berlian
+                    </button>
+                    <button id="dm-tab-btn-bintang" onclick="Profile.switchDiamondTopupTab('bintang')" class="py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate ${activeTab === 'bintang' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                        Bintang
+                    </button>
+                    <button id="dm-tab-btn-customid" onclick="Profile.switchDiamondTopupTab('customid')" class="py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate ${activeTab === 'customid' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                        Custom ID
+                    </button>
+                    <button id="dm-tab-btn-border" onclick="Profile.switchDiamondTopupTab('border')" class="py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate rounded-tr-3xl ${activeTab === 'border' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                        Border Profil
+                    </button>
+                </div>
+
+                <!-- Bar Konfirmasi Pembayaran Cepat -->
+                <div id="diamond-direct-confirm-bar" class="hidden mx-3.5 mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-sky-500/15 to-purple-500/20 border border-emerald-400/40 space-y-2"></div>
+
+                <!-- TAB 1: BERLIAN (KATALOG PAKET TOP-UP) -->
+                <div id="dm-tab-panel-berlian" class="${activeTab === 'berlian' ? '' : 'hidden'} p-3.5 sm:p-4 space-y-3.5">
+                    <!-- Bar Saldo Berlian Saat Ini -->
+                    <div class="bg-[#242330] rounded-2xl px-4 py-3 flex items-center justify-between border border-white/8 shadow-inner">
+                        <div class="flex items-center gap-2.5">
+                            ${Profile.getMiniDiamondSvg('w-5 h-5')}
+                            <span id="diamond-modal-balance-num" class="text-base sm:text-lg font-black text-white tracking-tight">${uDiamonds.toLocaleString('id-ID')}</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-white/40"></i>
+                    </div>
+
+                    <!-- Grid 3 Kolom Paket Berlian Proporsional -->
+                    <div class="grid grid-cols-3 gap-2.5">
+                        ${activeDiamondPkgs.map(function(pkg) {
+                            var badgeStyle = pkg.isGoldBonus
+                                ? 'background: linear-gradient(90deg, #fde68a 0%, #f59e0b 100%); color: #78350f;'
+                                : 'background: rgba(139, 92, 246, 0.25); color: #ddd6fe; border-right: 1px solid rgba(139,92,246,0.35); border-bottom: 1px solid rgba(139,92,246,0.35);';
+                            var formattedDiamonds = Number(pkg.diamonds || 0).toLocaleString('id-ID');
+                            var formattedBonus = Number(pkg.bonus || 0).toLocaleString('id-ID');
+                            return `
+                            <div onclick="Profile.selectDiamondPackage('${Profile.escapeHtml(pkg.id)}')" class="relative bg-gradient-to-b from-[#282736] to-[#21202c] hover:from-[#312f42] hover:to-[#272635] border border-white/8 hover:border-purple-400/60 rounded-2xl pt-7 pb-3 px-2 flex flex-col items-center justify-between text-center cursor-pointer active:scale-95 transition-all shadow-md group">
+                                ${Number(pkg.bonus) > 0 ? `
+                                <div class="absolute top-0 left-0 px-2 py-0.5 rounded-tl-2xl rounded-br-xl text-[9px] sm:text-[10px] font-extrabold flex items-center gap-1 max-w-full truncate" style="${badgeStyle}">
+                                    <span>+${formattedBonus}</span>
+                                    ${Profile.getMiniDiamondSvg('w-2.5 h-2.5')}
+                                </div>` : ''}
+
+                                <!-- Ikon Berlian -->
+                                <div class="my-1.5 transition-transform group-hover:scale-105">
+                                    ${Profile.getDiamondIconSvg(pkg.iconType)}
+                                </div>
+
+                                <!-- Jumlah Utama Berlian -->
+                                <div class="text-xs sm:text-sm font-black text-white tracking-tight mb-2">
+                                    ${formattedDiamonds}
+                                </div>
+
+                                <!-- Tombol Pill Harga Ungu -->
+                                <div class="relative w-full py-1.5 px-1.5 rounded-full text-[10px] sm:text-xs font-extrabold text-white shadow-sm truncate" style="background: linear-gradient(90deg, #7c5dfa 0%, #8b5cf6 100%);">
+                                    ${pkg.priceText}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+
+                    <!-- Kartu Dapat Berlian (Nonton Iklan Berhadiah Google AdSense) -->
+                    <div class="bg-[#242330] rounded-2xl p-4 text-center space-y-2.5 border border-white/8 mt-2 shadow-md">
+                        <div class="w-11 h-9 rounded-xl bg-purple-500/20 border border-purple-400/40 mx-auto flex items-center justify-center">
+                            ${Profile.getMiniDiamondSvg('w-5 h-5')}
+                        </div>
+                        <div class="text-sm font-extrabold text-white flex items-center justify-center gap-1.5">
+                            <span id="dm-claim-daily-reward-label">Dapat ${(Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.rewardedAdConfig && Profile.cachedPaymentConfig.rewardedAdConfig.rewardDiamonds) ? Number(Profile.cachedPaymentConfig.rewardedAdConfig.rewardDiamonds) : 8}</span>
+                            ${Profile.getMiniDiamondSvg('w-4 h-4')}
+                        </div>
+                        <button id="dm-claim-daily-btn" onclick="Profile.claimFreeDailyDiamonds()" class="w-full py-2.5 rounded-full border border-purple-400/50 hover:bg-purple-500/15 text-purple-300 font-extrabold text-xs flex items-center justify-center gap-2 active:scale-98 transition cursor-pointer">
+                            <i data-lucide="clapperboard" class="w-4 h-4"></i>
+                            <span>Nonton Iklan</span>
+                        </button>
+                    </div>
+
+                    <!-- Teks Ketentuan Penggunaan & Bantuan -->
+                    <div class="pt-3 px-2 text-center space-y-2 text-[11px] text-white/45 leading-relaxed">
+                        <p>
+                            Klik nilai top-up untuk memilih metode pembayaran resmi (QRIS, GoPay, DANA, atau OVO). Dengan mengklik nilai top-up, Anda setuju dengan <span class="text-purple-400 underline cursor-pointer">ketentuan penggunaan MusifyStar</span>.
+                        </p>
+                        <p>
+                            Jika Berlian belum masuk setelah melakukan konfirmasi pembayaran, silakan hubungi Admin melalui tombol bantuan di bawah.
+                        </p>
+                    </div>
+
+                    <div class="pt-2.5 px-1 flex items-center justify-between text-xs border-t border-white/8">
+                        <span class="font-bold text-white/85">Mengalami masalah dalam pembayaran?</span>
+                        <button onclick="Profile.contactAdminDiamondSupport()" class="text-purple-400 hover:text-purple-300 font-bold flex items-center gap-0.5 cursor-pointer">
+                            <span>hubungi kami</span>
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TAB 2: BINTANG (TUKAR BERLIAN KE PAKET VIP MUSIFYSTAR) -->
+                <div id="dm-tab-panel-bintang" class="${activeTab === 'bintang' ? '' : 'hidden'} p-4 space-y-3.5">
+                    <div class="bg-gradient-to-r from-purple-500/20 via-indigo-500/15 to-cyan-500/20 border border-purple-400/30 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-purple-200 font-bold uppercase tracking-wider">Tukarkan Berlian ke Paket VIP</div>
+                            <div class="text-xl font-black text-white flex items-center gap-2 mt-1">
+                                ${Profile.getMiniDiamondSvg('w-5 h-5')}
+                                <span id="diamond-star-tab-balance">${uDiamonds.toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+                        <button onclick="Profile.switchDiamondTopupTab('berlian')" class="px-3.5 py-2 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer">
+                            <span>+ Isi Ulang</span>
+                            ${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}
+                        </button>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        ${activeStarVipPkgs.length === 0 ? `
+                        <div class="p-6 rounded-2xl bg-[#262530] border border-white/5 text-center text-xs text-white/45">
+                            Belum ada paket Bintang VIP yang diaktifkan oleh Admin.
+                        </div>
+                        ` : activeStarVipPkgs.map(function(sp) {
+                            var spBorderUrl = sp.borderUrl || '/borders/Platinum.png';
+                            var spScaleStyle = (typeof Auth !== 'undefined' && typeof Auth.getBorderScaleStyle === 'function')
+                                ? Auth.getBorderScaleStyle(spBorderUrl)
+                                : '';
+                            return `
+                            <div class="p-3.5 rounded-2xl bg-[#262530] border border-white/10 hover:border-purple-400/40 flex items-center justify-between gap-3 transition">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <!-- Thumbnail Border Sama Persis dengan Profile (w-9 h-9 avatar + w-[56px] h-[56px] border) -->
+                                    <div class="relative w-14 h-14 flex items-center justify-center shrink-0">
+                                        <div class="w-9 h-9 rounded-full overflow-hidden bg-black/80 z-0">
+                                            <img src="${Profile.escapeHtml(uAvatar)}" class="w-full h-full object-cover" onerror="this.src='/logo.png'" />
+                                        </div>
+                                        <img src="${Profile.escapeHtml(spBorderUrl)}" style="${spScaleStyle}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[56px] h-[56px] max-w-none object-contain z-10 select-none" onerror="this.src='/borders/Platinum.png'" />
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="text-xs sm:text-sm font-black text-white truncate">${Profile.escapeHtml(sp.title)}</div>
+                                        <div class="text-[11px] text-white/55 mt-0.5 line-clamp-2">${Profile.escapeHtml(sp.desc)}</div>
+                                    </div>
+                                </div>
+                                <button onclick="Profile.redeemDiamondStarVip('${Profile.escapeHtml(sp.id)}', ${Number(sp.cost) || 250})" class="px-3.5 py-2 rounded-full font-extrabold text-xs text-white shrink-0 flex items-center gap-1.5 cursor-pointer active:scale-95 transition shadow-md" style="background: linear-gradient(90deg, #7c5dfa 0%, #8b5cf6 100%);">
+                                    ${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}
+                                    <span>${(Number(sp.cost) || 250).toLocaleString('id-ID')}</span>
+                                </button>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- TAB 3: CUSTOM ID (BELI & PAKAI CUSTOM ID PILIHAN ADMIN DENGAN BERLIAN) -->
+                <div id="dm-tab-panel-customid" class="${activeTab === 'customid' ? '' : 'hidden'} p-4 space-y-3.5">
+                    <div class="bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-cyan-500/20 border border-indigo-400/35 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-indigo-200 font-bold uppercase tracking-wider">Katalog Musify Custom ID</div>
+                            <div class="text-xs text-white/70 mt-0.5">ID Anda Saat Ini: <strong id="diamond-customid-current-label" class="text-cyan-300 font-mono">#${Profile.escapeHtml(uId)}</strong></div>
+                        </div>
+                        <button onclick="Profile.switchDiamondTopupTab('berlian')" class="px-3.5 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shrink-0">
+                            <span>+ Top-Up</span>
+                            ${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        ${activeCustomIds.length === 0 ? `
+                        <div class="sm:col-span-2 p-6 rounded-2xl bg-[#262530] border border-white/5 text-center text-xs text-white/45">
+                            Belum ada Custom ID yang dicentang Admin untuk ditampilkan.
+                        </div>
+                        ` : activeCustomIds.map(function(item) {
+                            var isMine = (String(u.id) === String(item.customId) || String(u.customId) === String(item.customId));
+                            var durBadge = (item.isPermanent || !item.days || Number(item.days) <= 0) ? 'Permanen' : (item.days + ' Hari');
+                            return `
+                            <div class="p-3.5 rounded-2xl bg-[#262530] border ${isMine ? 'border-emerald-400/50 bg-emerald-500/10' : 'border-white/10 hover:border-indigo-400/40'} flex flex-col justify-between gap-3 transition">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <span class="px-2 py-0.5 rounded-md bg-indigo-500/25 border border-indigo-400/40 text-indigo-200 text-[10px] font-black uppercase">${Profile.escapeHtml(durBadge)}</span>
+                                        <div class="text-base font-black font-mono text-amber-300 tracking-wider mt-1.5 flex items-center gap-1.5">
+                                            <span>ID: ${Profile.escapeHtml(item.customId)}</span>
+                                        </div>
+                                        <div class="text-xs font-bold text-white/90 mt-0.5">${Profile.escapeHtml(item.title || ('Musify ID #' + item.customId))}</div>
+                                    </div>
+                                    ${Profile.getCustomIdGemEmblemSvg('w-10 h-10')}
+                                </div>
+                                <button onclick="Profile.buyDiamondCustomId('${Profile.escapeHtml(item.customId)}', ${Number(item.cost) || 500})" class="w-full py-2 rounded-full font-extrabold text-xs text-white flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition shadow-md" style="${isMine ? 'background: linear-gradient(90deg, #10b981 0%, #059669 100%);' : 'background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);'}">
+                                    ${isMine ? `<i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i><span>Sedang Dipakai</span>` : `<span>Beli & Pakai •</span>${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}<span>${(Number(item.cost) || 500).toLocaleString('id-ID')}</span>`}
+                                </button>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- TAB 4: BORDER PROFIL (BELI & PASANG BORDER PROFIL PILIHAN ADMIN DENGAN BERLIAN) -->
+                <div id="dm-tab-panel-border" class="${activeTab === 'border' ? '' : 'hidden'} p-4 space-y-3.5">
+                    <div class="bg-gradient-to-r from-pink-500/20 via-purple-500/15 to-amber-500/20 border border-pink-400/35 rounded-2xl p-4 flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs text-pink-200 font-bold uppercase tracking-wider">Katalog Border Profil Berlian (${activeBorders.length} Border)</div>
+                            <div class="text-xs text-white/70 mt-0.5">Beli dengan Berlian untuk membuka & langsung memasang Border pilihan ke foto profil Anda (Khusus Border Profil, tidak termasuk paket VIP).</div>
+                        </div>
+                        <button onclick="Profile.switchDiamondTopupTab('berlian')" class="px-3.5 py-2 rounded-xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shrink-0">
+                            <span>+ Top-Up</span>
+                            ${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        ${activeBorders.length === 0 ? `
+                        <div class="col-span-2 p-6 rounded-2xl bg-[#262530] border border-white/5 text-center text-xs text-white/45">
+                            Belum ada Border Profil yang dicentang Admin untuk ditampilkan.
+                        </div>
+                        ` : activeBorders.map(function(bd) {
+                            var unlockedList = Array.isArray(u.unlockedDiamondBorders) ? u.unlockedDiamondBorders : [];
+                            var isEquipped = (String(u.border) === String(bd.borderId) || String(u.borderUrl) === String(bd.url));
+                            var isOwned = isEquipped || unlockedList.includes(bd.borderId) || unlockedList.includes(bd.id);
+                            var bdScaleStyle = (typeof Auth !== 'undefined' && typeof Auth.getBorderScaleStyle === 'function')
+                                ? Auth.getBorderScaleStyle(bd)
+                                : '';
+                            var fallbackStaticUrl = '/borders/' + (bd.file || ((bd.borderId || bd.id) + '.png'));
+                            var fallbackApiUrl = '/api/borders?action=image&id=' + encodeURIComponent(bd.borderId || bd.id);
+                            return `
+                            <div class="p-3.5 rounded-2xl bg-[#262530] border ${isEquipped ? 'border-emerald-400/60 bg-emerald-500/10' : 'border-white/10 hover:border-pink-400/40'} flex flex-col items-center text-center justify-between gap-2.5 transition shadow-md">
+                                <span class="px-2.5 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/35 text-amber-300 text-[9px] font-black uppercase tracking-wider max-w-full truncate">${Profile.escapeHtml(bd.badge || 'EKSKLUSIF')}</span>
+                                <!-- Rasio Avatar & Border Sama Persis dengan Profile (w-14 h-14 [56px] avatar + w-[88px] h-[88px] border + Auth.getBorderScaleStyle) -->
+                                <div class="relative w-24 h-24 flex items-center justify-center my-0.5 shrink-0">
+                                    <div class="w-14 h-14 rounded-full overflow-hidden bg-black/90 flex items-center justify-center shadow-inner z-0">
+                                        <img src="${Profile.escapeHtml(uAvatar)}" class="w-full h-full rounded-full object-cover" onerror="this.src='/logo.png'" />
+                                    </div>
+                                    <img src="${Profile.escapeHtml(bd.url || '/borders/Platinum.png')}" style="${bdScaleStyle}" class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[88px] h-[88px] max-w-none object-contain z-10 select-none drop-shadow-[0_0_14px_rgba(245,158,11,0.5)]" onerror="if(!this.dataset.retryStep){this.dataset.retryStep='1';this.src='${fallbackStaticUrl}';}else if(this.dataset.retryStep==='1'){this.dataset.retryStep='2';this.src='${fallbackApiUrl}';}" />
+                                </div>
+                                <div class="text-xs font-extrabold text-white line-clamp-1 px-1">${Profile.escapeHtml(bd.name)}</div>
+                                <button onclick="Profile.buyDiamondBorder('${Profile.escapeHtml(bd.borderId || bd.id)}', ${isOwned ? 0 : (Number(bd.cost) || 300)})" class="w-full py-2 rounded-full font-extrabold text-[11px] sm:text-xs text-white flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition shadow-md" style="${isEquipped ? 'background: linear-gradient(90deg, #10b981 0%, #059669 100%);' : 'background: linear-gradient(90deg, #ec4899 0%, #8b5cf6 100%);'}">
+                                    ${isEquipped ? `<i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i><span>Terpasang</span>` : (isOwned ? `<span>Pasang Gratis</span>` : `<span>Beli •</span>${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}<span>${(Number(bd.cost) || 300).toLocaleString('id-ID')}</span>`)}
+                                </button>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLOT BOTTOM SHEET METODE PEMBAYARAN -->
+            <div id="diamond-payment-method-sheet" class="hidden fixed inset-0 z-[10060] bg-black/70 backdrop-blur-xs flex items-end justify-center"></div>
+        `;
+
+        document.body.appendChild(modal);
+        if (window.lucide) lucide.createIcons();
+    },
+
+    closeDiamondTopupModal() {
+        var modal = gid('musifystar-diamond-topup-modal');
+        if (modal) modal.remove();
+    },
+
+    switchDiamondTopupTab(tab) {
+        var tabs = ['berlian', 'bintang', 'customid', 'border'];
+        tabs.forEach(function(t) {
+            var btn = gid('dm-tab-btn-' + t);
+            var panel = gid('dm-tab-panel-' + t);
+            var isActive = (t === tab);
+            if (panel) panel.classList.toggle('hidden', !isActive);
+            if (btn) {
+                var roundClass = t === 'berlian' ? 'rounded-tl-3xl ' : (t === 'border' ? 'rounded-tr-3xl ' : '');
+                btn.className = 'py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate ' +
+                    (isActive ? (roundClass + 'text-white bg-[#272635] border-b-2 border-purple-400') : 'text-white/45 hover:text-white/80');
+            }
+        });
+    },
+
+    // METODE PEMBAYARAN TOP-Up BERLIAN DISAMAKAN DENGAN PEMBAYARAN VIP DI PROFILE (QRIS, GOPAY, DANA, OVO + KONFIRMASI WA ADMIN)
+    selectDiamondPackage(pkgId) {
+        var activeList = Profile.getActiveDiamondPackages();
+        var pkg = activeList.find(function(p) { return String(p.id) === String(pkgId); });
+        if (!pkg) return;
+        Profile._selectedDiamondPkg = pkg;
+
+        var totalDiamonds = Number(pkg.diamonds || 0) + Number(pkg.bonus || 0);
+        var durationLabel = Number(pkg.diamonds || 0).toLocaleString('id-ID') + ' 💎' +
+            (Number(pkg.bonus) > 0 ? (' + Bonus ' + Number(pkg.bonus).toLocaleString('id-ID') + ' 💎') : '');
+
+        Profile.openQrisPaymentModal({
+            id: pkg.id,
+            name: totalDiamonds.toLocaleString('id-ID') + ' Berlian 💎',
+            duration: durationLabel,
+            price: Number(pkg.price) || 1800,
+            diamonds: Number(pkg.diamonds) || 0,
+            bonus: Number(pkg.bonus) || 0,
+            totalDiamonds: totalDiamonds,
+            isDiamondTopup: true
+        });
+    },
+
+    renderDiamondPaymentMethodSheet() {
+        var sheet = gid('diamond-payment-method-sheet');
+        if (!sheet || !Profile._selectedDiamondPkg) return;
+        var selected = Profile._selectedDiamondMethod || 'dana';
+        var pkg = Profile._selectedDiamondPkg;
+        var totalDiamonds = Number(pkg.diamonds || 0) + Number(pkg.bonus || 0);
+
+        var methods = [
+            {
+                id: 'dana',
+                name: 'DANA',
+                badgeHtml: `<div class="w-8 h-8 rounded-lg bg-[#118EEA] flex items-center justify-center shrink-0 shadow-sm">
+                    <div class="w-4 h-2.5 bg-white rounded-xs"></div>
+                </div>`
+            },
+            {
+                id: 'gopay',
+                name: 'GO-PAY',
+                badgeHtml: `<div class="w-8 h-8 rounded-lg bg-[#00AED6] flex items-center justify-center shrink-0 shadow-sm">
+                    <div class="w-4 h-3 bg-white rounded-xs flex items-center justify-end pr-0.5"><div class="w-1 h-1 rounded-full bg-[#00AED6]"></div></div>
+                </div>`
+            },
+            {
+                id: 'ovo',
+                name: 'OVO',
+                badgeHtml: `<div class="w-8 h-8 rounded-lg bg-[#4C3494] flex items-center justify-center text-white font-black text-[10px] tracking-tighter shrink-0 shadow-sm">
+                    OVO
+                </div>`
+            }
+        ];
+
+        sheet.innerHTML = `
+            <div class="w-full max-w-xl bg-[#24232b] rounded-t-3xl pt-3 pb-6 px-5 text-white shadow-2xl space-y-4 animate-slide-up" onclick="event.stopPropagation()">
+                <!-- Handle Bar & Judul Sesuai Foto 3 -->
+                <div class="w-10 h-1 rounded-full bg-white/30 mx-auto"></div>
+                <div class="relative flex items-center justify-center">
+                    <div class="text-center">
+                        <h3 class="text-base font-extrabold text-white">Metode Pembayaran</h3>
+                        <p class="text-[11px] text-purple-300 font-bold mt-0.5">${totalDiamonds.toLocaleString('id-ID')} 💎 — ${pkg.priceText}</p>
+                    </div>
+                    <button onclick="Profile.closeDiamondPaymentSheet()" class="absolute right-0 text-white/50 hover:text-white p-1 cursor-pointer">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Daftar Pilihan Pembayaran: DANA, GO-PAY, OVO Sesuai Foto 3 -->
+                <div class="divide-y divide-white/5">
+                    ${methods.map(function(m) {
+                        var isChecked = (selected === m.id);
+                        return `
+                        <div onclick="Profile.selectDiamondPaymentMethod('${m.id}')" class="py-3.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-white/[0.02] px-1 transition">
+                            <div class="flex items-center gap-3.5">
+                                ${m.badgeHtml}
+                                <span class="text-sm font-semibold text-white/95">${m.name}</span>
+                            </div>
+                            ${isChecked ? `
+                            <div class="w-6 h-6 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white shadow">
+                                <svg class="w-3.5 h-3.5 stroke-[3]" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                            ` : `
+                            <div class="w-6 h-6 rounded-full border-2 border-white/30"></div>
+                            `}
+                        </div>`;
+                    }).join('')}
+                </div>
+
+                <!-- Tombol Lanjutkan Ungu Sesuai Foto 3 (Langsung Buka Aplikasi DANA / GoPay / OVO Asli!) -->
+                <div class="pt-2">
+                    <button onclick="Profile.proceedDiamondPayment()" class="w-full py-3.5 rounded-full font-extrabold text-sm text-white shadow-lg active:scale-98 transition cursor-pointer" style="background: linear-gradient(90deg, #7c5dfa 0%, #8b5cf6 100%);">
+                        Lanjutkan
+                    </button>
+                </div>
+            </div>
+        `;
+        sheet.onclick = function() { Profile.closeDiamondPaymentSheet(); };
+        if (window.lucide) lucide.createIcons();
+    },
+
+    selectDiamondPaymentMethod(methodId) {
+        Profile._selectedDiamondMethod = methodId;
+        Profile.renderDiamondPaymentMethodSheet();
+    },
+
+    closeDiamondPaymentSheet() {
+        var sheet = gid('diamond-payment-method-sheet');
+        if (sheet) sheet.classList.add('hidden');
+    },
+
+    // LANGSUNG BUKA APLIKASI DANA / GOPAY / OVO ASLI TANPA LAYAR SIMULASI
+    proceedDiamondPayment() {
+        var pkg = Profile._selectedDiamondPkg;
+        if (!pkg) return;
+        var method = Profile._selectedDiamondMethod || 'dana';
+        Profile.closeDiamondPaymentSheet();
+
+        var payCfg = Profile.cachedPaymentConfig || {};
+        var ew = payCfg.ewallets || {};
+        var methodUpper = method === 'gopay' ? 'GoPay' : (method === 'ovo' ? 'OVO' : 'DANA');
+        var walletInfo = ew[method] || {};
+        var targetNumber = walletInfo.number || '081234567890';
+        var targetHolder = walletInfo.holder || payCfg.qrisHolder || 'NABIL (MusifyStar Official)';
+        var totalDiamonds = Number(pkg.diamonds || 0) + Number(pkg.bonus || 0);
+        var formattedPrice = 'Rp ' + Number(pkg.price || 0).toLocaleString('id-ID');
+
+        // Tampilkan bar konfirmasi bukti bayar di atas halaman Berlian agar setelah user bayar di aplikasi DANA/GoPay/OVO dan kembali ke browser, bisa langsung klik Konfirmasi ke WA Admin
+        var confirmBar = gid('diamond-direct-confirm-bar');
+        if (confirmBar) {
+            confirmBar.classList.remove('hidden');
+            confirmBar.innerHTML = `
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div class="text-xs space-y-0.5">
+                        <div class="font-black text-emerald-300">📲 Aplikasi ${methodUpper} sedang dibuka (${formattedPrice})</div>
+                        <div class="text-white/75 text-[11px]">Tujuan ${methodUpper}: <strong class="font-mono text-white">${Profile.escapeHtml(targetNumber)}</strong> (a.n ${Profile.escapeHtml(targetHolder)}) — Nomor telah disalin otomatis!</div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="Profile.confirmDiamondPaymentToAdmin('${method}')" class="px-3.5 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-black font-black text-xs cursor-pointer shadow-md">
+                            ✅ Sudah Bayar? Klaim ${totalDiamonds.toLocaleString('id-ID')} 💎
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Langsung jalankan redirect ke aplikasi DANA / GoPay / OVO asli di HP pengguna
+        Profile.triggerDiamondWalletRedirect(method);
+    },
+
+    triggerDiamondWalletRedirect(method) {
+        var payCfg = Profile.cachedPaymentConfig || {};
+        var ew = payCfg.ewallets || {};
+        var walletInfo = ew[method] || {};
+        var targetNumber = walletInfo.number || '081234567890';
+        var customLink = (walletInfo.link || '').trim();
+        var methodUpper = method === 'gopay' ? 'GoPay' : (method === 'ovo' ? 'OVO' : 'DANA');
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(targetNumber).catch(function() {});
+            }
+        } catch (e) {}
+
+        if (typeof showToast === 'function') {
+            showToast(`Nomor ${methodUpper} (${targetNumber}) disalin! Membuka aplikasi ${methodUpper}...`);
+        }
+
+        if (customLink && /^https?:\/\//i.test(customLink)) {
+            window.location.href = customLink;
+            return;
+        }
+
+        var ua = navigator.userAgent || '';
+        var isAndroid = /Android/i.test(ua);
+
+        // Buka langsung aplikasi DANA / GoPay / OVO asli di HP pengguna
+        if (method === 'dana') {
+            if (isAndroid) {
+                window.location.href = 'intent://#Intent;scheme=dana;package=id.dana;end';
+            } else {
+                window.location.href = 'dana://';
+            }
+        } else if (method === 'gopay') {
+            if (isAndroid) {
+                window.location.href = 'intent://gopay#Intent;scheme=gojek;package=com.gojek.app;end';
+            } else {
+                window.location.href = 'gojek://gopay';
+            }
+        } else if (method === 'ovo') {
+            if (isAndroid) {
+                window.location.href = 'intent://#Intent;scheme=ovo;package=ovo.id;end';
+            } else {
+                window.location.href = 'ovo://';
+            }
+        }
+    },
+
+    async confirmDiamondPaymentToAdmin(method) {
+        var pkg = Profile._selectedDiamondPkg;
+        var u = (typeof Auth !== 'undefined') ? Auth.currentUser : null;
+        if (!pkg || !u) return;
+
+        var payCfg = Profile.cachedPaymentConfig || {};
+        var methodUpper = method === 'gopay' ? 'GoPay' : (method === 'ovo' ? 'OVO' : 'DANA');
+        var totalDiamonds = Number(pkg.diamonds || 0) + Number(pkg.bonus || 0);
+        var formattedPrice = 'Rp ' + Number(pkg.price || 0).toLocaleString('id-ID');
+
+        var rawAdminWa = String(payCfg.adminWhatsapp || '6281234567890').replace(/[^0-9]/g, '');
+        if (rawAdminWa.startsWith('0')) rawAdminWa = '62' + rawAdminWa.slice(1);
+        if (!rawAdminWa) rawAdminWa = '6281234567890';
+
+        var waMsg = encodeURIComponent(
+            `Halo Admin MusifyStar! 💎\n` +
+            `Saya sudah melakukan pembayaran Top-Up Berlian (Diamond):\n\n` +
+            `• Username: @${u.username}\n` +
+            `• Musify ID: ${u.id || u.originalId}\n` +
+            `• Paket Berlian: ${pkg.diamonds} 💎 + Bonus ${pkg.bonus} 💎 (Total: ${totalDiamonds.toLocaleString('id-ID')} 💎)\n` +
+            `• Total Harga: ${formattedPrice}\n` +
+            `• Metode Pembayaran: ${methodUpper}\n\n` +
+            `Berikut bukti pembayarannya. Mohon ditambahkan ${totalDiamonds.toLocaleString('id-ID')} 💎 ke akun saya ya Admin!`
+        );
+
+        Profile.closeDiamondTopupModal();
+        window.location.href = `https://wa.me/${rawAdminWa}?text=${waMsg}`;
+    },
+
+    getCurrentUserAuthToken() {
+        return (typeof Auth !== 'undefined' && Auth.token)
+            ? Auth.token
+            : (localStorage.getItem('musifystar_auth_token') || sessionStorage.getItem('musifystar_auth_token') || localStorage.getItem('musifystar_token') || '');
+    },
+
+    async claimFreeDailyDiamonds() {
+        if (typeof Auth === 'undefined' || !Auth.currentUser) {
+            if (typeof showToast === 'function') showToast('Silakan login terlebih dahulu!');
+            return;
+        }
+        var btn = gid('dm-claim-daily-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span>Memuat Iklan Berhadiah...</span>';
+        }
+        try {
+            var token = Profile.getCurrentUserAuthToken();
+            var u = Auth.currentUser || {};
+            var res = await fetch('/api/user-auth?action=claim_daily_diamonds', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    action: 'claim_daily_diamonds',
+                    token: token,
+                    userId: u.id || '',
+                    originalId: u.originalId || '',
+                    username: u.username || '',
+                    email: u.email || u.rawEmail || '',
+                    checkOnly: true
+                })
+            });
+            var data = await res.json();
+            if (!data || !data.status) {
+                if (typeof showToast === 'function') showToast(data?.message || 'Kuota Nonton Iklan hari ini sudah habis.');
+                return;
+            }
+            Profile.openRewardedAdModal(data);
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan saat memuat iklan.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="clapperboard" class="w-4 h-4"></i><span>Nonton Iklan</span>';
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+    },
+
+    openRewardedAdModal(adInfo) {
+        var existing = gid('musifystar-rewarded-ad-modal');
+        if (existing) existing.remove();
+        if (Profile._rewardedAdTimer) {
+            clearInterval(Profile._rewardedAdTimer);
+            Profile._rewardedAdTimer = null;
+        }
+
+        var cfg = (Profile.cachedPaymentConfig && Profile.cachedPaymentConfig.rewardedAdConfig) ? Profile.cachedPaymentConfig.rewardedAdConfig : {};
+        var reward = Math.max(1, Number(adInfo?.reward || cfg.rewardDiamonds || 8));
+        var totalSec = Math.max(5, Math.min(60, Number(adInfo?.watchDurationSec || cfg.watchDurationSec || 15)));
+        var clientId = String(adInfo?.adsenseClientId || cfg.adsenseClientId || 'ca-pub-4386441636957031').trim();
+        var slotId = String(adInfo?.adsenseSlotId || cfg.adsenseSlotId || '').trim();
+        var remToday = adInfo?.remainingToday !== undefined ? Number(adInfo.remainingToday) : 5;
+        var maxDay = adInfo?.maxClaimsPerDay !== undefined ? Number(adInfo.maxClaimsPerDay) : 5;
+
+        var modal = document.createElement('div');
+        modal.id = 'musifystar-rewarded-ad-modal';
+        modal.className = 'fixed inset-0 z-[10120] bg-[#0b0c12] flex flex-col justify-between select-none overflow-hidden h-[100dvh] max-h-[100dvh] animate-fade-in';
+
+        modal.innerHTML = `
+            <!-- Header Bar -->
+            <div class="px-4 py-3.5 bg-[#12131c] border-b border-white/10 flex items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="px-2 py-0.5 rounded bg-amber-400 text-black font-black text-[10px] uppercase tracking-wider shrink-0">Iklan</span>
+                    <div class="text-xs font-bold text-white/90 truncate flex items-center gap-1.5">
+                        <span>+${reward}</span>
+                        ${Profile.getMiniDiamondSvg('w-4 h-4')}
+                        <span class="text-white/45 text-[11px]">(${remToday}/${maxDay})</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <div id="rewarded-ad-countdown-pill" class="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white font-mono font-extrabold text-xs">
+                        <span id="rewarded-ad-timer-text">${totalSec} dtk</span>
+                    </div>
+                    <button type="button" id="rewarded-ad-close-btn" onclick="Profile.closeRewardedAdModal(false)" class="w-8 h-8 rounded-full bg-white/10 hover:bg-rose-500/25 text-white/70 hover:text-rose-200 flex items-center justify-center text-xs font-bold cursor-pointer transition" title="Tutup">✕</button>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full h-1 bg-white/10 shrink-0 overflow-hidden">
+                <div id="rewarded-ad-progress-bar" class="h-full bg-purple-500 transition-all duration-300" style="width: 0%;"></div>
+            </div>
+
+            <!-- Wadah Murni Google AdSense -->
+            <div class="flex-1 overflow-y-auto flex flex-col items-center justify-center p-4 max-w-2xl mx-auto w-full">
+                <div id="rewarded-ad-adsense-container" class="w-full min-h-[320px] sm:min-h-[380px] rounded-2xl bg-[#141622] border border-white/10 flex items-center justify-center overflow-hidden p-2">
+                    <ins class="adsbygoogle"
+                         style="display:block; width:100%; min-height:300px;"
+                         data-ad-client="${Profile.escapeHtml(clientId)}"
+                         ${slotId ? `data-ad-slot="${Profile.escapeHtml(slotId)}"` : ''}
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                </div>
+            </div>
+
+            <!-- Bottom Action Bar -->
+            <div class="p-4 bg-[#12131c] border-t border-white/10 shrink-0">
+                <div class="max-w-xl mx-auto w-full">
+                    <button type="button" id="rewarded-ad-claim-btn" disabled onclick="Profile.completeRewardedAdClaim()" class="w-full py-3.5 rounded-2xl bg-white/10 text-white/40 font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-not-allowed">
+                        <span>Tunggu ${totalSec} dtk...</span>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Panggil Google AdSense Resmi
+        try {
+            if (typeof window.adBreak === 'function') {
+                window.adBreak({
+                    type: 'reward',
+                    name: 'daily_diamond_reward',
+                    beforeReward: function(showAdFn) { if (typeof showAdFn === 'function') showAdFn(); },
+                    adDismissed: function() {},
+                    adViewed: function() {}
+                });
+            }
+        } catch (e) {}
+        try {
+            (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {}
+
+        var remaining = totalSec;
+        var elapsed = 0;
+        Profile._rewardedAdTimer = setInterval(function() {
+            if (document.hidden) return;
+            elapsed += 1;
+            remaining = Math.max(0, totalSec - elapsed);
+
+            var timerText = gid('rewarded-ad-timer-text');
+            var progBar = gid('rewarded-ad-progress-bar');
+            var claimBtn = gid('rewarded-ad-claim-btn');
+            var pill = gid('rewarded-ad-countdown-pill');
+
+            if (timerText) timerText.textContent = remaining > 0 ? (remaining + ' dtk') : 'Selesai';
+            if (progBar) progBar.style.width = Math.min(100, Math.round((elapsed / totalSec) * 100)) + '%';
+
+            if (remaining <= 0) {
+                clearInterval(Profile._rewardedAdTimer);
+                Profile._rewardedAdTimer = null;
+                if (pill) {
+                    pill.className = 'px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 font-mono font-extrabold text-xs';
+                }
+                if (claimBtn) {
+                    claimBtn.disabled = false;
+                    claimBtn.className = 'w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 hover:opacity-95 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-98 transition-all';
+                    claimBtn.innerHTML = '<span>Klaim +' + reward + ' Berlian Sekarang</span>';
+                }
+            } else if (claimBtn) {
+                claimBtn.innerHTML = '<span>Tunggu ' + remaining + ' dtk...</span>';
+            }
+        }, 1000);
+    },
+
+    closeRewardedAdModal(forceClose) {
+        if (Profile._rewardedAdTimer && !forceClose) {
+            if (typeof showToast === 'function') {
+                showToast('Iklan ditutup sebelum selesai. Berlian belum diklaim.');
+            }
+        }
+        if (Profile._rewardedAdTimer) {
+            clearInterval(Profile._rewardedAdTimer);
+            Profile._rewardedAdTimer = null;
+        }
+        var existing = gid('musifystar-rewarded-ad-modal');
+        if (existing) existing.remove();
+    },
+
+    async completeRewardedAdClaim() {
+        var claimBtn = gid('rewarded-ad-claim-btn');
+        if (claimBtn) {
+            claimBtn.disabled = true;
+            claimBtn.innerHTML = '<span>Menambahkan Berlian ke Akun...</span>';
+        }
+        try {
+            var token = Profile.getCurrentUserAuthToken();
+            var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
+            var res = await fetch('/api/user-auth?action=claim_daily_diamonds', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    action: 'claim_daily_diamonds',
+                    token: token,
+                    userId: u.id || '',
+                    originalId: u.originalId || '',
+                    username: u.username || '',
+                    email: u.email || u.rawEmail || '',
+                    adWatched: true
+                })
+            });
+            var data = await res.json();
+            Profile.closeRewardedAdModal(true);
+            if (data && data.status) {
+                Auth.currentUser.diamonds = data.diamonds;
+                Auth.currentUser.lastDailyDiamondClaim = data.lastDailyDiamondClaim;
+                if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+                var el1 = gid('diamond-top-pill-count');
+                var el2 = gid('diamond-modal-balance-num');
+                var el3 = gid('diamond-star-tab-balance');
+                if (el1) el1.textContent = Number(data.diamonds).toLocaleString('id-ID');
+                if (el2) el2.textContent = Number(data.diamonds).toLocaleString('id-ID');
+                if (el3) el3.textContent = Number(data.diamonds).toLocaleString('id-ID');
+                if (typeof showToast === 'function') showToast(data.message || 'Selamat! +8 💎 berhasil diklaim!');
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal mengklaim Berlian harian.');
+            }
+        } catch (e) {
+            Profile.closeRewardedAdModal(true);
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan saat mengklaim hadiah.');
+        }
+    },
+
+    async redeemDiamondStarVip(planId, cost) {
+        if (typeof Auth === 'undefined' || !Auth.currentUser) return;
+        var cur = Number(Auth.currentUser.diamonds || 0);
+        if (cur < cost) {
+            if (typeof showToast === 'function') {
+                showToast(`Saldo Berlian Anda (${cur.toLocaleString('id-ID')} 💎) belum cukup! Silakan Top-Up Berlian terlebih dahulu.`);
+            }
+            Profile.switchDiamondTopupTab('berlian');
+            return;
+        }
+        try {
+            var token = Profile.getCurrentUserAuthToken();
+            var u = Auth.currentUser || {};
+            var res = await fetch('/api/user-auth?action=redeem_diamonds_vip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    action: 'redeem_diamonds_vip',
+                    planId: planId,
+                    token: token,
+                    userId: u.id || '',
+                    originalId: u.originalId || '',
+                    username: u.username || '',
+                    email: u.email || u.rawEmail || ''
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                Object.assign(Auth.currentUser, data.user || {});
+                if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+                var el1 = gid('diamond-top-pill-count');
+                var el2 = gid('diamond-modal-balance-num');
+                var el3 = gid('diamond-star-tab-balance');
+                if (el1) el1.textContent = Number(data.diamonds).toLocaleString('id-ID');
+                if (el2) el2.textContent = Number(data.diamonds).toLocaleString('id-ID');
+                if (el3) el3.textContent = Number(data.diamonds).toLocaleString('id-ID');
+                if (typeof showToast === 'function') showToast(data.message || 'Paket VIP berhasil diaktifkan!');
+                await Profile.openDiamondTopupModal('bintang');
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal menukar Berlian ke VIP.');
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');
+        }
+    },
+
+    async buyDiamondCustomId(customId, cost) {
+        if (typeof Auth === 'undefined' || !Auth.currentUser) return;
+        var isAlreadyMine = (String(Auth.currentUser.id) === String(customId) || String(Auth.currentUser.customId) === String(customId));
+        var cur = Number(Auth.currentUser.diamonds || 0);
+        if (!isAlreadyMine && cur < cost) {
+            if (typeof showToast === 'function') {
+                showToast(`Saldo Berlian Anda (${cur.toLocaleString('id-ID')} 💎) belum cukup! Butuh ${cost.toLocaleString('id-ID')} 💎 untuk membeli ID #${customId}.`);
+            }
+            Profile.switchDiamondTopupTab('berlian');
+            return;
+        }
+        try {
+            var token = Profile.getCurrentUserAuthToken();
+            var u = Auth.currentUser || {};
+            var res = await fetch('/api/user-auth?action=buy_diamond_custom_id', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    action: 'buy_diamond_custom_id',
+                    customId: customId,
+                    token: token,
+                    userId: u.id || '',
+                    originalId: u.originalId || '',
+                    username: u.username || '',
+                    email: u.email || u.rawEmail || ''
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                Object.assign(Auth.currentUser, data.user || {});
+                if (data.token) {
+                    Auth.token = data.token;
+                    if (localStorage.getItem('musifystar_auth_token')) {
+                        localStorage.setItem('musifystar_auth_token', data.token);
+                    } else {
+                        sessionStorage.setItem('musifystar_auth_token', data.token);
+                    }
+                }
+                if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+                if (typeof showToast === 'function') showToast(data.message || `Custom ID #${customId} berhasil dipasang!`);
+                await Profile.openDiamondTopupModal('customid');
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal membeli Custom ID.');
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');
+        }
+    },
+
+    async buyDiamondBorder(borderId, cost) {
+        if (typeof Auth === 'undefined' || !Auth.currentUser) return;
+        var cur = Number(Auth.currentUser.diamonds || 0);
+        if (cost > 0 && cur < cost) {
+            if (typeof showToast === 'function') {
+                showToast(`Saldo Berlian Anda (${cur.toLocaleString('id-ID')} 💎) belum cukup! Butuh ${cost.toLocaleString('id-ID')} 💎 untuk membeli Border ini.`);
+            }
+            Profile.switchDiamondTopupTab('berlian');
+            return;
+        }
+        try {
+            var token = Profile.getCurrentUserAuthToken();
+            var u = Auth.currentUser || {};
+            var res = await fetch('/api/user-auth?action=buy_diamond_border', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    action: 'buy_diamond_border',
+                    borderId: borderId,
+                    token: token,
+                    userId: u.id || '',
+                    originalId: u.originalId || '',
+                    username: u.username || '',
+                    email: u.email || u.rawEmail || ''
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                Object.assign(Auth.currentUser, data.user || {});
+                if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+                if (typeof showToast === 'function') showToast(data.message || 'Border Profil berhasil dipasang!');
+                await Profile.openDiamondTopupModal('border');
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal membeli Border Profil.');
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');
+        }
+    },
+
+    contactAdminDiamondSupport() {
+        var payCfg = Profile.cachedPaymentConfig || {};
+        var rawAdminWa = String(payCfg.adminWhatsapp || '6281234567890').replace(/[^0-9]/g, '');
+        if (rawAdminWa.startsWith('0')) rawAdminWa = '62' + rawAdminWa.slice(1);
+        var u = (typeof Auth !== 'undefined') ? Auth.currentUser : null;
+        var msg = encodeURIComponent(`Halo Admin MusifyStar, saya mengalami kendala terkait Top-Up Berlian (Diamond) pada akun @${u?.username || '-'} (ID: ${u?.id || '-'}). Mohon bantuannya.`);
+        window.location.href = `https://wa.me/${rawAdminWa}?text=${msg}`;
     }
 };
 

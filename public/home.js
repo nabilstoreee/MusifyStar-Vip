@@ -310,7 +310,23 @@ var Home = {
                     <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight drop-shadow-md">MusifyStar</h1>
                     <p class="text-[10px] text-white/60 tracking-wider font-semibold uppercase">Premium Streaming Musik & Lirik</p>
                 </div>
-                <div class="flex items-center gap-2 sm:gap-2.5">
+                <div class="flex items-center gap-1.5 sm:gap-2.5">
+                    <!-- Tombol Top-Up Berlian (Diamond) (Hanya Tampil Jika Sudah Login) -->
+                    <button id="header-diamond-topup-btn" onclick="if(typeof Profile !== 'undefined' && Profile.openDiamondTopupModal) Profile.openDiamondTopupModal();" class="h-9 px-2.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-all shadow-lg cursor-pointer select-none group ${hasUser ? '' : 'hidden'}" style="background: rgba(32, 74, 96, 0.82); border: 1px solid rgba(56, 189, 248, 0.35); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);" title="Top-Up Berlian (Diamond) MusifyStar">
+                        <svg class="w-4 h-4 shrink-0 drop-shadow-[0_0_6px_rgba(56,189,248,0.6)] transition-transform group-hover:scale-110" viewBox="0 0 36 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8.5 2L27.5 2L35 11.5L18 30L1 11.5L8.5 2Z" fill="#22D3EE"/>
+                            <path d="M8.5 2L18 11.5L27.5 2H8.5Z" fill="#A5F3FC"/>
+                            <path d="M1 11.5L8.5 2L12.5 11.5H1Z" fill="#67E8F9"/>
+                            <path d="M35 11.5L27.5 2L23.5 11.5H35Z" fill="#06B6D4"/>
+                            <path d="M12.5 11.5H23.5L18 30L12.5 11.5Z" fill="#38BDF8"/>
+                            <path d="M1 11.5H12.5L18 30L1 11.5Z" fill="#0EA5E9"/>
+                            <path d="M23.5 11.5H35L18 30L23.5 11.5Z" fill="#0284C7"/>
+                        </svg>
+                        <span id="header-diamond-count" class="text-[13px] font-extrabold text-white tracking-tight leading-none">${hasUser ? Number(Auth.currentUser?.diamonds || 0).toLocaleString('id-ID') : '0'}</span>
+                        <span class="w-5 h-5 rounded-full flex items-center justify-center text-white shadow-[0_0_10px_rgba(56,189,248,0.6)]" style="background: linear-gradient(180deg, #67e8f9 0%, #22d3ee 45%, #0ea5e9 100%);">
+                            <svg class="w-3 h-3 stroke-[3]" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                        </span>
+                    </button>
                     <button onclick="App.switch('search')" class="w-10 h-10 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/90 hover:text-white hover:bg-black/60 active:scale-95 transition-all shadow-lg cursor-pointer" title="Cari Musik">
                         <i data-lucide="search" class="w-5 h-5"></i>
                     </button>
