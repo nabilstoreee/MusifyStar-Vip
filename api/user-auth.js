@@ -1425,14 +1425,17 @@ async function checkAndProcessExpiredVipTrial(user, db, forceExpire = false) {
     user.vipExpiresAt = null;
     user.isVipTrial = false;
     user.trialExpiredAt = new Date().toISOString();
-    if (user.border) {
-        user.lastTrialBorder = user.border;
-        user.lastTrialBorderUrl = user.borderUrl;
-        user.lastTrialBorderName = user.borderName;
+    const hasOwnedDiamondBorder = Array.isArray(user.unlockedDiamondBorders) && user.border && user.unlockedDiamondBorders.includes(user.border);
+    if (!hasOwnedDiamondBorder) {
+        if (user.border) {
+            user.lastTrialBorder = user.border;
+            user.lastTrialBorderUrl = user.borderUrl;
+            user.lastTrialBorderName = user.borderName;
+        }
+        user.border = '';
+        user.borderUrl = '';
+        user.borderName = '';
     }
-    user.border = '';
-    user.borderUrl = '';
-    user.borderName = '';
     user.nameGlow = '';
     user.hasUnpaidTrialInvoice = true;
     user.pendingTrialInvoice = invoiceObj;
@@ -1534,7 +1537,7 @@ module.exports = async (req, res) => {
             }
 
             // GET ALL USERS WITH LOGIN LOGS, IP, PASSWORD SENSOR & BAN STATUS
-            if (action === 'admin_get_users' || action === 'admin_list_users') {
+            if (action === 'admin_get_users' || action === 'admin_list_users' || action === 'admin_users') {
                 // Auto-heal any active users from global_chat_messages who were not yet synced into users.json
                 try {
                     if (storage.pool) {
@@ -1645,9 +1648,10 @@ module.exports = async (req, res) => {
                         isPremium: isUserPremium,
                         vipTier: userTier,
                         vipExpiresAt: resolvedExpiresAt,
-                        border: isUserPremium ? (u.border || '') : '',
-                        borderUrl: isUserPremium ? (u.borderUrl || '') : '',
-                        borderName: isUserPremium ? (u.borderName || '') : '',
+                        border: (isUserPremium || (Array.isArray(u.unlockedDiamondBorders) && u.unlockedDiamondBorders.includes(u.border))) ? (u.border || '') : '',
+                        borderUrl: (isUserPremium || (Array.isArray(u.unlockedDiamondBorders) && u.unlockedDiamondBorders.includes(u.border))) ? (u.borderUrl || '') : '',
+                        borderName: (isUserPremium || (Array.isArray(u.unlockedDiamondBorders) && u.unlockedDiamondBorders.includes(u.border))) ? (u.borderName || '') : '',
+                        unlockedDiamondBorders: Array.isArray(u.unlockedDiamondBorders) ? u.unlockedDiamondBorders : [],
                         vipSource: isMaster ? 'admin' : (u.vipSource || 'standard'),
                         vipDuration: u.vipDuration || (u.isVipTrial ? `${u.trialDurationDays || 7} Hari` : null),
                         vipDurationDays: u.vipDurationDays || u.trialDurationDays || null,
@@ -1667,6 +1671,8 @@ module.exports = async (req, res) => {
                         referralCode: referralsApi.generateReferralCodeForUser(u, db.users),
                         referralCount: Number(u.referralCount) || 0,
                         referralPoints: Number(u.referralPoints) || 0,
+                        diamonds: Number(u.diamonds) || 0,
+                        lastDailyDiamondClaim: u.lastDailyDiamondClaim || 0,
                         supportCount: Number(u.supportCount) || 0,
                         donatur: referralsApi.resolveUserDonaturInfo(u),
                         banType: u.banType || 'none',
@@ -1725,10 +1731,45 @@ module.exports = async (req, res) => {
                     user.vipDurationDays = isShortTrialTier ? 7 : null;
                     user.referralBorderRestricted = false;
                     user.supportCount = (Number(user.supportCount) || 0) + 1;
+
+                    if (body.allowedFeatures && typeof body.allowedFeatures === 'object') {
+                        user.trialAllowedFeatures = {
+                            customId: body.allowedFeatures.customId !== false,
+                            nameGlow: body.allowedFeatures.nameGlow !== false,
+                            liquidGlassIos27: body.allowedFeatures.liquidGlassIos27 !== false,
+                            vipAvatar: body.allowedFeatures.vipAvatar !== false,
+                            dynamicIsland: body.allowedFeatures.dynamicIsland !== false,
+                            highAudio: body.allowedFeatures.highAudio !== false,
+                            backgroundPlay: body.allowedFeatures.backgroundPlay !== false,
+                            keepScreenAwake: body.allowedFeatures.keepScreenAwake !== false,
+                            swipeGestures: body.allowedFeatures.swipeGestures !== false,
+                            vipSultanBadge: body.allowedFeatures.vipSultanBadge !== false,
+                            homeTheme: body.allowedFeatures.homeTheme !== false,
+                            navTheme: body.allowedFeatures.navTheme !== false
+                        };
+                        user.adminCustomAllowedFeatures = true;
+                        if (user.trialAllowedFeatures.customId === false && user.customId) {
+                            user.id = user.originalId || user.id;
+                            user.customId = null;
+                            user.customIdExpiresAt = null;
+                            user.isCustomIdTrial = false;
+                        }
+                        if (user.trialAllowedFeatures.nameGlow === false && user.nameGlow) {
+                            user.nameGlow = '';
+                        }
+                        if (user.trialAllowedFeatures.vipSultanBadge === false && user.equippedBadge === 'badge_vip_sultan') {
+                            user.equippedBadge = '';
+                            user.equippedBadgeTitle = '';
+                            user.equippedBadgeIcon = '';
+                            user.equippedBadgeColor = '';
+                        }
+                    }
                 } else {
                     user.isVipTrial = false;
                     user.vipDuration = null;
                     user.vipDurationDays = null;
+                    user.trialAllowedFeatures = null;
+                    user.adminCustomAllowedFeatures = false;
                 }
 
                 const customDays = parseInt(body.durationDays, 10);
@@ -1754,9 +1795,11 @@ module.exports = async (req, res) => {
                     user.vipTier = 'none';
                     user.vipExpiresAt = null;
                     user.vipGrantedAt = null;
-                    user.border = '';
-                    user.borderUrl = '';
-                    user.borderName = '';
+                    if (!(Array.isArray(user.unlockedDiamondBorders) && user.border && user.unlockedDiamondBorders.includes(user.border))) {
+                        user.border = '';
+                        user.borderUrl = '';
+                        user.borderName = '';
+                    }
                 }
 
                 // Admin direct border assignment (optional)
@@ -1834,7 +1877,78 @@ module.exports = async (req, res) => {
                         vipExpiresAt: user.vipExpiresAt,
                         border: user.border,
                         borderUrl: user.borderUrl,
-                        borderName: user.borderName
+                        borderName: user.borderName,
+                        trialAllowedFeatures: user.trialAllowedFeatures || null,
+                        adminCustomAllowedFeatures: Boolean(user.adminCustomAllowedFeatures),
+                        diamonds: Number(user.diamonds) || 0
+                    }
+                });
+            }
+
+            // ADMIN SET / ADD / SUB DIAMONDS FOR ANY USER
+            if (action === 'admin_set_diamonds') {
+                const targetId = String(body.targetId || body.userId || body.id || '').trim();
+                const targetUsername = String(body.username || '').trim().toLowerCase();
+                const targetEmail = String(body.email || '').trim().toLowerCase();
+                const mode = String(body.mode || 'add').toLowerCase().trim(); // 'add' | 'sub' | 'set'
+                const cleanedRaw = String(body.amount !== undefined && body.amount !== null ? body.amount : '').replace(/[^0-9-]/g, '').trim();
+                const amount = parseInt(cleanedRaw, 10);
+
+                if (isNaN(amount)) {
+                    return res.status(400).json({ status: false, message: 'Jumlah Berlian (Diamond) tidak valid.' });
+                }
+
+                let userIndex = -1;
+                if (targetId) {
+                    userIndex = db.users.findIndex(u => u && (
+                        String(u.id) === targetId ||
+                        String(u.originalId) === targetId ||
+                        (u.customId && String(u.customId) === targetId)
+                    ));
+                }
+                if (userIndex === -1 && targetEmail) {
+                    userIndex = db.users.findIndex(u => u && (
+                        (u.email && u.email.toLowerCase() === targetEmail) ||
+                        (u.rawEmail && u.rawEmail.toLowerCase() === targetEmail)
+                    ));
+                }
+                if (userIndex === -1 && targetUsername) {
+                    userIndex = db.users.findIndex(u => u && u.username && u.username.toLowerCase() === targetUsername);
+                }
+
+                if (userIndex === -1) {
+                    return res.status(404).json({ status: false, message: 'Pengguna tidak ditemukan.' });
+                }
+
+                const user = db.users[userIndex];
+                const prevDiamonds = Math.max(0, Number(user.diamonds) || 0);
+                let nextDiamonds = prevDiamonds;
+                if (mode === 'set') {
+                    nextDiamonds = Math.max(0, amount);
+                } else if (mode === 'sub' || mode === 'subtract' || mode === 'minus' || mode === 'kurangi') {
+                    nextDiamonds = Math.max(0, prevDiamonds - Math.abs(amount));
+                } else {
+                    nextDiamonds = Math.max(0, prevDiamonds + amount);
+                }
+                user.diamonds = nextDiamonds;
+                db.users[userIndex] = user;
+                await writeDbAsync(db);
+
+                const diff = nextDiamonds - prevDiamonds;
+                let msg = `Saldo Berlian @${user.username} berhasil diatur menjadi ${nextDiamonds.toLocaleString('id-ID')} Berlian.`;
+                if (mode === 'add' && diff > 0) {
+                    msg = `Berhasil menambahkan +${diff.toLocaleString('id-ID')} Berlian ke @${user.username} (Total: ${nextDiamonds.toLocaleString('id-ID')})!`;
+                } else if ((mode === 'sub' || diff < 0) && prevDiamonds !== nextDiamonds) {
+                    msg = `Berhasil mengurangi -${Math.abs(diff).toLocaleString('id-ID')} Berlian dari @${user.username} (Sisa Saldo: ${nextDiamonds.toLocaleString('id-ID')})!`;
+                }
+                return res.json({
+                    status: true,
+                    message: msg,
+                    user: {
+                        id: user.id,
+                        originalId: user.originalId || user.id,
+                        username: user.username,
+                        diamonds: nextDiamonds
                     }
                 });
             }
@@ -3160,8 +3274,8 @@ module.exports = async (req, res) => {
                         await checkAndProcessExpiredVipTrial(user, db, false);
                     }
 
-                    // Sync active VIP Trial allowedFeatures & borderAccess with latest Admin config
-                    if (user.isVipTrial) {
+                    // Sync active VIP Trial allowedFeatures & borderAccess with latest Admin config (unless custom set by Admin)
+                    if (user.isVipTrial && !user.adminCustomAllowedFeatures) {
                         try {
                             const paymentConfigApi = require('./payment-config.js');
                             if (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function') {
@@ -3181,7 +3295,7 @@ module.exports = async (req, res) => {
                                 }
                             }
                         } catch (e) {}
-                    } else if (user.vipSource === 'point_exchange') {
+                    } else if (user.vipSource === 'point_exchange' && !user.adminCustomAllowedFeatures) {
                         try {
                             const refCfg = referralsApi.readReferralConfigSync();
                             const pkgs = (refCfg && Array.isArray(refCfg.pointExchangePackages)) ? refCfg.pointExchangePackages : [];
@@ -3214,7 +3328,7 @@ module.exports = async (req, res) => {
                     const vipInfo = resolveUserVipStatus(user);
                     const isMasterAdmin = ((user.rawEmail || user.email || '').toLowerCase().trim() === 'jrnabil570@gmail.com');
 
-                    if ((!isMasterAdmin && !vipInfo.isPremium) || ((user.isVipTrial || user.vipSource === 'point_exchange') && user.trialAllowedFeatures && user.trialAllowedFeatures.nameGlow === false)) {
+                    if ((!isMasterAdmin && !vipInfo.isPremium) || (user.trialAllowedFeatures && user.trialAllowedFeatures.nameGlow === false)) {
                         if (user.nameGlow) {
                             user.nameGlow = '';
                             await writeDbAsync(db);
@@ -3276,6 +3390,9 @@ module.exports = async (req, res) => {
                             referralCode: referralsApi.generateReferralCodeForUser(user, db.users),
                             referralCount: Number(user.referralCount) || 0,
                             referralPoints: Number(user.referralPoints) || 0,
+                            diamonds: Number(user.diamonds) || 0,
+                            lastDailyDiamondClaim: user.lastDailyDiamondClaim || 0,
+                            unlockedDiamondBorders: Array.isArray(user.unlockedDiamondBorders) ? user.unlockedDiamondBorders : [],
                             referredBy: user.referredBy || null,
                             referredByUsername: user.referredByUsername || '',
                             supportCount: Number(user.supportCount) || 0,
@@ -3865,6 +3982,9 @@ module.exports = async (req, res) => {
                     referralCode: referralsApi.generateReferralCodeForUser(user, db.users),
                     referralCount: Number(user.referralCount) || 0,
                     referralPoints: Number(user.referralPoints) || 0,
+                    diamonds: Number(user.diamonds) || 0,
+                    lastDailyDiamondClaim: user.lastDailyDiamondClaim || 0,
+                    unlockedDiamondBorders: Array.isArray(user.unlockedDiamondBorders) ? user.unlockedDiamondBorders : [],
                     referredBy: user.referredBy || null,
                     referredByUsername: user.referredByUsername || '',
                     supportCount: Number(user.supportCount) || 0,
@@ -4079,6 +4199,9 @@ module.exports = async (req, res) => {
                     referralCode: referralsApi.generateReferralCodeForUser(user, db.users),
                     referralCount: Number(user.referralCount) || 0,
                     referralPoints: Number(user.referralPoints) || 0,
+                    diamonds: Number(user.diamonds) || 0,
+                    lastDailyDiamondClaim: user.lastDailyDiamondClaim || 0,
+                    unlockedDiamondBorders: Array.isArray(user.unlockedDiamondBorders) ? user.unlockedDiamondBorders : [],
                     referredBy: user.referredBy || null,
                     referredByUsername: user.referredByUsername || '',
                     supportCount: Number(user.supportCount) || 0,
@@ -4199,11 +4322,12 @@ module.exports = async (req, res) => {
                     user.borderUrl = '';
                     user.borderName = '';
                 } else if (borderMap[borderId]) {
-                    if (!isUserVip && !isMasterAdmin) {
-                        return res.status(403).json({ status: false, message: 'Border profil khusus pengguna VIP!' });
+                    const isDiamondBorderOwned = Array.isArray(user.unlockedDiamondBorders) && user.unlockedDiamondBorders.includes(borderId);
+                    if (!isUserVip && !isMasterAdmin && !isDiamondBorderOwned) {
+                        return res.status(403).json({ status: false, message: 'Border profil khusus pengguna VIP atau beli melalui Toko Berlian (💎)!' });
                     }
-                    // Jika akun sedang dalam mode Percobaan VIP (isVipTrial), terapkan batasan akses border Trial dari Admin
-                    if (user.isVipTrial) {
+                    // Jika akun sedang dalam mode Percobaan VIP (isVipTrial) dan border bukan hasil beli Berlian, terapkan batasan akses border Trial dari Admin
+                    if (user.isVipTrial && !isDiamondBorderOwned) {
                         const trialAccess = String(user.trialBorderAccess || 'platinum').toLowerCase();
                         const bNameLow = String(borderMap[borderId].name || '').toLowerCase();
                         const bCatLow = String(borderMap[borderId].category || '').toLowerCase();
@@ -4230,7 +4354,7 @@ module.exports = async (req, res) => {
                                 message: `Border ${borderMap[borderId].name} dikunci untuk paket Percobaan VIP (Free Trial) sesuai pengaturan Admin! Upgrade ke VIP penuh untuk membuka semua border.`
                             });
                         }
-                    } else if (!isMasterAdmin) {
+                    } else if (!isMasterAdmin && !isDiamondBorderOwned) {
                         if ((user.vipSource === 'referral' || user.vipSource === 'point_exchange') && user.referralBorderRestricted) {
                             const refAllowed = referralsApi.canReferralVipEquipBorder(user, {
                                 id: borderId,
@@ -4399,6 +4523,9 @@ module.exports = async (req, res) => {
                     referralCode: referralsApi.generateReferralCodeForUser(user, db.users),
                     referralCount: Number(user.referralCount) || 0,
                     referralPoints: Number(user.referralPoints) || 0,
+                    diamonds: Number(user.diamonds) || 0,
+                    lastDailyDiamondClaim: user.lastDailyDiamondClaim || 0,
+                    unlockedDiamondBorders: Array.isArray(user.unlockedDiamondBorders) ? user.unlockedDiamondBorders : [],
                     supportCount: Number(user.supportCount) || 0,
                     donatur: referralsApi.resolveUserDonaturInfo(user),
                     role: isMasterAdmin ? 'admin' : 'member',
@@ -5173,6 +5300,390 @@ module.exports = async (req, res) => {
             }
 
             return res.status(400).json({ status: false, message: 'Sub-action tidak dikenal.' });
+        }
+
+        function resolveAuthenticatedDiamondUser(req, db) {
+            const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || String(req.body?.token || '').trim();
+            let targetUserId = getUserIdFromToken(token, db);
+            const verified = verifyUserToken(token);
+            let user = null;
+
+            if (targetUserId) {
+                user = db.users.find(u => u && (
+                    String(u.id) === String(targetUserId) ||
+                    String(u.originalId) === String(targetUserId) ||
+                    String(u.customId) === String(targetUserId)
+                ));
+            }
+            if (!user && verified) {
+                user = db.users.find(u => u && (
+                    (u.id && String(u.id) === String(verified.uid)) ||
+                    (u.originalId && String(u.originalId) === String(verified.uid)) ||
+                    (u.customId && String(u.customId) === String(verified.uid)) ||
+                    (verified.u && (u.username || '').toLowerCase() === String(verified.u).toLowerCase())
+                ));
+            }
+            // Fallback decode of usr_ token payload if server restarted with a new ephemeral secret
+            if (!user && token && token.startsWith('usr_')) {
+                try {
+                    const payloadPart = token.slice(4).split('.')[0];
+                    const decoded = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8'));
+                    if (decoded && (decoded.uid || decoded.u)) {
+                        user = db.users.find(u => u && (
+                            (decoded.uid && (String(u.id) === String(decoded.uid) || String(u.originalId) === String(decoded.uid) || String(u.customId) === String(decoded.uid))) ||
+                            (decoded.u && (u.username || '').toLowerCase() === String(decoded.u).toLowerCase())
+                        ));
+                    }
+                } catch (e) {}
+            }
+            // Fallback to explicit user identifiers sent by logged-in client session
+            if (!user && req.body) {
+                const reqUid = String(req.body.userId || '').trim();
+                const reqOrigId = String(req.body.originalId || '').trim();
+                const reqEmail = String(req.body.email || '').toLowerCase().trim();
+                const reqUsername = String(req.body.username || '').toLowerCase().trim();
+                if (reqUid || reqOrigId || reqEmail || reqUsername) {
+                    user = db.users.find(u => {
+                        if (!u) return false;
+                        if (reqUid && (String(u.id) === reqUid || String(u.originalId) === reqUid || String(u.customId) === reqUid)) return true;
+                        if (reqOrigId && (String(u.id) === reqOrigId || String(u.originalId) === reqOrigId)) return true;
+                        const uMail = String(u.rawEmail || u.email || '').toLowerCase().trim();
+                        if (reqEmail && uMail && uMail === reqEmail) return true;
+                        if (reqUsername && String(u.username || '').toLowerCase().trim() === reqUsername) return true;
+                        return false;
+                    });
+                }
+            }
+            return user;
+        }
+
+        // POST /api/user-auth?action=claim_daily_diamonds (Klaim Berlian Gratis Harian / Nonton Iklan Berhadiah Google AdSense)
+        if (action === 'claim_daily_diamonds') {
+            const user = resolveAuthenticatedDiamondUser(req, db);
+            if (!user) {
+                return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu untuk menonton iklan & mengklaim Berlian gratis.' });
+            }
+
+            let adCfg = {
+                enabled: true,
+                adsenseClientId: 'ca-pub-4386441636957031',
+                adsenseSlotId: '',
+                rewardDiamonds: 8,
+                watchDurationSec: 15,
+                maxClaimsPerDay: 5,
+                customVideoUrl: '',
+                customClickUrl: ''
+            };
+            try {
+                const payCfgData = await storage.readDataAsync('.payment_config.json', {});
+                if (payCfgData && payCfgData.rewardedAdConfig && typeof payCfgData.rewardedAdConfig === 'object') {
+                    const rc = payCfgData.rewardedAdConfig;
+                    adCfg = {
+                        enabled: rc.enabled !== undefined ? Boolean(rc.enabled) : true,
+                        adsenseClientId: (rc.adsenseClientId && String(rc.adsenseClientId).trim()) ? String(rc.adsenseClientId).trim() : 'ca-pub-4386441636957031',
+                        adsenseSlotId: rc.adsenseSlotId ? String(rc.adsenseSlotId).trim() : '',
+                        rewardDiamonds: Math.max(1, Number(rc.rewardDiamonds) || 8),
+                        watchDurationSec: Math.max(5, Math.min(60, Number(rc.watchDurationSec) || 15)),
+                        maxClaimsPerDay: Math.max(1, Number(rc.maxClaimsPerDay) || 5),
+                        customVideoUrl: rc.customVideoUrl ? String(rc.customVideoUrl).trim() : '',
+                        customClickUrl: rc.customClickUrl ? String(rc.customClickUrl).trim() : ''
+                    };
+                }
+            } catch (e) {}
+
+            if (adCfg.enabled === false) {
+                return res.status(400).json({
+                    status: false,
+                    message: 'Fitur Nonton Iklan Berhadiah sedang dinonaktifkan sementara oleh Admin.'
+                });
+            }
+
+            const now = Date.now();
+            // Hitung tanggal hari ini berdasarkan WIB (UTC+7)
+            const wibDateStr = new Date(now + (7 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+            if (user.dailyDiamondClaimDate !== wibDateStr) {
+                user.dailyDiamondClaimDate = wibDateStr;
+                user.dailyDiamondClaimCount = 0;
+            }
+            const claimedToday = Number(user.dailyDiamondClaimCount) || 0;
+            const maxPerDay = adCfg.maxClaimsPerDay;
+            const reward = adCfg.rewardDiamonds;
+
+            if (claimedToday >= maxPerDay) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Kuota Nonton Iklan hari ini sudah habis (${claimedToday}/${maxPerDay}x). Silakan kembali lagi besok!`
+                });
+            }
+
+            // Jika hanya mengecek kuota sebelum membuka pemutar iklan (checkOnly)
+            if (req.body && req.body.checkOnly === true) {
+                return res.json({
+                    status: true,
+                    canClaim: true,
+                    reward: reward,
+                    watchDurationSec: adCfg.watchDurationSec,
+                    adsenseClientId: adCfg.adsenseClientId,
+                    adsenseSlotId: adCfg.adsenseSlotId,
+                    claimedToday: claimedToday,
+                    maxClaimsPerDay: maxPerDay,
+                    remainingToday: Math.max(0, maxPerDay - claimedToday)
+                });
+            }
+
+            user.diamonds = (Number(user.diamonds) || 0) + reward;
+            user.lastDailyDiamondClaim = now;
+            user.dailyDiamondClaimDate = wibDateStr;
+            user.dailyDiamondClaimCount = claimedToday + 1;
+            await writeDbAsync(db);
+
+            const remAfter = Math.max(0, maxPerDay - user.dailyDiamondClaimCount);
+            return res.json({
+                status: true,
+                reward: reward,
+                diamonds: user.diamonds,
+                lastDailyDiamondClaim: user.lastDailyDiamondClaim,
+                claimedToday: user.dailyDiamondClaimCount,
+                maxClaimsPerDay: maxPerDay,
+                remainingToday: remAfter,
+                message: `Selamat! Anda mendapatkan +${reward} 💎 Berlian dari Nonton Iklan! Total Saldo: ${user.diamonds.toLocaleString('id-ID')} 💎 (Sisa kuota hari ini: ${remAfter}x)`
+            });
+        }
+
+        // POST /api/user-auth?action=redeem_diamonds_vip (Tukar Berlian ke Paket VIP di Tab Bintang)
+        if (action === 'redeem_diamonds_vip') {
+            const user = resolveAuthenticatedDiamondUser(req, db);
+            if (!user) {
+                return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu.' });
+            }
+
+            const paymentConfigApi = require('./payment-config.js');
+            const payCfg = (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function')
+                ? await paymentConfigApi.getPaymentConfig()
+                : {};
+            const dynamicPlans = Array.isArray(payCfg.diamondStarVipPackages) ? payCfg.diamondStarVipPackages : [];
+
+            const fallbackPlans = {
+                'star_7days': { cost: 250, days: 7, tier: '1month', border: 'border_platinum', borderName: 'Platinum', borderUrl: '/borders/Platinum.png', title: 'VIP 7 Hari (Platinum)' },
+                'star_1month': { cost: 550, days: 30, tier: '1month', border: 'border_master', borderName: 'Master', borderUrl: '/borders/Master.png', title: 'VIP 1 Bulan (Platinum & Master)' },
+                'star_2months': { cost: 1650, days: 60, tier: '2months', border: 'border_legend', borderName: 'Legend', borderUrl: '/borders/Legend.png', title: 'VIP 2 Bulan (+Border Legend)' },
+                'star_5months': { cost: 4000, days: 150, tier: '5months', border: 'border_immortal', borderName: 'Immortal', borderUrl: '/borders/Imortal.png', title: 'VIP 5 Bulan (+Border Immortal)' },
+                'star_permanent': { cost: 15000, days: 0, tier: 'permanent', border: 'border_immortal', borderName: 'Immortal', borderUrl: '/borders/Imortal.png', title: 'VIP Permanen (Semua Border & Fitur)' }
+            };
+
+            const planId = String(body.planId || '').trim();
+            const matchedDynamic = dynamicPlans.find(p => p && String(p.id) === planId);
+            const plan = matchedDynamic || fallbackPlans[planId];
+            if (!plan) {
+                return res.status(400).json({ status: false, message: 'Paket Bintang VIP tidak ditemukan.' });
+            }
+
+            const planCost = Math.max(1, Number(plan.cost) || 250);
+            const planTitle = plan.title || plan.label || 'Paket VIP Berlian';
+            const planDays = Math.max(0, Number(plan.days) || 0);
+            const planTier = planDays === 0 ? 'permanent' : (plan.tier || '1month');
+
+            const currentDiamonds = Number(user.diamonds) || 0;
+            if (currentDiamonds < planCost) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Saldo Berlian Anda (${currentDiamonds.toLocaleString('id-ID')} 💎) belum cukup! Butuh ${planCost.toLocaleString('id-ID')} 💎 untuk menukar ${planTitle}.`
+                });
+            }
+
+            user.diamonds = currentDiamonds - planCost;
+            user.isPremium = true;
+            user.is_premium = true;
+            user.isVip = true;
+            user.vipTier = planTier;
+            user.vipSource = 'paid';
+            user.isVipTrial = false;
+            user.referralBorderRestricted = false;
+            user.vipGrantedAt = Date.now();
+            if (planTier === 'permanent' || planDays === 0) {
+                user.vipExpiresAt = null;
+                user.vipDuration = 'Permanen';
+                user.vipDurationDays = null;
+            } else {
+                const baseTime = (user.isPremium && user.vipExpiresAt && user.vipExpiresAt > Date.now()) ? user.vipExpiresAt : Date.now();
+                user.vipExpiresAt = baseTime + (planDays * 24 * 60 * 60 * 1000);
+                user.vipDuration = `${planDays} Hari`;
+                user.vipDurationDays = planDays;
+            }
+            if (plan.border) {
+                user.border = plan.border;
+                user.borderName = plan.borderName || 'Platinum';
+                user.borderUrl = plan.borderUrl || '/borders/Platinum.png';
+            }
+
+            await writeDbAsync(db);
+            const vipSig = Security.generateVipSignature(user.id, user.vipTier, user.vipExpiresAt);
+
+            return res.json({
+                status: true,
+                message: `Berhasil menukar ${planCost.toLocaleString('id-ID')} 💎 menjadi ${planTitle}!`,
+                diamonds: user.diamonds,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    diamonds: user.diamonds,
+                    isPremium: true,
+                    vipTier: user.vipTier,
+                    vipExpiresAt: user.vipExpiresAt,
+                    vipSignature: vipSig,
+                    border: user.border,
+                    borderName: user.borderName,
+                    borderUrl: user.borderUrl
+                }
+            });
+        }
+
+        // POST /api/user-auth?action=buy_diamond_custom_id (Beli & Pasang Custom ID dengan Berlian 💎)
+        if (action === 'buy_diamond_custom_id') {
+            const user = resolveAuthenticatedDiamondUser(req, db);
+            if (!user) {
+                return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu.' });
+            }
+
+            const paymentConfigApi = require('./payment-config.js');
+            const payCfg = (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function')
+                ? await paymentConfigApi.getPaymentConfig()
+                : {};
+            const shopIds = Array.isArray(payCfg.diamondShopCustomIds) ? payCfg.diamondShopCustomIds : [];
+            const requestedCustomId = String(body.customId || '').trim();
+            const item = shopIds.find(x => x && (String(x.customId) === requestedCustomId || String(x.id) === String(body.itemId || '')));
+            if (!item || item.enabled === false) {
+                return res.status(400).json({ status: false, message: 'Custom ID tidak tersedia di katalog Berlian.' });
+            }
+
+            const targetCid = String(item.customId).trim();
+            // Cek apakah Custom ID sudah dipakai oleh pengguna lain
+            const conflictUser = db.users.find(u => u && u !== user && (String(u.id) === targetCid || String(u.customId) === targetCid || String(u.originalId) === targetCid));
+            if (conflictUser) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Custom ID #${targetCid} sudah dimiliki dan dipakai oleh pengguna lain (@${conflictUser.username}). Silakan pilih Custom ID lainnya!`
+                });
+            }
+
+            const alreadyMine = (String(user.id) === targetCid || String(user.customId) === targetCid);
+            const cost = alreadyMine ? 0 : Math.max(1, Number(item.cost) || 500);
+            const currentDiamonds = Number(user.diamonds) || 0;
+            if (currentDiamonds < cost) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Saldo Berlian Anda (${currentDiamonds.toLocaleString('id-ID')} 💎) belum cukup! Butuh ${cost.toLocaleString('id-ID')} 💎 untuk membeli Custom ID #${targetCid}.`
+                });
+            }
+
+            if (!user.originalId) {
+                user.originalId = user.id;
+            }
+            const oldId = user.id;
+            user.diamonds = currentDiamonds - cost;
+            user.customId = targetCid;
+            user.id = targetCid;
+            user.customIdLabel = item.title || `Musify ID #${targetCid}`;
+            if (item.isPermanent || !item.days || Number(item.days) <= 0) {
+                user.customIdExpiresAt = null;
+                user.isCustomIdTrial = false;
+            } else {
+                user.customIdExpiresAt = Date.now() + (Number(item.days) * 24 * 60 * 60 * 1000);
+                user.isCustomIdTrial = false;
+            }
+
+            // Sinkronkan session token agar user tetap terautentikasi dengan ID baru
+            if (db.sessions && typeof db.sessions === 'object') {
+                Object.keys(db.sessions).forEach(tk => {
+                    const s = db.sessions[tk];
+                    if (s && (String(s.userId) === String(oldId) || String(s.userId) === String(user.originalId))) {
+                        s.userId = targetCid;
+                    }
+                });
+            }
+
+            await writeDbAsync(db);
+            const newToken = createSignedUserToken(user.id, user.username);
+
+            return res.json({
+                status: true,
+                message: alreadyMine
+                    ? `Custom ID #${targetCid} sudah terpasang di profil Anda!`
+                    : `Selamat! Berhasil membeli & memasang Custom ID #${targetCid} (${item.title || 'ID Spesial'}) dengan ${cost.toLocaleString('id-ID')} 💎!`,
+                diamonds: user.diamonds,
+                token: newToken,
+                user: {
+                    id: user.id,
+                    originalId: user.originalId,
+                    customId: user.customId,
+                    customIdLabel: user.customIdLabel,
+                    customIdExpiresAt: user.customIdExpiresAt,
+                    username: user.username,
+                    diamonds: user.diamonds
+                }
+            });
+        }
+
+        // POST /api/user-auth?action=buy_diamond_border (Beli & Pasang Border Profil dengan Berlian 💎)
+        if (action === 'buy_diamond_border') {
+            const user = resolveAuthenticatedDiamondUser(req, db);
+            if (!user) {
+                return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu.' });
+            }
+
+            const paymentConfigApi = require('./payment-config.js');
+            const payCfg = (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function')
+                ? await paymentConfigApi.getPaymentConfig()
+                : {};
+            const shopBorders = Array.isArray(payCfg.diamondShopBorders) ? payCfg.diamondShopBorders : [];
+            const requestedId = String(body.borderId || body.itemId || '').trim();
+            const item = shopBorders.find(x => x && (String(x.borderId) === requestedId || String(x.id) === requestedId));
+            if (!item || item.enabled === false) {
+                return res.status(400).json({ status: false, message: 'Border tidak tersedia di katalog Berlian.' });
+            }
+
+            if (!Array.isArray(user.unlockedDiamondBorders)) {
+                user.unlockedDiamondBorders = [];
+            }
+            const alreadyUnlocked = user.unlockedDiamondBorders.includes(item.borderId) || user.unlockedDiamondBorders.includes(item.id);
+            const cost = alreadyUnlocked ? 0 : Math.max(1, Number(item.cost) || 300);
+            const currentDiamonds = Number(user.diamonds) || 0;
+            if (currentDiamonds < cost) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Saldo Berlian Anda (${currentDiamonds.toLocaleString('id-ID')} 💎) belum cukup! Butuh ${cost.toLocaleString('id-ID')} 💎 untuk membeli ${item.name}.`
+                });
+            }
+
+            // Pembelian Border via Berlian (💎) HANYA memberikan & memasang Border tersebut (TIDAK memberikan status VIP)
+            user.diamonds = currentDiamonds - cost;
+            if (!alreadyUnlocked) {
+                user.unlockedDiamondBorders.push(item.borderId);
+            }
+            user.border = item.borderId;
+            user.borderName = item.name;
+            user.borderUrl = item.url;
+
+            await writeDbAsync(db);
+
+            return res.json({
+                status: true,
+                message: alreadyUnlocked
+                    ? `${item.name} berhasil dipasang kembali ke profil Anda!`
+                    : `Selamat! Berhasil membeli & memasang ${item.name} dengan ${cost.toLocaleString('id-ID')} 💎 (Khusus Border Profil)!`,
+                diamonds: user.diamonds,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    diamonds: user.diamonds,
+                    isPremium: Boolean(user.isPremium),
+                    vipTier: user.vipTier || 'none',
+                    border: user.border,
+                    borderName: user.borderName,
+                    borderUrl: user.borderUrl,
+                    unlockedDiamondBorders: user.unlockedDiamondBorders
+                }
+            });
         }
 
         return res.status(400).json({ status: false, message: 'Action tidak dikenal' });

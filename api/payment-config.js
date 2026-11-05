@@ -97,19 +97,54 @@ const DEFAULT_EWALLETS = {
     gopay: {
         enabled: true,
         number: '081234567890',
-        holder: 'NABIL (MusifyStar Official)'
+        holder: 'NABIL (MusifyStar Official)',
+        link: ''
     },
     dana: {
         enabled: true,
         number: '081234567890',
-        holder: 'NABIL (MusifyStar Official)'
+        holder: 'NABIL (MusifyStar Official)',
+        link: ''
     },
     ovo: {
         enabled: true,
         number: '081234567890',
-        holder: 'NABIL (MusifyStar Official)'
+        holder: 'NABIL (MusifyStar Official)',
+        link: ''
     }
 };
+
+const DEFAULT_DIAMOND_PACKAGES = [
+    { id: 'dm_55', diamonds: 55, bonus: 10, price: 1800, hot: false, badgeColor: 'purple', iconType: 'single' },
+    { id: 'dm_435', diamonds: 435, bonus: 115, price: 14000, hot: false, badgeColor: 'purple', iconType: 'double' },
+    { id: 'dm_1310', diamonds: 1310, bonus: 340, price: 41927, hot: false, badgeColor: 'purple', iconType: 'triple' },
+    { id: 'dm_3210', diamonds: 3210, bonus: 860, price: 102375, hot: false, badgeColor: 'purple', iconType: 'pile' },
+    { id: 'dm_15380', diamonds: 15380, bonus: 4620, price: 490000, hot: false, badgeColor: 'purple', iconType: 'pile_lg' },
+    { id: 'dm_36920', diamonds: 36920, bonus: 11080, price: 1176000, hot: true, badgeColor: 'purple', iconType: 'chest' },
+    { id: 'dm_112300', diamonds: 112300, bonus: 33700, price: 3577000, hot: false, badgeColor: 'gold', iconType: 'chest_gold' }
+];
+
+const DEFAULT_DIAMOND_STAR_VIP_PACKAGES = [
+    { id: 'star_7days', title: 'VIP 7 Hari (Border Platinum)', desc: 'Akses penuh fitur VIP + Border Platinum selama 7 hari', cost: 250, days: 7, tier: '1month', border: 'border_platinum', borderName: 'Platinum', borderUrl: '/borders/Platinum.png', enabled: true },
+    { id: 'star_1month', title: 'VIP 1 Bulan (Border Platinum & Master)', desc: 'Akses penuh fitur VIP + Border Platinum & Master selama 30 hari', cost: 550, days: 30, tier: '1month', border: 'border_master', borderName: 'Master', borderUrl: '/borders/Master.png', enabled: true },
+    { id: 'star_2months', title: 'VIP 2 Bulan (+Border Legend)', desc: 'Akses penuh fitur VIP + Border Legend selama 60 hari', cost: 1650, days: 60, tier: '2months', border: 'border_legend', borderName: 'Legend', borderUrl: '/borders/Legend.png', enabled: true },
+    { id: 'star_5months', title: 'VIP 5 Bulan (+Border Immortal)', desc: 'Akses penuh fitur VIP + Border Immortal selama 150 hari', cost: 4000, days: 150, tier: '5months', border: 'border_immortal', borderName: 'Immortal', borderUrl: '/borders/Imortal.png', enabled: true },
+    { id: 'star_permanent', title: 'VIP Permanen (Semua Border & Fitur Selamanya)', desc: 'Buka semua Border eksklusif & fitur VIP selamanya', cost: 15000, days: 0, tier: 'permanent', border: 'border_immortal', borderName: 'Immortal', borderUrl: '/borders/Imortal.png', enabled: true }
+];
+
+const DEFAULT_DIAMOND_SHOP_CUSTOM_IDS = [
+    { id: 'dmid_88888888', customId: '88888888', title: 'ID Sultan Hoki 8x', desc: 'Musify ID Langka Angka Kembar 8', cost: 1200, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmid_99999999', customId: '99999999', title: 'ID King Immortal 9x', desc: 'Musify ID Eksklusif Angka Kembar 9', cost: 1500, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmid_77777777', customId: '77777777', title: 'ID Lucky Seven 7x', desc: 'Musify ID Spesial Jackpot 77777777', cost: 950, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmid_12345678', customId: '12345678', title: 'ID Urut Cantik 1-8', desc: 'Musify ID Cantik Berurutan', cost: 650, days: 30, isPermanent: false, enabled: true }
+];
+
+const DEFAULT_DIAMOND_SHOP_BORDERS = [
+    { id: 'dmbd_platinum', borderId: 'border_platinum', name: 'Border Platinum VIP', url: '/borders/Platinum.png', badge: 'PLATINUM', cost: 300, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmbd_master', borderId: 'border_master', name: 'Border Master VIP', url: '/borders/Master.png', badge: 'MASTER', cost: 650, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmbd_legend', borderId: 'border_legend', name: 'Border Legend VIP', url: '/borders/Legend.png', badge: 'LEGEND', cost: 1400, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmbd_immortal', borderId: 'border_immortal', name: 'Border Immortal Sultan', url: '/borders/Imortal.png', badge: 'IMMORTAL', cost: 3200, days: 0, isPermanent: true, enabled: true }
+];
 
 const DEFAULT_VIP_TRIAL_CONFIG = {
     enabled: true,
@@ -135,6 +170,17 @@ const DEFAULT_VIP_TRIAL_CONFIG = {
     invoiceNote: 'Masa aktif Percobaan VIP (Free Trial) Anda telah berakhir. Silakan selesaikan pembayaran tagihan melalui QRIS atau E-Wallet (GoPay / DANA / OVO) untuk kembali mengaktifkan akses penuh VIP MusifyStar.'
 };
 
+const DEFAULT_REWARDED_AD_CONFIG = {
+    enabled: true,
+    adsenseClientId: 'ca-pub-4386441636957031',
+    adsenseSlotId: '',
+    rewardDiamonds: 8,
+    watchDurationSec: 15,
+    maxClaimsPerDay: 5,
+    customVideoUrl: '',
+    customClickUrl: ''
+};
+
 const DEFAULT_PAYMENT_CONFIG = {
     qrisUrl: '/qris.png',
     qrisFilename: 'QRIS-MusifyStar-Nabil.png',
@@ -142,6 +188,11 @@ const DEFAULT_PAYMENT_CONFIG = {
     adminWhatsapp: '6281234567890',
     ewalletsEnabled: true,
     ewallets: DEFAULT_EWALLETS,
+    diamondPackages: DEFAULT_DIAMOND_PACKAGES,
+    diamondStarVipPackages: DEFAULT_DIAMOND_STAR_VIP_PACKAGES,
+    diamondShopCustomIds: DEFAULT_DIAMOND_SHOP_CUSTOM_IDS,
+    diamondShopBorders: DEFAULT_DIAMOND_SHOP_BORDERS,
+    rewardedAdConfig: DEFAULT_REWARDED_AD_CONFIG,
     vipTrialConfig: DEFAULT_VIP_TRIAL_CONFIG,
     accounts: [],
     packages: DEFAULT_VIP_PACKAGES,
@@ -223,17 +274,20 @@ async function getPaymentConfig() {
                 gopay: {
                     enabled: rawEw.gopay && rawEw.gopay.enabled !== undefined ? Boolean(rawEw.gopay.enabled) : DEFAULT_EWALLETS.gopay.enabled,
                     number: (rawEw.gopay && typeof rawEw.gopay.number === 'string') ? rawEw.gopay.number.trim() : DEFAULT_EWALLETS.gopay.number,
-                    holder: (rawEw.gopay && typeof rawEw.gopay.holder === 'string') ? rawEw.gopay.holder.trim() : (data.qrisHolder || DEFAULT_EWALLETS.gopay.holder)
+                    holder: (rawEw.gopay && typeof rawEw.gopay.holder === 'string') ? rawEw.gopay.holder.trim() : (data.qrisHolder || DEFAULT_EWALLETS.gopay.holder),
+                    link: (rawEw.gopay && typeof rawEw.gopay.link === 'string') ? rawEw.gopay.link.trim() : ''
                 },
                 dana: {
                     enabled: rawEw.dana && rawEw.dana.enabled !== undefined ? Boolean(rawEw.dana.enabled) : DEFAULT_EWALLETS.dana.enabled,
                     number: (rawEw.dana && typeof rawEw.dana.number === 'string') ? rawEw.dana.number.trim() : DEFAULT_EWALLETS.dana.number,
-                    holder: (rawEw.dana && typeof rawEw.dana.holder === 'string') ? rawEw.dana.holder.trim() : (data.qrisHolder || DEFAULT_EWALLETS.dana.holder)
+                    holder: (rawEw.dana && typeof rawEw.dana.holder === 'string') ? rawEw.dana.holder.trim() : (data.qrisHolder || DEFAULT_EWALLETS.dana.holder),
+                    link: (rawEw.dana && typeof rawEw.dana.link === 'string') ? rawEw.dana.link.trim() : ''
                 },
                 ovo: {
                     enabled: rawEw.ovo && rawEw.ovo.enabled !== undefined ? Boolean(rawEw.ovo.enabled) : DEFAULT_EWALLETS.ovo.enabled,
                     number: (rawEw.ovo && typeof rawEw.ovo.number === 'string') ? rawEw.ovo.number.trim() : DEFAULT_EWALLETS.ovo.number,
-                    holder: (rawEw.ovo && typeof rawEw.ovo.holder === 'string') ? rawEw.ovo.holder.trim() : (data.qrisHolder || DEFAULT_EWALLETS.ovo.holder)
+                    holder: (rawEw.ovo && typeof rawEw.ovo.holder === 'string') ? rawEw.ovo.holder.trim() : (data.qrisHolder || DEFAULT_EWALLETS.ovo.holder),
+                    link: (rawEw.ovo && typeof rawEw.ovo.link === 'string') ? rawEw.ovo.link.trim() : ''
                 }
             };
             const rawTrial = data.vipTrialConfig && typeof data.vipTrialConfig === 'object' ? data.vipTrialConfig : {};
@@ -263,6 +317,67 @@ async function getPaymentConfig() {
                 invoiceDuration: String(rawTrial.invoiceDuration || DEFAULT_VIP_TRIAL_CONFIG.invoiceDuration).trim(),
                 invoiceNote: String(rawTrial.invoiceNote || DEFAULT_VIP_TRIAL_CONFIG.invoiceNote).trim()
             };
+            // Otomatis sambungkan semua 35+ Border dari /api/borders agar Admin tinggal centang/atur harga
+            let mergedShopBorders = Array.isArray(data.diamondShopBorders) && data.diamondShopBorders.length
+                ? JSON.parse(JSON.stringify(data.diamondShopBorders))
+                : JSON.parse(JSON.stringify(DEFAULT_DIAMOND_SHOP_BORDERS));
+            try {
+                const bordersApi = require('./borders.js');
+                if (bordersApi && typeof bordersApi.getAllBordersAsync === 'function') {
+                    const allSystemBorders = await bordersApi.getAllBordersAsync(false);
+                    if (Array.isArray(allSystemBorders)) {
+                        for (const sysB of allSystemBorders) {
+                            if (!sysB || !sysB.id || sysB.id === 'none') continue;
+                            const existingIdx = mergedShopBorders.findIndex(x => x && (String(x.borderId) === String(sysB.id) || String(x.id) === String(sysB.id)));
+                            if (existingIdx === -1) {
+                                const catLow = String(sysB.category || sysB.requiredTier || '').toLowerCase();
+                                let defaultCost = 450;
+                                if (catLow === 'platinum' || catLow === '1month') defaultCost = 300;
+                                else if (catLow === 'master') defaultCost = 650;
+                                else if (catLow === 'legend' || catLow === '2months') defaultCost = 1400;
+                                else if (catLow === 'immortal' || catLow === '5months') defaultCost = 3200;
+                                else if (catLow === 'permanent') defaultCost = 5000;
+                                mergedShopBorders.push({
+                                    id: 'dmbd_' + sysB.id,
+                                    borderId: String(sysB.id),
+                                    name: sysB.name || 'Border Profil',
+                                    url: sysB.url || ('/borders/' + (sysB.file || 'Platinum.png')),
+                                    file: sysB.file || '',
+                                    scale: sysB.scale || 100,
+                                    offsetY: sysB.offsetY || 0,
+                                    offsetX: sysB.offsetX || 0,
+                                    badge: String(sysB.badge || sysB.category || 'EKSKLUSIF').toUpperCase(),
+                                    cost: defaultCost,
+                                    days: 0,
+                                    isPermanent: true,
+                                    enabled: true
+                                });
+                            } else {
+                                if (sysB.url) mergedShopBorders[existingIdx].url = sysB.url;
+                                if (sysB.file) mergedShopBorders[existingIdx].file = sysB.file;
+                                if (sysB.scale !== undefined) mergedShopBorders[existingIdx].scale = sysB.scale;
+                                if (sysB.offsetY !== undefined) mergedShopBorders[existingIdx].offsetY = sysB.offsetY;
+                                if (sysB.offsetX !== undefined) mergedShopBorders[existingIdx].offsetX = sysB.offsetX;
+                            }
+                        }
+                    }
+                }
+            } catch (bErr) {
+                console.warn('[PAYMENT_CONFIG] Auto-merge borders notice:', bErr.message);
+            }
+
+            const rawRewardedAd = (data.rewardedAdConfig && typeof data.rewardedAdConfig === 'object') ? data.rewardedAdConfig : {};
+            const mergedRewardedAdConfig = {
+                enabled: rawRewardedAd.enabled !== undefined ? Boolean(rawRewardedAd.enabled) : true,
+                adsenseClientId: (rawRewardedAd.adsenseClientId && String(rawRewardedAd.adsenseClientId).trim()) ? String(rawRewardedAd.adsenseClientId).trim() : DEFAULT_REWARDED_AD_CONFIG.adsenseClientId,
+                adsenseSlotId: rawRewardedAd.adsenseSlotId !== undefined ? String(rawRewardedAd.adsenseSlotId).trim() : DEFAULT_REWARDED_AD_CONFIG.adsenseSlotId,
+                rewardDiamonds: Math.max(1, Number(rawRewardedAd.rewardDiamonds) || DEFAULT_REWARDED_AD_CONFIG.rewardDiamonds || 8),
+                watchDurationSec: Math.max(5, Math.min(60, Number(rawRewardedAd.watchDurationSec) || DEFAULT_REWARDED_AD_CONFIG.watchDurationSec || 15)),
+                maxClaimsPerDay: Math.max(1, Number(rawRewardedAd.maxClaimsPerDay) || DEFAULT_REWARDED_AD_CONFIG.maxClaimsPerDay || 5),
+                customVideoUrl: rawRewardedAd.customVideoUrl !== undefined ? String(rawRewardedAd.customVideoUrl).trim() : '',
+                customClickUrl: rawRewardedAd.customClickUrl !== undefined ? String(rawRewardedAd.customClickUrl).trim() : ''
+            };
+
             return {
                 qrisUrl: data.qrisUrl || (data.qrisBase64 ? data.qrisBase64 : '/qris.png'),
                 qrisBase64: data.qrisBase64 || null,
@@ -271,6 +386,11 @@ async function getPaymentConfig() {
                 adminWhatsapp: data.adminWhatsapp || DEFAULT_PAYMENT_CONFIG.adminWhatsapp || '6281234567890',
                 ewalletsEnabled: data.ewalletsEnabled !== undefined ? Boolean(data.ewalletsEnabled) : true,
                 ewallets: mergedEwallets,
+                diamondPackages: Array.isArray(data.diamondPackages) && data.diamondPackages.length ? data.diamondPackages : DEFAULT_DIAMOND_PACKAGES,
+                diamondStarVipPackages: Array.isArray(data.diamondStarVipPackages) && data.diamondStarVipPackages.length ? data.diamondStarVipPackages : DEFAULT_DIAMOND_STAR_VIP_PACKAGES,
+                diamondShopCustomIds: Array.isArray(data.diamondShopCustomIds) ? data.diamondShopCustomIds : DEFAULT_DIAMOND_SHOP_CUSTOM_IDS,
+                diamondShopBorders: mergedShopBorders,
+                rewardedAdConfig: mergedRewardedAdConfig,
                 vipTrialConfig: mergedTrialConfig,
                 accounts: cleanedAccounts,
                 showAccounts: data.showAccounts !== false,
@@ -533,19 +653,102 @@ module.exports = async (req, res) => {
                 gopay: {
                     enabled: ew.gopay && ew.gopay.enabled !== undefined ? Boolean(ew.gopay.enabled) : updatedEwallets.gopay.enabled,
                     number: (ew.gopay && typeof ew.gopay.number === 'string') ? ew.gopay.number.trim() : updatedEwallets.gopay.number,
-                    holder: (ew.gopay && typeof ew.gopay.holder === 'string') ? ew.gopay.holder.trim() : updatedEwallets.gopay.holder
+                    holder: (ew.gopay && typeof ew.gopay.holder === 'string') ? ew.gopay.holder.trim() : updatedEwallets.gopay.holder,
+                    link: (ew.gopay && typeof ew.gopay.link === 'string') ? ew.gopay.link.trim() : (updatedEwallets.gopay.link || '')
                 },
                 dana: {
                     enabled: ew.dana && ew.dana.enabled !== undefined ? Boolean(ew.dana.enabled) : updatedEwallets.dana.enabled,
                     number: (ew.dana && typeof ew.dana.number === 'string') ? ew.dana.number.trim() : updatedEwallets.dana.number,
-                    holder: (ew.dana && typeof ew.dana.holder === 'string') ? ew.dana.holder.trim() : updatedEwallets.dana.holder
+                    holder: (ew.dana && typeof ew.dana.holder === 'string') ? ew.dana.holder.trim() : updatedEwallets.dana.holder,
+                    link: (ew.dana && typeof ew.dana.link === 'string') ? ew.dana.link.trim() : (updatedEwallets.dana.link || '')
                 },
                 ovo: {
                     enabled: ew.ovo && ew.ovo.enabled !== undefined ? Boolean(ew.ovo.enabled) : updatedEwallets.ovo.enabled,
                     number: (ew.ovo && typeof ew.ovo.number === 'string') ? ew.ovo.number.trim() : updatedEwallets.ovo.number,
-                    holder: (ew.ovo && typeof ew.ovo.holder === 'string') ? ew.ovo.holder.trim() : updatedEwallets.ovo.holder
+                    holder: (ew.ovo && typeof ew.ovo.holder === 'string') ? ew.ovo.holder.trim() : updatedEwallets.ovo.holder,
+                    link: (ew.ovo && typeof ew.ovo.link === 'string') ? ew.ovo.link.trim() : (updatedEwallets.ovo.link || '')
                 }
             };
+        }
+
+        let updatedDiamondPackages = currentConfig.diamondPackages || DEFAULT_DIAMOND_PACKAGES;
+        if (Array.isArray(body.diamondPackages) && body.diamondPackages.length > 0) {
+            updatedDiamondPackages = body.diamondPackages.map((dp, idx) => ({
+                id: dp.id || `dm_${Date.now()}_${idx}`,
+                diamonds: Math.max(1, Number(dp.diamonds) || 55),
+                bonus: Math.max(0, Number(dp.bonus) || 0),
+                price: Math.max(100, Number(dp.price) || 1800),
+                hot: Boolean(dp.hot),
+                badgeColor: dp.badgeColor || 'purple',
+                iconType: dp.iconType || 'single'
+            }));
+        }
+
+        let updatedDiamondStarVipPackages = currentConfig.diamondStarVipPackages || DEFAULT_DIAMOND_STAR_VIP_PACKAGES;
+        if (Array.isArray(body.diamondStarVipPackages) && body.diamondStarVipPackages.length > 0) {
+            const borderMap = {
+                'border_platinum': { name: 'Platinum', url: '/borders/Platinum.png', tier: '1month' },
+                'border_master': { name: 'Master', url: '/borders/Master.png', tier: '1month' },
+                'border_legend': { name: 'Legend', url: '/borders/Legend.png', tier: '2months' },
+                'border_immortal': { name: 'Immortal', url: '/borders/Imortal.png', tier: '5months' }
+            };
+            updatedDiamondStarVipPackages = body.diamondStarVipPackages.map((sp, idx) => {
+                const bKey = String(sp.border || 'border_platinum').trim();
+                const bInfo = borderMap[bKey] || { name: sp.borderName || 'Platinum', url: sp.borderUrl || '/borders/Platinum.png', tier: '1month' };
+                const daysNum = Math.max(0, Number(sp.days) || 0);
+                return {
+                    id: sp.id || `star_${Date.now()}_${idx}`,
+                    title: String(sp.title || 'Paket VIP Berlian').trim(),
+                    desc: String(sp.desc || 'Akses penuh fitur VIP MusifyStar').trim(),
+                    cost: Math.max(1, Number(sp.cost) || 250),
+                    days: daysNum,
+                    tier: daysNum === 0 ? 'permanent' : (sp.tier || bInfo.tier || '1month'),
+                    border: bKey,
+                    borderName: sp.borderName || bInfo.name,
+                    borderUrl: sp.borderUrl || bInfo.url,
+                    enabled: sp.enabled !== false
+                };
+            });
+        }
+
+        let updatedDiamondShopCustomIds = currentConfig.diamondShopCustomIds || DEFAULT_DIAMOND_SHOP_CUSTOM_IDS;
+        if (Array.isArray(body.diamondShopCustomIds)) {
+            updatedDiamondShopCustomIds = body.diamondShopCustomIds
+                .filter(item => item && String(item.customId || '').trim().length >= 3)
+                .map((item, idx) => {
+                    const cid = String(item.customId || '').trim();
+                    const daysNum = Math.max(0, Number(item.days) || 0);
+                    return {
+                        id: item.id || `dmid_${cid}_${idx}`,
+                        customId: cid,
+                        title: String(item.title || `Musify ID #${cid}`).trim(),
+                        desc: String(item.desc || 'Musify ID Eksklusif Pilihan').trim(),
+                        cost: Math.max(1, Number(item.cost) || 500),
+                        days: daysNum,
+                        isPermanent: item.isPermanent !== undefined ? Boolean(item.isPermanent) : (daysNum === 0),
+                        enabled: item.enabled !== false
+                    };
+                });
+        }
+
+        let updatedDiamondShopBorders = currentConfig.diamondShopBorders || DEFAULT_DIAMOND_SHOP_BORDERS;
+        if (Array.isArray(body.diamondShopBorders) && body.diamondShopBorders.length > 0) {
+            updatedDiamondShopBorders = body.diamondShopBorders
+                .filter(item => item && (item.url || item.borderId))
+                .map((item, idx) => {
+                    const daysNum = Math.max(0, Number(item.days) || 0);
+                    return {
+                        id: item.id || `dmbd_${Date.now()}_${idx}`,
+                        borderId: String(item.borderId || `border_dm_${idx}`).trim(),
+                        name: String(item.name || 'Border VIP').trim(),
+                        url: String(item.url || '/borders/Platinum.png').trim(),
+                        badge: String(item.badge || 'EKSKLUSIF').trim(),
+                        cost: Math.max(1, Number(item.cost) || 300),
+                        days: daysNum,
+                        isPermanent: item.isPermanent !== undefined ? Boolean(item.isPermanent) : (daysNum === 0),
+                        enabled: item.enabled !== false
+                    };
+                });
         }
 
         // Parse vipTrialConfig if sent
@@ -580,6 +783,21 @@ module.exports = async (req, res) => {
             };
         }
 
+        let updatedRewardedAdConfig = currentConfig.rewardedAdConfig || DEFAULT_REWARDED_AD_CONFIG;
+        if (body.rewardedAdConfig && typeof body.rewardedAdConfig === 'object') {
+            const rac = body.rewardedAdConfig;
+            updatedRewardedAdConfig = {
+                enabled: rac.enabled !== undefined ? Boolean(rac.enabled) : true,
+                adsenseClientId: (rac.adsenseClientId && String(rac.adsenseClientId).trim()) ? String(rac.adsenseClientId).trim() : (updatedRewardedAdConfig.adsenseClientId || DEFAULT_REWARDED_AD_CONFIG.adsenseClientId),
+                adsenseSlotId: rac.adsenseSlotId !== undefined ? String(rac.adsenseSlotId).trim() : (updatedRewardedAdConfig.adsenseSlotId || ''),
+                rewardDiamonds: Math.max(1, Number(rac.rewardDiamonds) || updatedRewardedAdConfig.rewardDiamonds || 8),
+                watchDurationSec: Math.max(5, Math.min(60, Number(rac.watchDurationSec) || updatedRewardedAdConfig.watchDurationSec || 15)),
+                maxClaimsPerDay: Math.max(1, Number(rac.maxClaimsPerDay) || updatedRewardedAdConfig.maxClaimsPerDay || 5),
+                customVideoUrl: rac.customVideoUrl !== undefined ? String(rac.customVideoUrl).trim() : (updatedRewardedAdConfig.customVideoUrl || ''),
+                customClickUrl: rac.customClickUrl !== undefined ? String(rac.customClickUrl).trim() : (updatedRewardedAdConfig.customClickUrl || '')
+            };
+        }
+
         const updatedConfig = {
             qrisUrl: updatedQrisUrl,
             qrisBase64: updatedQrisBase64,
@@ -588,6 +806,11 @@ module.exports = async (req, res) => {
             adminWhatsapp: (body.adminWhatsapp && typeof body.adminWhatsapp === 'string') ? body.adminWhatsapp.trim().replace(/[^0-9]/g, '') : (currentConfig.adminWhatsapp || '6281234567890'),
             ewalletsEnabled: body.ewalletsEnabled !== undefined ? Boolean(body.ewalletsEnabled) : (currentConfig.ewalletsEnabled !== false),
             ewallets: updatedEwallets,
+            diamondPackages: updatedDiamondPackages,
+            diamondStarVipPackages: updatedDiamondStarVipPackages,
+            diamondShopCustomIds: updatedDiamondShopCustomIds,
+            diamondShopBorders: updatedDiamondShopBorders,
+            rewardedAdConfig: updatedRewardedAdConfig,
             vipTrialConfig: updatedTrialConfig,
             accounts: Array.isArray(body.accounts) ? body.accounts.map((acc, idx) => ({
                 id: acc.id || `acc_${Date.now()}_${idx}`,

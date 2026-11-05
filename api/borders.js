@@ -414,6 +414,11 @@ function canUserEquipBorder(user, borderObj, isAdminSession = false) {
     const userEmail = (user.rawEmail || user.email || '').toLowerCase().trim();
     if (userEmail === 'jrnabil570@gmail.com') return true;
 
+    // Jika pengguna sudah membeli border ini menggunakan Berlian (💎), izinkan pasang meskipun bukan VIP
+    if (Array.isArray(user.unlockedDiamondBorders) && user.unlockedDiamondBorders.includes(borderObj.id)) {
+        return true;
+    }
+
     const isVip = !!user.isPremium || !!user.is_premium;
     if (!isVip) {
         return borderObj.isVip === false || borderObj.requiredTier === 'none';
@@ -1103,7 +1108,8 @@ module.exports = async function handler(req, res) {
                     borderName: user.borderName,
                     isPremium: isMasterAdmin || !!user.isPremium || !!user.is_premium,
                     vipTier: user.vipTier || (isMasterAdmin ? 'permanent' : 'none'),
-                    vipExpiresAt: user.vipExpiresAt || null
+                    vipExpiresAt: user.vipExpiresAt || null,
+                    unlockedDiamondBorders: Array.isArray(user.unlockedDiamondBorders) ? user.unlockedDiamondBorders : []
                 }
             });
         } catch (e) {
@@ -1114,3 +1120,8 @@ module.exports = async function handler(req, res) {
 
     return res.status(405).json({ status: false, message: 'Method not allowed' });
 };
+
+module.exports.getAllBorders = getAllBorders;
+module.exports.getAllBordersAsync = getAllBordersAsync;
+module.exports.toClientBordersList = toClientBordersList;
+

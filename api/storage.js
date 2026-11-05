@@ -65,9 +65,16 @@ if (DATABASE_URL) {
             allowExitOnIdle: true
         });
 
-        // Essential error listener on pg.Pool to catch idle client disconnects and prevent crashing
+        // Essential error listeners on pg.Pool AND checked-out pg.Client instances to catch abrupt PgBouncer disconnects without crashing Node.js
         pool.on('error', () => {
             // Silently recycle idle connections dropped by Supabase PgBouncer
+        });
+        pool.on('connect', (client) => {
+            if (client && typeof client.on === 'function') {
+                client.on('error', () => {
+                    // Prevent unhandled error event on active client if PgBouncer resets socket
+                });
+            }
         });
 
         // Auto-create storage table in PostgreSQL if not present
@@ -152,11 +159,13 @@ async function fetchFromPostgres(key) {
             memoryLastCheckedAt.set(key, Date.now());
             if (res && res.rows && res.rows.length > 0) {
                 const row = res.rows[0];
-                memoryStore.set(key, row.data);
-                if (row.updated_at) {
-                    memoryUpdatedAt.set(key, new Date(row.updated_at).getTime());
+                if (!inFlightWrites.has(key) && !pendingWritePayloads.has(key)) {
+                    memoryStore.set(key, row.data);
+                    if (row.updated_at) {
+                        memoryUpdatedAt.set(key, new Date(row.updated_at).getTime());
+                    }
                 }
-                return row.data;
+                return memoryStore.get(key) || row.data;
             } else {
                 memoryUpdatedAt.set(key, -1);
             }
@@ -173,118 +182,138 @@ async function fetchFromPostgres(key) {
 
 // Persist data into Supabase PostgreSQL (with single-flight coalescing & atomic multi-instance merge for users.json)
 async function writeToPostgres(key, data) {
-    // Always keep local disk backup updated immediately
+    // Always keep local disk backup and RAM updated immediately with the newest payload
+    memoryStore.set(key, data);
+    memoryLastCheckedAt.set(key, Date.now());
     saveLocalBackupSilently(key, data);
 
     if (!pool) return true;
 
-    // If a write for this exact key is already in progress, store the newest payload so it flushes next without opening a duplicate connection
+    // If a write for this exact key is already in progress, store the newest payload so the active loop flushes it before resolving
     if (inFlightWrites.has(key)) {
         pendingWritePayloads.set(key, data);
         return inFlightWrites.get(key);
     }
 
     const writePromise = (async () => {
+        let currentData = data;
         try {
-            let payloadToSave = data;
+            while (currentData !== undefined) {
+                let payloadToSave = currentData;
 
-            if (key === 'users.json' && data && typeof data === 'object' && Array.isArray(data.users)) {
-                const deletedIdsRaw = Array.isArray(data._deletedUserIds) ? data._deletedUserIds : [];
-                const deletedTokensRaw = Array.isArray(data._deletedTokens) ? data._deletedTokens : [];
-                const deletedSet = new Set(deletedIdsRaw.map(x => String(x || '').toLowerCase().trim()).filter(Boolean));
-                const deletedTokSet = new Set(deletedTokensRaw.map(x => String(x || '').trim()).filter(Boolean));
+                if (key === 'users.json' && currentData && typeof currentData === 'object' && Array.isArray(currentData.users)) {
+                    const deletedIdsRaw = Array.isArray(currentData._deletedUserIds) ? currentData._deletedUserIds : [];
+                    const deletedTokensRaw = Array.isArray(currentData._deletedTokens) ? currentData._deletedTokens : [];
+                    const deletedSet = new Set(deletedIdsRaw.map(x => String(x || '').toLowerCase().trim()).filter(Boolean));
+                    const deletedTokSet = new Set(deletedTokensRaw.map(x => String(x || '').trim()).filter(Boolean));
 
-                const cleanCopy = {
-                    users: Array.isArray(data.users) ? [...data.users] : [],
-                    sessions: (data.sessions && typeof data.sessions === 'object') ? { ...data.sessions } : {}
-                };
+                    const cleanCopy = {
+                        users: Array.isArray(currentData.users) ? [...currentData.users] : [],
+                        sessions: (currentData.sessions && typeof currentData.sessions === 'object') ? { ...currentData.sessions } : {}
+                    };
 
-                try {
-                    const existingRes = await queryWithRetry('SELECT data FROM app_storage WHERE key = $1', ['users.json']);
-                    if (existingRes && existingRes.rows && existingRes.rows.length > 0 && existingRes.rows[0].data) {
-                        const dbData = existingRes.rows[0].data;
-                        const dbUsers = Array.isArray(dbData.users) ? dbData.users : [];
-                        const dbSessions = (dbData.sessions && typeof dbData.sessions === 'object') ? dbData.sessions : {};
+                    try {
+                        const existingRes = await queryWithRetry('SELECT data FROM app_storage WHERE key = $1', ['users.json']);
+                        if (existingRes && existingRes.rows && existingRes.rows.length > 0 && existingRes.rows[0].data) {
+                            const dbData = existingRes.rows[0].data;
+                            const dbUsers = Array.isArray(dbData.users) ? dbData.users : [];
+                            const dbSessions = (dbData.sessions && typeof dbData.sessions === 'object') ? dbData.sessions : {};
 
-                        for (const oldU of dbUsers) {
-                            if (!oldU || typeof oldU !== 'object') continue;
-                            const oldId = String(oldU.id || '').toLowerCase().trim();
-                            const oldOrigId = String(oldU.originalId || '').toLowerCase().trim();
-                            const oldName = String(oldU.username || '').toLowerCase().trim();
-                            const oldEmail = String(oldU.rawEmail || oldU.email || '').toLowerCase().trim();
+                            for (const oldU of dbUsers) {
+                                if (!oldU || typeof oldU !== 'object') continue;
+                                const oldId = String(oldU.id || '').toLowerCase().trim();
+                                const oldOrigId = String(oldU.originalId || '').toLowerCase().trim();
+                                const oldName = String(oldU.username || '').toLowerCase().trim();
+                                const oldEmail = String(oldU.rawEmail || oldU.email || '').toLowerCase().trim();
 
-                            if (
-                                (oldId && deletedSet.has(oldId)) ||
-                                (oldOrigId && deletedSet.has(oldOrigId)) ||
-                                (oldName && deletedSet.has(oldName)) ||
-                                (oldEmail && deletedSet.has(oldEmail))
-                            ) {
-                                continue;
+                                if (
+                                    (oldId && deletedSet.has(oldId)) ||
+                                    (oldOrigId && deletedSet.has(oldOrigId)) ||
+                                    (oldName && deletedSet.has(oldName)) ||
+                                    (oldEmail && deletedSet.has(oldEmail))
+                                ) {
+                                    continue;
+                                }
+
+                                const existingIdx = cleanCopy.users.findIndex(newU => {
+                                    if (!newU || typeof newU !== 'object') return false;
+                                    const nId = String(newU.id || '').toLowerCase().trim();
+                                    const nOrigId = String(newU.originalId || '').toLowerCase().trim();
+                                    const nName = String(newU.username || '').toLowerCase().trim();
+                                    const nEmail = String(newU.rawEmail || newU.email || '').toLowerCase().trim();
+                                    if (oldOrigId && (nOrigId === oldOrigId || nId === oldOrigId)) return true;
+                                    if (oldId && (nId === oldId || nOrigId === oldId)) return true;
+                                    if (oldEmail && nEmail && oldEmail === nEmail) return true;
+                                    if (oldName && nName && oldName === nName) return true;
+                                    return false;
+                                });
+
+                                if (existingIdx === -1) {
+                                    cleanCopy.users.push(oldU);
+                                } else {
+                                    const targetU = cleanCopy.users[existingIdx];
+                                    if (oldU.passwordHash && !targetU.passwordHash) {
+                                        targetU.passwordHash = oldU.passwordHash;
+                                        targetU.passwordSalt = oldU.passwordSalt || targetU.passwordSalt;
+                                    }
+                                    if (oldU.googleId && !targetU.googleId) {
+                                        targetU.googleId = oldU.googleId;
+                                    }
+                                    if (oldU.rawEmail && !targetU.rawEmail) {
+                                        targetU.rawEmail = oldU.rawEmail;
+                                    }
+                                }
                             }
 
-                            const existingIdx = cleanCopy.users.findIndex(newU => {
-                                if (!newU || typeof newU !== 'object') return false;
-                                const nId = String(newU.id || '').toLowerCase().trim();
-                                const nOrigId = String(newU.originalId || '').toLowerCase().trim();
-                                const nName = String(newU.username || '').toLowerCase().trim();
-                                const nEmail = String(newU.rawEmail || newU.email || '').toLowerCase().trim();
-                                if (oldOrigId && (nOrigId === oldOrigId || nId === oldOrigId)) return true;
-                                if (oldId && (nId === oldId || nOrigId === oldId)) return true;
-                                if (oldEmail && nEmail && oldEmail === nEmail) return true;
-                                if (oldName && nName && oldName === nName) return true;
-                                return false;
-                            });
-
-                            if (existingIdx === -1) {
-                                cleanCopy.users.push(oldU);
-                            } else {
-                                const targetU = cleanCopy.users[existingIdx];
-                                if (oldU.passwordHash && !targetU.passwordHash) {
-                                    targetU.passwordHash = oldU.passwordHash;
-                                    targetU.passwordSalt = oldU.passwordSalt || targetU.passwordSalt;
-                                }
-                                if (oldU.googleId && !targetU.googleId) {
-                                    targetU.googleId = oldU.googleId;
-                                }
-                                if (oldU.rawEmail && !targetU.rawEmail) {
-                                    targetU.rawEmail = oldU.rawEmail;
+                            for (const [tok, sess] of Object.entries(dbSessions)) {
+                                if (deletedTokSet.has(tok)) continue;
+                                if (!cleanCopy.sessions[tok] && sess) {
+                                    const sUid = String(typeof sess.userId === 'object' ? (sess.userId?.id || '') : (sess.userId || '')).toLowerCase().trim();
+                                    if (!sUid || !deletedSet.has(sUid)) {
+                                        cleanCopy.sessions[tok] = sess;
+                                    }
                                 }
                             }
                         }
+                    } catch (mergeErr) {}
 
-                        for (const [tok, sess] of Object.entries(dbSessions)) {
-                            if (deletedTokSet.has(tok)) continue;
-                            if (!cleanCopy.sessions[tok] && sess) {
-                                const sUid = String(typeof sess.userId === 'object' ? (sess.userId?.id || '') : (sess.userId || '')).toLowerCase().trim();
-                                if (!sUid || !deletedSet.has(sUid)) {
-                                    cleanCopy.sessions[tok] = sess;
-                                }
-                            }
-                        }
-                    }
-                } catch (mergeErr) {}
+                    payloadToSave = cleanCopy;
+                }
 
-                payloadToSave = cleanCopy;
+                // If a newer payload arrived while we were merging, skip straight to the newer payload
+                if (pendingWritePayloads.has(key)) {
+                    currentData = pendingWritePayloads.get(key);
+                    pendingWritePayloads.delete(key);
+                    continue;
+                }
+
+                const res = await queryWithRetry(
+                    `INSERT INTO app_storage (key, data, updated_at) VALUES ($1, $2, NOW())
+                     ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+                     RETURNING updated_at`,
+                    [key, JSON.stringify(payloadToSave)]
+                );
+
+                if (!pendingWritePayloads.has(key)) {
+                    memoryStore.set(key, payloadToSave);
+                    saveLocalBackupSilently(key, payloadToSave);
+                }
+                const nowMs = Date.now();
+                memoryLastCheckedAt.set(key, nowMs);
+                lastPostgresWriteAt.set(key, nowMs);
+                if (res && res.rows && res.rows[0] && res.rows[0].updated_at) {
+                    memoryUpdatedAt.set(key, new Date(res.rows[0].updated_at).getTime());
+                }
+
+                if (pendingWritePayloads.has(key)) {
+                    currentData = pendingWritePayloads.get(key);
+                    pendingWritePayloads.delete(key);
+                } else {
+                    currentData = undefined;
+                }
             }
-
-            const res = await queryWithRetry(
-                `INSERT INTO app_storage (key, data, updated_at) VALUES ($1, $2, NOW())
-                 ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
-                 RETURNING updated_at`,
-                [key, JSON.stringify(payloadToSave)]
-            );
-            memoryStore.set(key, payloadToSave);
-            const nowMs = Date.now();
-            memoryLastCheckedAt.set(key, nowMs);
-            lastPostgresWriteAt.set(key, nowMs);
-            if (res && res.rows && res.rows[0] && res.rows[0].updated_at) {
-                memoryUpdatedAt.set(key, new Date(res.rows[0].updated_at).getTime());
-            }
-
-            saveLocalBackupSilently(key, payloadToSave);
             return true;
         } catch (err) {
-            // Only log non-timeout errors or critical key errors so transient PgBouncer pooler contention does not spam logs
             const msg = sanitizeLog(err);
             if (!/timeout|terminated/i.test(msg)) {
                 console.warn(`[Supabase PostgreSQL] Write notice for key "${key}":`, msg);
@@ -295,10 +324,7 @@ async function writeToPostgres(key, data) {
             if (pendingWritePayloads.has(key)) {
                 const nextPayload = pendingWritePayloads.get(key);
                 pendingWritePayloads.delete(key);
-                // Schedule coalesced follow-up write
-                setTimeout(() => {
-                    writeToPostgres(key, nextPayload).catch(() => {});
-                }, 500);
+                writeToPostgres(key, nextPayload).catch(() => {});
             }
         }
     })();
