@@ -146,6 +146,17 @@ const DEFAULT_DIAMOND_SHOP_BORDERS = [
     { id: 'dmbd_immortal', borderId: 'border_immortal', name: 'Border Immortal Sultan', url: '/borders/Imortal.png', badge: 'IMMORTAL', cost: 3200, days: 0, isPermanent: true, enabled: true }
 ];
 
+const DEFAULT_DIAMOND_SHOP_NAME_GLOWS = [
+    { id: 'dmng_cyber_neon', glowId: 'cyber_neon', name: 'Cyber Neon Pulse', subtitle: 'Gradien sian elektrik, biru langit & magenta bergerak', badge: 'NEON', className: 'vip-name-glow vip-name-glow-cyber_neon', cost: 350, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmng_royal_gold', glowId: 'royal_gold', name: 'Royal Sultan Gold', subtitle: 'Kilau emas murni & cahaya mahkota mewah', badge: 'SULTAN', className: 'vip-name-glow vip-name-glow-royal_gold', cost: 500, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmng_crimson_flame', glowId: 'crimson_flame', name: 'Crimson Phoenix Flame', subtitle: 'Efek bara merah menyala & jingga keemasan', badge: 'FLAME', className: 'vip-name-glow vip-name-glow-crimson_flame', cost: 450, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmng_emerald_aurora', glowId: 'emerald_aurora', name: 'Emerald Aurora Matrix', subtitle: 'Gelombang hijau zamrud & pirus kutub utara', badge: 'AURORA', className: 'vip-name-glow vip-name-glow-emerald_aurora', cost: 400, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmng_galaxy_amethyst', glowId: 'galaxy_amethyst', name: 'Galaxy Amethyst Nebula', subtitle: 'Cahaya ungu kosmik, merah muda & indigo bintang', badge: 'GALAXY', className: 'vip-name-glow vip-name-glow-galaxy_amethyst', cost: 450, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmng_rainbow_prism', glowId: 'rainbow_prism', name: 'Rainbow Prism RGB', subtitle: 'Spektrum pelangi RGB penuh bergelombang halus', badge: 'RGB PRISM', className: 'vip-name-glow vip-name-glow-rainbow_prism', cost: 600, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmng_ice_diamond', glowId: 'ice_diamond', name: 'Ice Crystal Diamond', subtitle: 'Kilau berlian es biru muda & putih kristal', badge: 'DIAMOND', className: 'vip-name-glow vip-name-glow-ice_diamond', cost: 550, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmng_liquid_glass', glowId: 'liquid_glass', name: 'Liquid Glass iOS 27', subtitle: 'Kilau kaca cair kristal prismatik khas iOS 27 VIP', badge: 'iOS 27', className: 'vip-name-glow vip-name-glow-liquid_glass', cost: 750, days: 0, isPermanent: true, enabled: true }
+];
+
 const DEFAULT_VIP_TRIAL_CONFIG = {
     enabled: true,
     durationDays: 7,
@@ -192,6 +203,7 @@ const DEFAULT_PAYMENT_CONFIG = {
     diamondStarVipPackages: DEFAULT_DIAMOND_STAR_VIP_PACKAGES,
     diamondShopCustomIds: DEFAULT_DIAMOND_SHOP_CUSTOM_IDS,
     diamondShopBorders: DEFAULT_DIAMOND_SHOP_BORDERS,
+    diamondShopNameGlows: DEFAULT_DIAMOND_SHOP_NAME_GLOWS,
     rewardedAdConfig: DEFAULT_REWARDED_AD_CONFIG,
     vipTrialConfig: DEFAULT_VIP_TRIAL_CONFIG,
     accounts: [],
@@ -366,6 +378,16 @@ async function getPaymentConfig() {
                 console.warn('[PAYMENT_CONFIG] Auto-merge borders notice:', bErr.message);
             }
 
+            let mergedShopNameGlows = Array.isArray(data.diamondShopNameGlows) && data.diamondShopNameGlows.length
+                ? JSON.parse(JSON.stringify(data.diamondShopNameGlows))
+                : JSON.parse(JSON.stringify(DEFAULT_DIAMOND_SHOP_NAME_GLOWS));
+            for (const defGlow of DEFAULT_DIAMOND_SHOP_NAME_GLOWS) {
+                const exists = mergedShopNameGlows.some(x => x && (String(x.glowId) === String(defGlow.glowId) || String(x.id) === String(defGlow.id)));
+                if (!exists) {
+                    mergedShopNameGlows.push(Object.assign({}, defGlow));
+                }
+            }
+
             const rawRewardedAd = (data.rewardedAdConfig && typeof data.rewardedAdConfig === 'object') ? data.rewardedAdConfig : {};
             const mergedRewardedAdConfig = {
                 enabled: rawRewardedAd.enabled !== undefined ? Boolean(rawRewardedAd.enabled) : true,
@@ -390,6 +412,7 @@ async function getPaymentConfig() {
                 diamondStarVipPackages: Array.isArray(data.diamondStarVipPackages) && data.diamondStarVipPackages.length ? data.diamondStarVipPackages : DEFAULT_DIAMOND_STAR_VIP_PACKAGES,
                 diamondShopCustomIds: Array.isArray(data.diamondShopCustomIds) ? data.diamondShopCustomIds : DEFAULT_DIAMOND_SHOP_CUSTOM_IDS,
                 diamondShopBorders: mergedShopBorders,
+                diamondShopNameGlows: mergedShopNameGlows,
                 rewardedAdConfig: mergedRewardedAdConfig,
                 vipTrialConfig: mergedTrialConfig,
                 accounts: cleanedAccounts,
@@ -751,6 +774,28 @@ module.exports = async (req, res) => {
                 });
         }
 
+        let updatedDiamondShopNameGlows = currentConfig.diamondShopNameGlows || DEFAULT_DIAMOND_SHOP_NAME_GLOWS;
+        if (Array.isArray(body.diamondShopNameGlows) && body.diamondShopNameGlows.length > 0) {
+            updatedDiamondShopNameGlows = body.diamondShopNameGlows
+                .filter(item => item && (item.glowId || item.id))
+                .map((item, idx) => {
+                    const gId = String(item.glowId || 'cyber_neon').trim().toLowerCase();
+                    const daysNum = Math.max(0, Number(item.days) || 0);
+                    return {
+                        id: item.id || `dmng_${gId}_${idx}`,
+                        glowId: gId,
+                        name: String(item.name || 'Efek Nama Berwarna').trim(),
+                        subtitle: String(item.subtitle || 'Efek warna gradien nama eksklusif').trim(),
+                        badge: String(item.badge || 'GLOW').trim(),
+                        className: String(item.className || `vip-name-glow vip-name-glow-${gId}`).trim(),
+                        cost: Math.max(1, Number(item.cost) || 350),
+                        days: daysNum,
+                        isPermanent: item.isPermanent !== undefined ? Boolean(item.isPermanent) : (daysNum === 0),
+                        enabled: item.enabled !== false
+                    };
+                });
+        }
+
         // Parse vipTrialConfig if sent
         let updatedTrialConfig = currentConfig.vipTrialConfig || DEFAULT_VIP_TRIAL_CONFIG;
         if (body.vipTrialConfig && typeof body.vipTrialConfig === 'object') {
@@ -810,6 +855,7 @@ module.exports = async (req, res) => {
             diamondStarVipPackages: updatedDiamondStarVipPackages,
             diamondShopCustomIds: updatedDiamondShopCustomIds,
             diamondShopBorders: updatedDiamondShopBorders,
+            diamondShopNameGlows: updatedDiamondShopNameGlows,
             rewardedAdConfig: updatedRewardedAdConfig,
             vipTrialConfig: updatedTrialConfig,
             accounts: Array.isArray(body.accounts) ? body.accounts.map((acc, idx) => ({
@@ -842,7 +888,8 @@ module.exports = async (req, res) => {
                 for (const u of usersData.users) {
                     if (!u) continue;
                     const isMaster = String(u.email || u.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com';
-                    if (!u.isPremium && !isMaster && u.nameGlow) {
+                    const hasDiamondGlow = Boolean((u.isDiamondNameGlow || (Array.isArray(u.unlockedDiamondNameGlows) && u.unlockedDiamondNameGlows.includes(u.nameGlow))) && (!u.nameGlowExpiresAt || Date.now() <= Number(u.nameGlowExpiresAt)));
+                    if (!u.isPremium && !isMaster && !hasDiamondGlow && u.nameGlow) {
                         u.nameGlow = '';
                         usersUpdated = true;
                     }
