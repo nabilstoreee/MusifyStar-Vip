@@ -21,6 +21,11 @@
         var _verifiedTier = 'none';
         var _verifiedSig = null;
         var _verifiedIsMaster = false;
+        var _verifiedDiamonds = 0;
+        var _verifiedDiamondSig = null;
+        var _verifiedCustomId = '';
+        var _verifiedUnlockedBorders = [];
+        var _verifiedUnlockedNameGlows = [];
         var _watchdogTimer = null;
 
         function isValidHexSignature(sig) {
@@ -45,7 +50,11 @@
                 userObj.isVipTrial = false;
                 changed = true;
             }
-            if (userObj.nameGlow) {
+            var hasDiamondGlow = Boolean(
+                (userObj.isDiamondNameGlow || (Array.isArray(userObj.unlockedDiamondNameGlows) && userObj.unlockedDiamondNameGlows.length > 0)) &&
+                (!userObj.nameGlowExpiresAt || Date.now() <= Number(userObj.nameGlowExpiresAt))
+            );
+            if (userObj.nameGlow && !hasDiamondGlow) {
                 userObj.nameGlow = '';
                 changed = true;
             }
@@ -68,6 +77,53 @@
                 }
             }
             return changed;
+        }
+
+        function enforceVerifiedDiamondsOnObject(userObj) {
+            if (!userObj || typeof userObj !== 'object' || !_hasServerSynced || _verifiedIsMaster) {
+                return { tampered: false, reason: '' };
+            }
+            var reason = '';
+            var curDiamonds = Number(userObj.diamonds || 0);
+            if (!Number.isFinite(curDiamonds) || curDiamonds < 0 || curDiamonds > _verifiedDiamonds) {
+                reason = 'Manipulasi Saldo Berlian (Diamond) Ilegal via DevTools / Storage (' + curDiamonds + ' vs ' + _verifiedDiamonds + ')';
+                userObj.diamonds = _verifiedDiamonds;
+            }
+            if (_verifiedDiamondSig && userObj.diamondSignature && String(userObj.diamondSignature).trim() !== _verifiedDiamondSig) {
+                reason = reason || 'Pemalsuan Signature Keamanan Berlian (diamondSignature)';
+                userObj.diamondSignature = _verifiedDiamondSig;
+                userObj.diamonds = _verifiedDiamonds;
+            }
+            if (Array.isArray(userObj.unlockedDiamondBorders)) {
+                for (var i = 0; i < userObj.unlockedDiamondBorders.length; i++) {
+                    var bId = String(userObj.unlockedDiamondBorders[i] || '');
+                    if (bId && _verifiedUnlockedBorders.indexOf(bId) === -1) {
+                        reason = reason || ('Injeksi Katalog Border Berlian Ilegal (' + bId + ')');
+                        userObj.unlockedDiamondBorders = _verifiedUnlockedBorders.slice();
+                        break;
+                    }
+                }
+            }
+            if (Array.isArray(userObj.unlockedDiamondNameGlows)) {
+                for (var j = 0; j < userObj.unlockedDiamondNameGlows.length; j++) {
+                    var gId = String(userObj.unlockedDiamondNameGlows[j] || '');
+                    if (gId && _verifiedUnlockedNameGlows.indexOf(gId) === -1) {
+                        reason = reason || ('Injeksi Nama Warna Berlian Ilegal (' + gId + ')');
+                        userObj.unlockedDiamondNameGlows = _verifiedUnlockedNameGlows.slice();
+                        if (!_verifiedVip && _verifiedUnlockedNameGlows.indexOf(String(userObj.nameGlow || '')) === -1) {
+                            userObj.nameGlow = '';
+                            userObj.isDiamondNameGlow = false;
+                        }
+                        break;
+                    }
+                }
+            }
+            if (userObj.customId && String(userObj.customId) !== _verifiedCustomId) {
+                reason = reason || ('Manipulasi Custom ID Ilegal (' + userObj.customId + ')');
+                userObj.customId = _verifiedCustomId || null;
+                if (_verifiedUid) userObj.id = _verifiedUid;
+            }
+            return { tampered: Boolean(reason), reason: reason };
         }
 
         function resetUnauthorizedVipSettings() {
@@ -221,6 +277,11 @@
                     _verifiedTier = 'none';
                     _verifiedSig = null;
                     _verifiedIsMaster = false;
+                    _verifiedDiamonds = 0;
+                    _verifiedDiamondSig = null;
+                    _verifiedCustomId = '';
+                    _verifiedUnlockedBorders = [];
+                    _verifiedUnlockedNameGlows = [];
                     return;
                 }
                 var email = String(user.rawEmail || user.email || '').toLowerCase().trim();
@@ -240,10 +301,31 @@
                 _verifiedVip = isVip;
                 _verifiedTier = isVip ? String(user.vipTier || '1month') : 'none';
                 _verifiedSig = hasSig ? String(user.vipSignature).trim() : null;
+                _verifiedDiamonds = Math.max(0, Math.floor(Number(user.diamonds) || 0));
+                _verifiedDiamondSig = isValidHexSignature(user.diamondSignature) ? String(user.diamondSignature).trim() : _verifiedDiamondSig;
+                _verifiedCustomId = String(user.customId || '');
+                if (Array.isArray(user.unlockedDiamondBorders)) {
+                    _verifiedUnlockedBorders = user.unlockedDiamondBorders.map(function(x) { return String(x || ''); }).filter(Boolean);
+                }
+                if (Array.isArray(user.unlockedDiamondNameGlows)) {
+                    _verifiedUnlockedNameGlows = user.unlockedDiamondNameGlows.map(function(x) { return String(x || ''); }).filter(Boolean);
+                }
 
                 if (!isVip) {
                     resetUnauthorizedVipSettings();
                 }
+            },
+
+            updateVerifiedDiamonds: function(newBalance, newSig) {
+                var num = Math.max(0, Math.floor(Number(newBalance) || 0));
+                _verifiedDiamonds = num;
+                if (isValidHexSignature(newSig)) {
+                    _verifiedDiamondSig = String(newSig).trim();
+                }
+            },
+
+            getVerifiedDiamonds: function() {
+                return _verifiedDiamonds;
             },
 
             isVerifiedVip: function(user) {
@@ -275,12 +357,22 @@
                 if (_isTriggered) return;
 
                 try {
-                    if (_hasServerSynced && !_verifiedVip && !_verifiedIsMaster) {
-                        var memoryTampered = false;
-                        var storageTampered = false;
+                    // 1. Proteksi Anti-Offline-Clone / PC GetWeb / SavePageAs (file:// atau mhtml)
+                    if (window.location && (window.location.protocol === 'file:' || window.location.protocol === 'content:' || window.location.href.indexOf('mhtml:') === 0)) {
+                        BrowserSecurity.showLockdownScreen('Terdeteksi Membuka Salinan Offline Ilegal (GetWeb / Save Page As)');
+                        return;
+                    }
 
-                        if (window.Auth && window.Auth.currentUser) {
-                            var cu = window.Auth.currentUser;
+                    if (!_hasServerSynced || _verifiedIsMaster) return;
+
+                    var memoryTampered = false;
+                    var storageTampered = false;
+                    var diamondTamperedReason = '';
+
+                    // 2. Cek integritas objek di memori (window.Auth.currentUser)
+                    if (window.Auth && window.Auth.currentUser) {
+                        var cu = window.Auth.currentUser;
+                        if (!_verifiedVip) {
                             var cuClaimedVip = Boolean(
                                 cu.isPremium ||
                                 cu.is_premium ||
@@ -293,40 +385,75 @@
                                 memoryTampered = true;
                             }
                         }
+                        var dmCheckMem = enforceVerifiedDiamondsOnObject(cu);
+                        if (dmCheckMem.tampered) {
+                            memoryTampered = true;
+                            diamondTamperedReason = dmCheckMem.reason;
+                        }
+                    }
 
-                        var raw = localStorage.getItem('musifystar_auth_user');
+                    // 3. Cek integritas objek di localStorage & sessionStorage
+                    var storageKeys = ['musifystar_auth_user'];
+                    for (var sIdx = 0; sIdx < storageKeys.length; sIdx++) {
+                        var sKey = storageKeys[sIdx];
+                        var raw = localStorage.getItem(sKey);
                         if (raw) {
                             var storedUser = JSON.parse(raw);
-                            if (storedUser) {
-                                var storedClaimedVip = Boolean(
-                                    storedUser.isPremium ||
-                                    storedUser.is_premium ||
-                                    storedUser.isVip ||
-                                    (storedUser.vipTier && storedUser.vipTier !== 'none') ||
-                                    String(storedUser.email || storedUser.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com'
-                                );
-                                if (storedClaimedVip) {
-                                    stripSpoofedVipFromObject(storedUser);
-                                    localStorage.setItem('musifystar_auth_user', JSON.stringify(storedUser));
+                            if (storedUser && typeof storedUser === 'object') {
+                                var modStore = false;
+                                if (!_verifiedVip) {
+                                    var storedClaimedVip = Boolean(
+                                        storedUser.isPremium ||
+                                        storedUser.is_premium ||
+                                        storedUser.isVip ||
+                                        (storedUser.vipTier && storedUser.vipTier !== 'none') ||
+                                        String(storedUser.email || storedUser.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com'
+                                    );
+                                    if (storedClaimedVip) {
+                                        stripSpoofedVipFromObject(storedUser);
+                                        modStore = true;
+                                        storageTampered = true;
+                                    }
+                                }
+                                var dmCheckStore = enforceVerifiedDiamondsOnObject(storedUser);
+                                if (dmCheckStore.tampered) {
+                                    modStore = true;
                                     storageTampered = true;
+                                    diamondTamperedReason = diamondTamperedReason || dmCheckStore.reason;
+                                }
+                                if (modStore) {
+                                    localStorage.setItem(sKey, JSON.stringify(storedUser));
                                 }
                             }
                         }
+                    }
 
-                        if (memoryTampered || storageTampered) {
+                    if (diamondTamperedReason) {
+                        var pillEl = document.getElementById('diamond-top-pill-count');
+                        var balEl = document.getElementById('diamond-modal-balance-num');
+                        var starEl = document.getElementById('diamond-star-tab-balance');
+                        if (pillEl) pillEl.textContent = _verifiedDiamonds.toLocaleString('id-ID');
+                        if (balEl) balEl.textContent = _verifiedDiamonds.toLocaleString('id-ID');
+                        if (starEl) starEl.textContent = _verifiedDiamonds.toLocaleString('id-ID');
+                        BrowserSecurity.reportTamper(diamondTamperedReason, 'Auto-detected by Diamond Integrity Watchdog');
+                        return;
+                    }
+
+                    if (memoryTampered || storageTampered) {
+                        if (!_verifiedVip) {
                             resetUnauthorizedVipSettings();
-                            if (window.Profile && typeof window.Profile.applySettings === 'function') {
-                                try { window.Profile.applySettings(); } catch(e) {}
-                            }
-                            if (window.Auth && typeof window.Auth.updateHeaderUI === 'function') {
-                                try { window.Auth.updateHeaderUI(); } catch(e) {}
-                            }
-                            if (window.Auth && typeof window.Auth.checkSession === 'function' && !_isSyncing) {
-                                _isSyncing = true;
-                                window.Auth.checkSession().finally(function() {
-                                    setTimeout(function() { _isSyncing = false; }, 5000);
-                                });
-                            }
+                        }
+                        if (window.Profile && typeof window.Profile.applySettings === 'function') {
+                            try { window.Profile.applySettings(); } catch(e) {}
+                        }
+                        if (window.Auth && typeof window.Auth.updateHeaderUI === 'function') {
+                            try { window.Auth.updateHeaderUI(); } catch(e) {}
+                        }
+                        if (window.Auth && typeof window.Auth.checkSession === 'function' && !_isSyncing) {
+                            _isSyncing = true;
+                            window.Auth.checkSession().finally(function() {
+                                setTimeout(function() { _isSyncing = false; }, 5000);
+                            });
                         }
                     }
                 } catch(e) {}
@@ -339,19 +466,65 @@
                     }
                 });
 
+                window.addEventListener('focus', function() {
+                    BrowserSecurity.verifyIntegrity();
+                });
+
+                // Blokir shortcut PC untuk Save Website (Ctrl+S), View Source (Ctrl+U), dan Inspect DevTools (F12 / Ctrl+Shift+I/J/C) bagi non-Master Admin
+                window.addEventListener('keydown', function(e) {
+                    if (_verifiedIsMaster) return;
+                    var key = String(e.key || '').toLowerCase();
+                    var code = e.keyCode || e.which;
+                    var ctrlOrCmd = Boolean(e.ctrlKey || e.metaKey);
+
+                    // F12
+                    if (code === 123 || key === 'f12') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                    // Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+Shift+C (DevTools)
+                    if (ctrlOrCmd && e.shiftKey && (key === 'i' || key === 'j' || key === 'c' || code === 73 || code === 74 || code === 67)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                    // Ctrl+U (View Source) atau Ctrl+S (Save Page / GetWeb PC)
+                    if (ctrlOrCmd && (key === 'u' || key === 's' || code === 85 || code === 83)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                }, true);
+
+                // Blokir drag-and-drop pencurian aset gambar/border
+                window.addEventListener('dragstart', function(e) {
+                    if (_verifiedIsMaster) return;
+                    var t = e.target;
+                    if (t && (t.tagName === 'IMG' || t.tagName === 'SVG' || t.tagName === 'A')) {
+                        e.preventDefault();
+                    }
+                }, true);
+
                 if (!_watchdogTimer) {
                     _watchdogTimer = setInterval(function() {
                         BrowserSecurity.verifyIntegrity();
-                    }, 1500);
+                    }, 1200);
                 }
             }
         };
 
         try {
             Object.freeze(BrowserSecurity);
-        } catch (e) {}
+            Object.defineProperty(window, 'Security', {
+                value: BrowserSecurity,
+                writable: false,
+                configurable: false
+            });
+        } catch (e) {
+            window.Security = BrowserSecurity;
+        }
 
-        window.Security = BrowserSecurity;
         BrowserSecurity.init();
         return;
     }
@@ -995,39 +1168,90 @@
         }
     }
 
+    function generateDiamondSignature(userId, diamonds, unlockedBorders = [], unlockedNameGlows = [], customId = '') {
+        if (!userId) return '';
+        const dm = Math.max(0, Math.floor(Number(diamonds) || 0));
+        const bList = Array.isArray(unlockedBorders) ? unlockedBorders.map(String).sort().join(',') : '';
+        const gList = Array.isArray(unlockedNameGlows) ? unlockedNameGlows.map(String).sort().join(',') : '';
+        const cid = String(customId || '').trim();
+        const payload = `dm_uid:${userId}|dm:${dm}|bd:${bList}|ng:${gList}|cid:${cid}`;
+        return crypto.createHmac('sha256', VIP_INTEGRITY_SECRET).update(payload).digest('hex');
+    }
+
+    function verifyDiamondSignature(userId, diamonds, unlockedBorders, unlockedNameGlows, customId, signature) {
+        if (!userId || !signature) return false;
+        const expected = generateDiamondSignature(userId, diamonds, unlockedBorders, unlockedNameGlows, customId);
+        try {
+            return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+        } catch (e) {
+            return false;
+        }
+    }
+
     const FORBIDDEN_BOT_PATTERNS = [
         /getweb/i,
         /webget/i,
         /httrack/i,
+        /cyotek/i,
+        /webcopy/i,
         /teleport/i,
         /offline\s*explorer/i,
         /webcopier/i,
         /site-sucker/i,
         /sitesucker/i,
         /pagegrabber/i,
+        /webzip/i,
+        /webstripper/i,
+        /blackwidow/i,
+        /pavuk/i,
+        /saveweb2zip/i,
+        /savepage/i,
+        /singlefile/i,
+        /monolith/i,
+        /website\s*extractor/i,
+        /website\s*downloader/i,
+        /web2apk/i,
+        /website2apk/i,
         /\bwget\b/i,
         /python-requests/i,
         /python-urllib/i,
+        /python-httpx/i,
         /aiohttp/i,
         /scrapy/i,
+        /go-http-client/i,
+        /apache-httpclient/i,
+        /okhttp/i,
+        /libwww-perl/i,
         /sqlmap/i,
         /nikto/i,
         /acunetix/i,
         /masscan/i,
         /dirbuster/i,
         /gobuster/i,
+        /feroxbuster/i,
+        /ffuf/i,
+        /nuclei/i,
         /nmap/i,
         /zgrab/i,
         /censys/i,
         /burpcollaborator/i,
-        /libwww-perl/i
+        /phantomjs/i,
+        /headlesschrome/i
     ];
 
-    function isBotOrScraper(userAgent) {
-        if (!userAgent) return false;
-        const ua = String(userAgent).toLowerCase();
+    function isBotOrScraper(userAgent, headers = {}) {
+        const ua = String(userAgent || '').toLowerCase().trim();
         for (const pattern of FORBIDDEN_BOT_PATTERNS) {
             if (pattern.test(ua)) return true;
+        }
+        if (headers && typeof headers === 'object') {
+            const referer = String(headers['referer'] || headers['origin'] || '').toLowerCase();
+            if (referer.includes('saveweb2zip') || referer.includes('webcopy') || referer.includes('httrack') || referer.includes('getweb')) {
+                return true;
+            }
+            if (headers['x-httrack'] || headers['x-saveweb2zip'] || headers['x-webcopy']) {
+                return true;
+            }
         }
         return false;
     }
@@ -1482,6 +1706,8 @@
         recordSecurityEvent,
         generateVipSignature,
         verifyVipSignature,
+        generateDiamondSignature,
+        verifyDiamondSignature,
         isBotOrScraper,
         serveCorruptedDummyFile,
         getIpBannedHtmlPage,

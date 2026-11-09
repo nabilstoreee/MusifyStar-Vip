@@ -5251,6 +5251,11 @@ var Auth = {
         if (!u) return false;
         var isMasterAdmin = Boolean(((u.email || u.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com') || ((u.username || '').toLowerCase().trim() === 'musifystar') || u.isMasterAdmin);
         if (isMasterAdmin) return true;
+        var hasValidDiamondGlow = Boolean(
+            (u.isDiamondNameGlow || (Array.isArray(u.unlockedDiamondNameGlows) && u.unlockedDiamondNameGlows.length > 0)) &&
+            (!u.nameGlowExpiresAt || Date.now() <= Number(u.nameGlowExpiresAt))
+        );
+        if (hasValidDiamondGlow) return true;
         if (u.trialAllowedFeatures && u.trialAllowedFeatures.nameGlow === false) {
             return false;
         }
@@ -5299,7 +5304,7 @@ var Auth = {
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 <h3 class="text-white font-black text-sm sm:text-base tracking-tight">Efek Nama Berwarna (VIP Glow)</h3>
                             </div>
-                            <p class="text-[11px] text-white/55 truncate">Gradien animasi khusus Member VIP</p>
+                            <p class="text-[11px] text-white/55 truncate">Gradien animasi khusus Member VIP & Toko Berlian</p>
                         </div>
                     </div>
                     <button type="button" onclick="gid('name-glow-picker-modal')?.remove()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center cursor-pointer active:scale-95 transition-all">
@@ -5319,8 +5324,8 @@ var Auth = {
                     </div>
                     ${!canEquip ? `
                     <div class="mt-2.5 p-2.5 rounded-xl bg-rose-500/15 border border-rose-400/35 flex items-center justify-between gap-2 text-[10.5px]">
-                        <span class="text-rose-200/95 leading-snug">${(u.isVipTrial || u.vipSource === 'point_exchange') ? '🔒 Fitur <strong>Efek Nama Berwarna</strong> tidak dicentang / dikunci oleh Admin pada paket ' + (u.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Free Trial)') + ' Anda. Upgrade ke VIP Penuh untuk memakai fitur ini!' : '🔒 Fitur eksklusif khusus <strong>Member VIP MusifyStar</strong>. Akun non-VIP tidak dapat memakai Efek Nama Berwarna.'}</span>
-                        <button type="button" onclick="gid('name-glow-picker-modal')?.remove(); if(typeof Profile !== 'undefined') Profile.openVipPackagesModal();" class="px-2.5 py-1 rounded-lg bg-amber-400 text-black font-black text-[10px] shrink-0 cursor-pointer active:scale-95">Buka VIP</button>
+                        <span class="text-rose-200/95 leading-snug">${(u.isVipTrial || u.vipSource === 'point_exchange') ? '🔒 Fitur <strong>Efek Nama Berwarna</strong> tidak dicentang / dikunci oleh Admin pada paket ' + (u.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Free Trial)') + ' Anda. Upgrade ke VIP Penuh atau beli di Toko Berlian!' : '🔒 Fitur eksklusif khusus <strong>Member VIP</strong> atau beli lewat <strong>Toko Berlian (💎)</strong>.'}</span>
+                        <button type="button" onclick="gid('name-glow-picker-modal')?.remove(); if(typeof Profile !== 'undefined' && Profile.openDiamondTopupModal) Profile.openDiamondTopupModal('namawarna');" class="px-2.5 py-1 rounded-lg bg-amber-400 text-black font-black text-[10px] shrink-0 cursor-pointer active:scale-95">Toko 💎</button>
                     </div>
                     ` : ''}
                 </div>
@@ -5329,7 +5334,8 @@ var Auth = {
                 <div class="p-4 overflow-y-auto hide-scrollbar space-y-2.5 flex-1">
                     ${catalog.map(function(item) {
                         var isSelected = (currentGlow === item.id) || (currentGlow === '' && item.id === 'none');
-                        var isLockedItem = !canEquip && item.id !== 'none';
+                        var isUnlockedByDiamond = Array.isArray(u.unlockedDiamondNameGlows) && u.unlockedDiamondNameGlows.includes(item.id) && (!u.nameGlowExpiresAt || Date.now() <= Number(u.nameGlowExpiresAt));
+                        var isLockedItem = !canEquip && !isUnlockedByDiamond && item.id !== 'none';
                         return `
                         <div onclick="Auth.equipNameGlow('${item.id}')" class="p-3 rounded-2xl border transition-all cursor-pointer active:scale-[0.99] flex items-center justify-between gap-3 ${isSelected ? 'bg-fuchsia-500/15 border-fuchsia-400 shadow-[0_0_18px_rgba(217,70,239,0.25)]' : (isLockedItem ? 'bg-white/[0.02] border-white/10 opacity-75' : 'bg-white/[0.03] hover:bg-white/[0.07] border-white/10')}">
                             <div class="min-w-0 flex-1 space-y-1">
@@ -5371,12 +5377,13 @@ var Auth = {
         if (!u) return;
 
         var cleanGlow = String(glowId || '').trim().toLowerCase();
-        if (cleanGlow !== 'none' && cleanGlow !== '' && !Auth.canUserUseNameGlow(u)) {
+        var isUnlockedByDiamond = Array.isArray(u.unlockedDiamondNameGlows) && u.unlockedDiamondNameGlows.includes(cleanGlow) && (!u.nameGlowExpiresAt || Date.now() <= Number(u.nameGlowExpiresAt));
+        if (cleanGlow !== 'none' && cleanGlow !== '' && !Auth.canUserUseNameGlow(u) && !isUnlockedByDiamond) {
             if (typeof showToast === 'function') {
                 if (u.isVipTrial || u.vipSource === 'point_exchange') {
-                    showToast('🔒 Fitur Efek Nama Berwarna tidak dicentang / dikunci oleh Admin pada paket ' + (u.vipSource === 'point_exchange' ? 'Penukaran Poin VIP' : 'Percobaan VIP (Free Trial)') + ' Anda! Upgrade ke VIP Penuh untuk membuka fitur ini.');
+                    showToast('🔒 Fitur Efek Nama Berwarna dikunci pada paket Anda! Upgrade ke VIP Penuh atau beli di Toko Berlian (💎).');
                 } else {
-                    showToast('🔒 Efek Nama Berwarna khusus untuk Member VIP MusifyStar! Silakan berlangganan VIP terlebih dahulu.');
+                    showToast('🔒 Efek Nama Berwarna khusus Member VIP atau beli di Toko Berlian (💎)!');
                 }
             }
             return;

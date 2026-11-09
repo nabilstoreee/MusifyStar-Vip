@@ -20956,6 +20956,8 @@ var Profile = {
                         if (typeof bItem.scale === 'number') existing.scale = bItem.scale;
                         if (typeof bItem.offsetY === 'number') existing.offsetY = bItem.offsetY;
                         if (typeof bItem.offsetX === 'number') existing.offsetX = bItem.offsetX;
+                        if (existing.days === undefined) existing.days = 0;
+                        if (existing.isPermanent === undefined) existing.isPermanent = (Number(existing.days) === 0);
                     } else {
                         var catLow = String(bItem.category || bItem.requiredTier || '').toLowerCase();
                         var defCost = 450;
@@ -20984,6 +20986,28 @@ var Profile = {
                 });
             }
 
+            var defaultNameGlows = [
+                { id: 'dmng_cyber_neon', glowId: 'cyber_neon', name: 'Cyber Neon Pulse', subtitle: 'Gradien sian elektrik, biru langit & magenta bergerak', badge: 'NEON', className: 'vip-name-glow vip-name-glow-cyber_neon', cost: 350, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_royal_gold', glowId: 'royal_gold', name: 'Royal Sultan Gold', subtitle: 'Kilau emas murni & cahaya mahkota mewah', badge: 'SULTAN', className: 'vip-name-glow vip-name-glow-royal_gold', cost: 500, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_crimson_flame', glowId: 'crimson_flame', name: 'Crimson Phoenix Flame', subtitle: 'Efek bara merah menyala & jingga keemasan', badge: 'FLAME', className: 'vip-name-glow vip-name-glow-crimson_flame', cost: 450, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_emerald_aurora', glowId: 'emerald_aurora', name: 'Emerald Aurora Matrix', subtitle: 'Gelombang hijau zamrud & pirus kutub utara', badge: 'AURORA', className: 'vip-name-glow vip-name-glow-emerald_aurora', cost: 400, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_galaxy_amethyst', glowId: 'galaxy_amethyst', name: 'Galaxy Amethyst Nebula', subtitle: 'Cahaya ungu kosmik, merah muda & indigo bintang', badge: 'GALAXY', className: 'vip-name-glow vip-name-glow-galaxy_amethyst', cost: 450, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_rainbow_prism', glowId: 'rainbow_prism', name: 'Rainbow Prism RGB', subtitle: 'Spektrum pelangi RGB penuh bergelombang halus', badge: 'RGB PRISM', className: 'vip-name-glow vip-name-glow-rainbow_prism', cost: 600, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_ice_diamond', glowId: 'ice_diamond', name: 'Ice Crystal Diamond', subtitle: 'Kilau berlian es biru muda & putih kristal', badge: 'DIAMOND', className: 'vip-name-glow vip-name-glow-ice_diamond', cost: 550, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_liquid_glass', glowId: 'liquid_glass', name: 'Liquid Glass iOS 27', subtitle: 'Kilau kaca cair kristal prismatik khas iOS 27 VIP', badge: 'iOS 27', className: 'vip-name-glow vip-name-glow-liquid_glass', cost: 750, days: 0, isPermanent: true, enabled: true }
+            ];
+            var shopNameGlows = Array.isArray(payCfg.diamondShopNameGlows) && payCfg.diamondShopNameGlows.length
+                ? JSON.parse(JSON.stringify(payCfg.diamondShopNameGlows))
+                : JSON.parse(JSON.stringify(defaultNameGlows));
+            defaultNameGlows.forEach(function(defNg) {
+                var exists = shopNameGlows.some(function(x) {
+                    return x && (String(x.glowId) === String(defNg.glowId) || String(x.id) === String(defNg.id));
+                });
+                if (!exists) {
+                    shopNameGlows.push(Object.assign({}, defNg));
+                }
+            });
+
             var defaultTargetUser = prevSelectedUser || (Auth?.currentUser?.id ? String(Auth.currentUser.id) : (users[0]?.id ? String(users[0].id) : ''));
 
             var rawAdCfg = (payCfg && payCfg.rewardedAdConfig && typeof payCfg.rewardedAdConfig === 'object') ? payCfg.rewardedAdConfig : {};
@@ -21003,6 +21027,7 @@ var Profile = {
                 diamondStarVipPackages: starVipPackages,
                 diamondShopCustomIds: shopCustomIds,
                 diamondShopBorders: shopBorders,
+                diamondShopNameGlows: shopNameGlows,
                 rewardedAdConfig: rewardedAdConfig,
                 ewallets: ew,
                 adminWhatsapp: payCfg.adminWhatsapp || '6281234567890',
@@ -21020,7 +21045,7 @@ var Profile = {
 
     switchAdminDiamondSubTab(subTab) {
         Profile._adminDiamondSubTab = subTab || 'all';
-        var tabs = ['all', 'users', 'topup', 'bintang', 'customid', 'border'];
+        var tabs = ['all', 'users', 'topup', 'bintang', 'customid', 'border', 'namawarna'];
         tabs.forEach(function(t) {
             var btn = gid('adm-dm-subtab-btn-' + t);
             var isAct = (t === Profile._adminDiamondSubTab);
@@ -21030,7 +21055,7 @@ var Profile = {
                     : 'px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap';
             }
         });
-        var panels = ['users', 'topup', 'bintang', 'customid', 'border'];
+        var panels = ['users', 'topup', 'bintang', 'customid', 'border', 'namawarna'];
         panels.forEach(function(p) {
             var el = gid('adm-dm-subpanel-' + p);
             if (el) {
@@ -21096,6 +21121,7 @@ var Profile = {
         var starPkgs = draft.diamondStarVipPackages || [];
         var customIds = draft.diamondShopCustomIds || [];
         var borders = draft.diamondShopBorders || [];
+        var nameGlows = draft.diamondShopNameGlows || [];
         var selectedUid = draft.selectedUserId || (users[0]?.id ? String(users[0].id) : '');
         var selectedUserObj = users.find(function(u) { return String(u.id) === String(selectedUid); }) || users[0] || null;
         if (selectedUserObj && !selectedUid) selectedUid = String(selectedUserObj.id);
@@ -21106,9 +21132,21 @@ var Profile = {
         var enabledBordersCount = borders.filter(function(b) { return b && b.enabled !== false; }).length;
         var enabledCustomIdsCount = customIds.filter(function(c) { return c && c.enabled !== false; }).length;
         var enabledStarCount = starPkgs.filter(function(s) { return s && s.enabled !== false; }).length;
+        var enabledNameGlowsCount = nameGlows.filter(function(g) { return g && g.enabled !== false; }).length;
         var sampleAvatar = (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.avatar)
             ? Auth.currentUser.avatar
             : 'https://api.dicebear.com/7.x/bottts/svg?seed=MusifyStar';
+
+        var glowStyleOptions = [
+            { id: 'cyber_neon', label: 'Cyber Neon Pulse', cls: 'vip-name-glow vip-name-glow-cyber_neon' },
+            { id: 'royal_gold', label: 'Royal Sultan Gold', cls: 'vip-name-glow vip-name-glow-royal_gold' },
+            { id: 'crimson_flame', label: 'Crimson Phoenix Flame', cls: 'vip-name-glow vip-name-glow-crimson_flame' },
+            { id: 'emerald_aurora', label: 'Emerald Aurora Matrix', cls: 'vip-name-glow vip-name-glow-emerald_aurora' },
+            { id: 'galaxy_amethyst', label: 'Galaxy Amethyst Nebula', cls: 'vip-name-glow vip-name-glow-galaxy_amethyst' },
+            { id: 'rainbow_prism', label: 'Rainbow Prism RGB', cls: 'vip-name-glow vip-name-glow-rainbow_prism' },
+            { id: 'ice_diamond', label: 'Ice Crystal Diamond', cls: 'vip-name-glow vip-name-glow-ice_diamond' },
+            { id: 'liquid_glass', label: 'Liquid Glass iOS 27', cls: 'vip-name-glow vip-name-glow-liquid_glass' }
+        ];
 
         container.innerHTML = `
             <div class="space-y-4">
@@ -21122,10 +21160,10 @@ var Profile = {
                             <div class="space-y-1">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <h3 class="text-base sm:text-lg font-black text-white tracking-tight">Pusat Kendali Top-Up & Toko Berlian</h3>
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r from-cyan-400 to-purple-400 text-black">4 Tab Pengguna</span>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r from-cyan-400 to-purple-400 text-black">5 Tab Pengguna</span>
                                 </div>
                                 <p class="text-xs text-white/65 leading-relaxed">
-                                    Kelola saldo Berlian akun pengguna, harga paket Top-Up, serta katalog <strong>Bintang VIP</strong>, <strong>Custom ID</strong>, dan <strong>35+ Border Profil</strong>.
+                                    Kelola saldo Berlian akun pengguna, harga paket Top-Up, serta katalog <strong>Bintang VIP</strong>, <strong>Custom ID</strong>, <strong>35+ Border Profil</strong>, dan <strong>Nama Warna</strong>.
                                 </p>
                             </div>
                         </div>
@@ -21142,7 +21180,7 @@ var Profile = {
                     </div>
 
                     <!-- RINGKASAN CEPAT STATISTIK TOKO BERLIAN -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
                         <div onclick="Profile.switchAdminDiamondSubTab('users')" class="p-3 rounded-2xl bg-black/35 border border-cyan-400/25 hover:border-cyan-400/50 cursor-pointer transition flex items-center gap-2.5">
                             <div class="w-9 h-9 rounded-xl bg-cyan-500/15 text-cyan-300 flex items-center justify-center shrink-0">
                                 <i data-lucide="users" class="w-4 h-4"></i>
@@ -21179,6 +21217,15 @@ var Profile = {
                                 <div class="text-sm font-black text-pink-300 truncate">${enabledBordersCount}/${borders.length} Aktif</div>
                             </div>
                         </div>
+                        <div onclick="Profile.switchAdminDiamondSubTab('namawarna')" class="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-black/35 border border-fuchsia-400/25 hover:border-fuchsia-400/50 cursor-pointer transition flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-fuchsia-500/15 text-fuchsia-300 flex items-center justify-center shrink-0">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] text-white/50 font-bold uppercase">Nama Warna</div>
+                                <div class="text-sm font-black text-fuchsia-300 truncate">${enabledNameGlowsCount}/${nameGlows.length} Aktif</div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- NAVIGASI SUB-TAB ADMIN BERLIAN -->
@@ -21206,6 +21253,10 @@ var Profile = {
                         <button type="button" id="adm-dm-subtab-btn-border" onclick="Profile.switchAdminDiamondSubTab('border')" class="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap">
                             <i data-lucide="shield" class="w-3.5 h-3.5 text-pink-300"></i>
                             <span>5. Border Profil (${borders.length})</span>
+                        </button>
+                        <button type="button" id="adm-dm-subtab-btn-namawarna" onclick="Profile.switchAdminDiamondSubTab('namawarna')" class="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-fuchsia-300"></i>
+                            <span>6. Nama Warna (${nameGlows.length})</span>
                         </button>
                     </div>
                 </div>
@@ -21665,7 +21716,7 @@ var Profile = {
                 </div>
 
                 <!-- ============================================================== -->
-                <!-- SUB-PANEL 5: KELOLA TAB "BORDER PROFIL" (35+ BORDER OTOMATIS) -->
+                <!-- SUB-PANEL 5: KELOLA TAB "BORDER PROFIL" (35+ BORDER + DURASI) -->
                 <!-- ============================================================== -->
                 <div id="adm-dm-subpanel-border" class="p-4 sm:p-5 rounded-3xl bg-[#141826]/90 border border-pink-400/35 space-y-3.5 shadow-lg">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -21673,7 +21724,7 @@ var Profile = {
                             <span class="w-6 h-6 rounded-lg bg-pink-500/20 border border-pink-400/40 text-pink-300 font-black text-xs flex items-center justify-center">5</span>
                             <div>
                                 <h4 class="text-sm font-black uppercase tracking-wider text-pink-300">Katalog Tab "Border Profil" (${enabledBordersCount}/${borders.length} Ditampilkan)</h4>
-                                <p class="text-[11px] text-white/55">Seluruh <strong>${borders.length} Border Profil</strong> otomatis tersambung. Centang border yang ingin dijual dengan Berlian (Khusus Border Profil, tidak memberi VIP).</p>
+                                <p class="text-[11px] text-white/55">Seluruh <strong>${borders.length} Border Profil</strong> otomatis tersambung. Atur Harga Berlian &amp; Durasi Hari (0 = Permanen) seperti pada Custom ID.</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-1.5 self-start sm:self-auto shrink-0">
@@ -21704,6 +21755,7 @@ var Profile = {
                                 ? Auth.getBorderScaleStyle(bd)
                                 : 'transform: translate(-50%, -50%) scale(1.30);';
                             var searchKey = `${bd.name || ''} ${bd.badge || ''} ${bd.borderId || ''}`;
+                            var bdDurLabel = (bd.isPermanent || !bd.days || Number(bd.days) <= 0) ? 'Permanen' : (bd.days + ' Hari');
                             return `
                             <div data-adm-dmbd-row="${idx}" data-adm-dmbd-search="${Profile.escapeHtml(searchKey)}" class="p-3 rounded-2xl bg-black/50 border ${bd.enabled !== false ? 'border-pink-400/40' : 'border-white/10 opacity-65'} flex flex-col gap-2.5">
                                 <div class="flex items-center justify-between gap-2.5">
@@ -21717,7 +21769,10 @@ var Profile = {
                                         </div>
                                         <div class="min-w-0">
                                             <div class="text-xs font-extrabold text-white truncate">${Profile.escapeHtml(bd.name || 'Border Profil')}</div>
-                                            <div class="text-[10px] text-amber-300 font-bold uppercase">${Profile.escapeHtml(bd.badge || 'EKSKLUSIF')}</div>
+                                            <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                                <span class="text-[10px] text-amber-300 font-bold uppercase">${Profile.escapeHtml(bd.badge || 'EKSKLUSIF')}</span>
+                                                <span class="px-1.5 py-0.2 rounded bg-pink-500/20 border border-pink-400/35 text-pink-200 text-[9px] font-black uppercase">${Profile.escapeHtml(bdDurLabel)}</span>
+                                            </div>
                                         </div>
                                     </label>
                                     ${borders.length > 1 ? `
@@ -21726,15 +21781,19 @@ var Profile = {
                                     </button>` : ''}
                                 </div>
                                 <div class="grid grid-cols-12 gap-2 text-xs">
-                                    <div class="col-span-5">
+                                    <div class="col-span-6 sm:col-span-4">
                                         <label class="block text-[10px] text-white/45 mb-0.5">Nama Border:</label>
                                         <input type="text" id="adm-dmbd-name-${idx}" value="${Profile.escapeHtml(bd.name || '')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white font-bold text-xs" />
                                     </div>
-                                    <div class="col-span-4">
+                                    <div class="col-span-6 sm:col-span-3">
                                         <label class="block text-[10px] text-cyan-300 font-bold mb-0.5">Harga Berlian:</label>
                                         <input type="number" id="adm-dmbd-cost-${idx}" value="${Number(bd.cost) || 300}" class="w-full px-2 py-1.5 bg-black/70 border border-cyan-400/35 rounded-lg text-cyan-300 font-mono font-bold text-xs" />
                                     </div>
-                                    <div class="col-span-3">
+                                    <div class="col-span-6 sm:col-span-3">
+                                        <label class="block text-[10px] text-pink-300 font-bold mb-0.5">Hari (0=Permanen):</label>
+                                        <input type="number" id="adm-dmbd-days-${idx}" min="0" value="${bd.isPermanent ? 0 : (Number(bd.days) || 0)}" title="0 = Permanen" class="w-full px-2 py-1.5 bg-black/70 border border-pink-400/35 rounded-lg text-pink-200 font-mono font-bold text-xs" />
+                                    </div>
+                                    <div class="col-span-6 sm:col-span-2">
                                         <label class="block text-[10px] text-white/45 mb-0.5">Badge:</label>
                                         <input type="text" id="adm-dmbd-badge-${idx}" value="${Profile.escapeHtml(bd.badge || 'EKSKLUSIF')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-amber-300 font-bold text-[10px]" />
                                     </div>
@@ -21754,11 +21813,100 @@ var Profile = {
                     </div>
                 </div>
 
+                <!-- ============================================================== -->
+                <!-- SUB-PANEL 6: KELOLA TAB "NAMA WARNA" (EFEK NAMA GLOW + DURASI) -->
+                <!-- ============================================================== -->
+                <div id="adm-dm-subpanel-namawarna" class="p-4 sm:p-5 rounded-3xl bg-[#141826]/90 border border-fuchsia-400/35 space-y-3.5 shadow-lg">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-fuchsia-500/20 border border-fuchsia-400/40 text-fuchsia-300 font-black text-xs flex items-center justify-center">6</span>
+                            <div>
+                                <h4 class="text-sm font-black uppercase tracking-wider text-fuchsia-300">Katalog Tab "Nama Warna" (${enabledNameGlowsCount}/${nameGlows.length} Ditampilkan)</h4>
+                                <p class="text-[11px] text-white/55">Centang efek warna gradien nama yang ingin dijual di tab baru <strong>Nama Warna</strong> beserta Harga Berlian &amp; Durasi Hari (0 = Permanen).</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5 self-start sm:self-auto shrink-0">
+                            <button type="button" onclick="Profile.toggleAllAdminDiamondNameGlows(true)" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+                                <span>Centang Semua (${nameGlows.length})</span>
+                            </button>
+                            <button type="button" onclick="Profile.toggleAllAdminDiamondNameGlows(false)" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white/75 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                                <span>Hapus Centang</span>
+                            </button>
+                            <button type="button" onclick="Profile.addAdminDiamondNameGlowRow()" class="px-3.5 py-1.5 rounded-xl bg-fuchsia-500/25 hover:bg-fuchsia-500/35 border border-fuchsia-400/40 text-fuchsia-200 font-black text-xs flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>Tambah Nama Warna</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                        ${nameGlows.map(function(ng, idx) {
+                            var gId = String(ng.glowId || 'cyber_neon').trim().toLowerCase();
+                            var gCls = ng.className || ('vip-name-glow vip-name-glow-' + gId);
+                            var ngDurLabel = (ng.isPermanent || !ng.days || Number(ng.days) <= 0) ? 'Permanen' : (ng.days + ' Hari');
+                            return `
+                            <div class="p-3.5 rounded-2xl bg-black/50 border ${ng.enabled !== false ? 'border-fuchsia-400/45' : 'border-white/10 opacity-65'} flex flex-col gap-2.5">
+                                <div class="flex items-center justify-between gap-2.5">
+                                    <label class="flex items-center gap-3 cursor-pointer min-w-0">
+                                        <input type="checkbox" id="adm-dmng-en-${idx}" ${ng.enabled !== false ? 'checked' : ''} class="w-4 h-4 accent-fuchsia-400 rounded cursor-pointer shrink-0" />
+                                        <div class="px-3 py-2 rounded-xl bg-[#161926] border border-white/10 shrink-0 text-center">
+                                            <span id="adm-dmng-prev-${idx}" class="text-xs sm:text-sm font-black ${Profile.escapeHtml(gCls)}">@MusifyStar</span>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="text-xs font-extrabold text-white truncate">${Profile.escapeHtml(ng.name || 'Nama Warna')}</div>
+                                            <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                                <span class="text-[10px] text-fuchsia-300 font-bold uppercase">${Profile.escapeHtml(ng.badge || 'GLOW')}</span>
+                                                <span class="px-1.5 py-0.2 rounded bg-fuchsia-500/20 border border-fuchsia-400/35 text-fuchsia-200 text-[9px] font-black uppercase">${Profile.escapeHtml(ngDurLabel)}</span>
+                                            </div>
+                                        </div>
+                                    </label>
+                                    ${nameGlows.length > 1 ? `
+                                    <button type="button" onclick="Profile.removeAdminDiamondNameGlowRow(${idx})" class="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg bg-rose-500/10 cursor-pointer shrink-0" title="Hapus Nama Warna">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>` : ''}
+                                </div>
+                                <div class="grid grid-cols-12 gap-2 text-xs">
+                                    <div class="col-span-6 sm:col-span-4">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Nama Efek Warna:</label>
+                                        <input type="text" id="adm-dmng-name-${idx}" value="${Profile.escapeHtml(ng.name || '')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white font-bold text-xs" />
+                                    </div>
+                                    <div class="col-span-6 sm:col-span-4">
+                                        <label class="block text-[10px] text-fuchsia-300 font-bold mb-0.5">Gaya Gradien Glow:</label>
+                                        <select id="adm-dmng-glow-${idx}" onchange="var p=gid('adm-dmng-prev-${idx}');if(p)p.className='text-xs sm:text-sm font-black vip-name-glow vip-name-glow-'+this.value;" class="w-full px-2 py-1.5 bg-black/70 border border-fuchsia-400/35 rounded-lg text-fuchsia-200 font-bold text-[11px]">
+                                            ${glowStyleOptions.map(function(opt) {
+                                                return `<option value="${opt.id}" ${gId === opt.id ? 'selected' : ''}>${opt.label}</option>`;
+                                            }).join('')}
+                                        </select>
+                                    </div>
+                                    <div class="col-span-6 sm:col-span-2">
+                                        <label class="block text-[10px] text-cyan-300 font-bold mb-0.5">Harga 💎:</label>
+                                        <input type="number" id="adm-dmng-cost-${idx}" value="${Number(ng.cost) || 350}" class="w-full px-2 py-1.5 bg-black/70 border border-cyan-400/35 rounded-lg text-cyan-300 font-mono font-bold text-xs" />
+                                    </div>
+                                    <div class="col-span-6 sm:col-span-2">
+                                        <label class="block text-[10px] text-fuchsia-300 font-bold mb-0.5">Hari (0=Permanen):</label>
+                                        <input type="number" id="adm-dmng-days-${idx}" min="0" value="${ng.isPermanent ? 0 : (Number(ng.days) || 0)}" title="0 = Permanen" class="w-full px-2 py-1.5 bg-black/70 border border-fuchsia-400/35 rounded-lg text-fuchsia-200 font-mono font-bold text-xs" />
+                                    </div>
+                                    <div class="col-span-8">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Keterangan Efek:</label>
+                                        <input type="text" id="adm-dmng-sub-${idx}" value="${Profile.escapeHtml(ng.subtitle || '')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white/80 text-[11px]" />
+                                    </div>
+                                    <div class="col-span-4">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Badge:</label>
+                                        <input type="text" id="adm-dmng-badge-${idx}" value="${Profile.escapeHtml(ng.badge || 'GLOW')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-amber-300 font-bold text-[10px]" />
+                                    </div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
                 <!-- TOMBOL SIMPAN UTAMA DI BAWAH -->
                 <div class="flex justify-end pt-2">
                     <button type="button" onclick="Profile.saveAdminDiamondStoreConfig()" id="adm-dmstore-save-btn" class="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-purple-500 hover:from-cyan-300 hover:to-purple-400 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xl shadow-cyan-500/20 cursor-pointer active:scale-95 transition">
                         <i data-lucide="save" class="w-4 h-4"></i>
-                        <span>Simpan Semua Paket Harga, Bintang VIP, Custom ID & Border Profil</span>
+                        <span>Simpan Semua Paket Harga, Bintang VIP, Custom ID, Border & Nama Warna</span>
                     </button>
                 </div>
             </div>
@@ -21838,18 +21986,49 @@ var Profile = {
             }
         });
 
-        // Sync Borders
+        // Sync Borders (termasuk durasi Hari / Permanen)
         (draft.diamondShopBorders || []).forEach(function(bd, idx) {
             var enEl = gid('adm-dmbd-en-' + idx);
             var nmEl = gid('adm-dmbd-name-' + idx);
             var urEl = gid('adm-dmbd-url-' + idx);
             var csEl = gid('adm-dmbd-cost-' + idx);
+            var dyEl = gid('adm-dmbd-days-' + idx);
             var bgEl = gid('adm-dmbd-badge-' + idx);
             if (enEl) bd.enabled = Boolean(enEl.checked);
             if (nmEl) bd.name = nmEl.value.trim();
             if (urEl) bd.url = urEl.value.trim();
             if (csEl) bd.cost = Math.max(1, Number(csEl.value) || 300);
+            if (dyEl) {
+                var bdDays = Math.max(0, Number(dyEl.value) || 0);
+                bd.days = bdDays;
+                bd.isPermanent = (bdDays === 0);
+            }
             if (bgEl) bd.badge = bgEl.value.trim();
+        });
+
+        // Sync Nama Warna (Name Glows + Durasi Hari / Permanen)
+        (draft.diamondShopNameGlows || []).forEach(function(ng, idx) {
+            var enEl = gid('adm-dmng-en-' + idx);
+            var nmEl = gid('adm-dmng-name-' + idx);
+            var glEl = gid('adm-dmng-glow-' + idx);
+            var csEl = gid('adm-dmng-cost-' + idx);
+            var dyEl = gid('adm-dmng-days-' + idx);
+            var sbEl = gid('adm-dmng-sub-' + idx);
+            var bgEl = gid('adm-dmng-badge-' + idx);
+            if (enEl) ng.enabled = Boolean(enEl.checked);
+            if (nmEl) ng.name = nmEl.value.trim();
+            if (glEl) {
+                ng.glowId = glEl.value.trim();
+                ng.className = 'vip-name-glow vip-name-glow-' + ng.glowId;
+            }
+            if (csEl) ng.cost = Math.max(1, Number(csEl.value) || 350);
+            if (dyEl) {
+                var ngDays = Math.max(0, Number(dyEl.value) || 0);
+                ng.days = ngDays;
+                ng.isPermanent = (ngDays === 0);
+            }
+            if (sbEl) ng.subtitle = sbEl.value.trim();
+            if (bgEl) ng.badge = bgEl.value.trim();
         });
 
         // Sync Rewarded Ad Config (Google AdSense)
@@ -21985,6 +22164,43 @@ var Profile = {
         Profile.renderAdminDiamondStoreDraft();
     },
 
+    toggleAllAdminDiamondNameGlows(checked) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft || !Array.isArray(Profile._adminDiamondDraft.diamondShopNameGlows)) return;
+        Profile._adminDiamondDraft.diamondShopNameGlows.forEach(function(ng) {
+            if (ng) ng.enabled = Boolean(checked);
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    addAdminDiamondNameGlowRow() {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        if (!Array.isArray(Profile._adminDiamondDraft.diamondShopNameGlows)) {
+            Profile._adminDiamondDraft.diamondShopNameGlows = [];
+        }
+        Profile._adminDiamondDraft.diamondShopNameGlows.unshift({
+            id: 'dmng_' + Date.now(),
+            glowId: 'rainbow_prism',
+            name: 'Rainbow Prism RGB Spesial',
+            subtitle: 'Spektrum pelangi RGB penuh bergelombang halus',
+            badge: 'SPESIAL',
+            className: 'vip-name-glow vip-name-glow-rainbow_prism',
+            cost: 500,
+            days: 0,
+            isPermanent: true,
+            enabled: true
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    removeAdminDiamondNameGlowRow(idx) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft || !Array.isArray(Profile._adminDiamondDraft.diamondShopNameGlows)) return;
+        Profile._adminDiamondDraft.diamondShopNameGlows.splice(idx, 1);
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
     handleDiamondShopBorderFileUpload(event, idx) {
         var file = event?.target?.files?.[0];
         if (!file) return;
@@ -22028,6 +22244,7 @@ var Profile = {
                     diamondStarVipPackages: draft.diamondStarVipPackages,
                     diamondShopCustomIds: draft.diamondShopCustomIds,
                     diamondShopBorders: draft.diamondShopBorders,
+                    diamondShopNameGlows: draft.diamondShopNameGlows,
                     rewardedAdConfig: draft.rewardedAdConfig
                 })
             });
@@ -22035,7 +22252,7 @@ var Profile = {
             if (data && data.status && data.config) {
                 Profile.cachedPaymentConfig = data.config;
                 if (typeof showToast === 'function') {
-                    showToast('Pengaturan Harga Berlian, Bintang VIP, Custom ID & Border Profil berhasil disimpan!');
+                    showToast('Pengaturan Harga Berlian, Bintang VIP, Custom ID, Border & Nama Warna berhasil disimpan!');
                 }
                 await Profile.loadAdminDiamondStoreTab();
             } else {
@@ -22044,7 +22261,7 @@ var Profile = {
         } catch (err) {
             if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan saat menyimpan.');
         } finally {
-            if (btn1) { btn1.disabled = false; btn1.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Semua Paket Harga, Bintang VIP, Custom ID & Border Profil</span>'; }
+            if (btn1) { btn1.disabled = false; btn1.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Semua Paket Harga, Bintang VIP, Custom ID, Border & Nama Warna</span>'; }
             if (btn2) { btn2.disabled = false; btn2.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Semua Perubahan</span>'; }
             if (window.lucide) lucide.createIcons();
         }
@@ -22310,7 +22527,7 @@ var Profile = {
         var uBorderScaleStyle = (typeof Auth.getBorderScaleStyle === 'function' && uBorder) ? Auth.getBorderScaleStyle(uBorder) : '';
         var uId = u.id || u.originalId || '8589478687';
         var uDiamonds = Number(u.diamonds || 0);
-        var validTabs = ['berlian', 'bintang', 'customid', 'border'];
+        var validTabs = ['berlian', 'bintang', 'customid', 'border', 'namawarna'];
         var activeTab = validTabs.includes(initialTab) ? initialTab : 'berlian';
 
         var activeDiamondPkgs = Profile.getActiveDiamondPackages();
@@ -22361,8 +22578,24 @@ var Profile = {
                 return item;
             });
 
+        var activeNameGlows = (Array.isArray(payCfg.diamondShopNameGlows) && payCfg.diamondShopNameGlows.length
+            ? payCfg.diamondShopNameGlows
+            : [
+                { id: 'dmng_cyber_neon', glowId: 'cyber_neon', name: 'Cyber Neon Blue', subtitle: 'Cahaya Biru Siber Berkilau', badge: 'NEON', cost: 180, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_royal_gold', glowId: 'royal_gold', name: 'Royal Sultan Gold', subtitle: 'Kilau Emas Mahkota Sultan', badge: 'SULTAN', cost: 280, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_crimson_flame', glowId: 'crimson_flame', name: 'Crimson Dragon Flame', subtitle: 'Aura Api Merah Naga menyala', badge: 'FLAME', cost: 320, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_emerald_aurora', glowId: 'emerald_aurora', name: 'Emerald Aurora', subtitle: 'Cahaya Zamrud Hijau Kristal', badge: 'AURORA', cost: 240, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_galaxy_amethyst', glowId: 'galaxy_amethyst', name: 'Galaxy Mystic Purple', subtitle: 'Nebula Ungu Kosmik Misterius', badge: 'GALAXY', cost: 350, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_rainbow_prism', glowId: 'rainbow_prism', name: 'Rainbow Mythic Prism', subtitle: 'Spektrum Pelangi Mythic RGB', badge: 'MYTHIC', cost: 520, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_ice_diamond', glowId: 'ice_diamond', name: 'Frozen Ice Diamond', subtitle: 'Kilau Berlian Es Abadi', badge: 'DIAMOND', cost: 400, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmng_liquid_glass', glowId: 'liquid_glass', name: 'iOS 26 Liquid Glass', subtitle: 'Refraksi Kaca Kristal iOS 26', badge: 'LIQUID', cost: 450, days: 0, isPermanent: true, enabled: true }
+            ]).filter(function(item) { return item && item.enabled !== false; });
+
         var uName = u.username || 'Musisi';
         var isUserVip = Boolean(u.isPremium || u.is_premium || (u.vipTier && u.vipTier !== 'none'));
+        var renderedUserTopName = (typeof Auth !== 'undefined' && typeof Auth.renderUsernameWithGlow === 'function' && u.nameGlow && u.nameGlow !== 'none')
+            ? Auth.renderUsernameWithGlow('@' + uName, u.nameGlow, 'text-sm sm:text-base font-black truncate')
+            : `<span class="text-sm sm:text-base font-black text-white truncate">@${Profile.escapeHtml(uName)}</span>`;
 
         var modal = document.createElement('div');
         modal.id = 'musifystar-diamond-topup-modal';
@@ -22403,7 +22636,7 @@ var Profile = {
                         </div>
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <span class="text-sm sm:text-base font-black text-white truncate">@${Profile.escapeHtml(uName)}</span>
+                                ${renderedUserTopName}
                                 <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${isUserVip ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black' : 'bg-white/10 text-white/60 border border-white/10'}">
                                     <i data-lucide="crown" class="w-2.5 h-2.5 ${isUserVip ? 'fill-black' : ''}"></i>
                                     <span>${isUserVip ? 'VIP' : 'MEMBER'}</span>
@@ -22437,19 +22670,22 @@ var Profile = {
 
             <!-- Main Content Container -->
             <div class="flex-1 bg-[#181720] rounded-t-3xl flex flex-col max-w-xl w-full mx-auto pb-12 border-t border-white/10 shadow-2xl">
-                <!-- 4 Tab Bar Bersih Tanpa Emoji Sistem (Sesuai Referensi Foto 2) -->
-                <div class="grid grid-cols-4 border-b border-white/10 bg-[#1e1d28] rounded-t-3xl">
-                    <button id="dm-tab-btn-berlian" onclick="Profile.switchDiamondTopupTab('berlian')" class="py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate rounded-tl-3xl ${activeTab === 'berlian' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                <!-- 5 Tab Bar Bersih: Berlian | Bintang | Custom ID | Border Profil | Nama Warna -->
+                <div class="grid grid-cols-5 border-b border-white/10 bg-[#1e1d28] rounded-t-3xl">
+                    <button id="dm-tab-btn-berlian" onclick="Profile.switchDiamondTopupTab('berlian')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate rounded-tl-3xl ${activeTab === 'berlian' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
                         Berlian
                     </button>
-                    <button id="dm-tab-btn-bintang" onclick="Profile.switchDiamondTopupTab('bintang')" class="py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate ${activeTab === 'bintang' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                    <button id="dm-tab-btn-bintang" onclick="Profile.switchDiamondTopupTab('bintang')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate ${activeTab === 'bintang' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
                         Bintang
                     </button>
-                    <button id="dm-tab-btn-customid" onclick="Profile.switchDiamondTopupTab('customid')" class="py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate ${activeTab === 'customid' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                    <button id="dm-tab-btn-customid" onclick="Profile.switchDiamondTopupTab('customid')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate ${activeTab === 'customid' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
                         Custom ID
                     </button>
-                    <button id="dm-tab-btn-border" onclick="Profile.switchDiamondTopupTab('border')" class="py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate rounded-tr-3xl ${activeTab === 'border' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                    <button id="dm-tab-btn-border" onclick="Profile.switchDiamondTopupTab('border')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate ${activeTab === 'border' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
                         Border Profil
+                    </button>
+                    <button id="dm-tab-btn-namawarna" onclick="Profile.switchDiamondTopupTab('namawarna')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate rounded-tr-3xl ${activeTab === 'namawarna' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                        Nama Warna
                     </button>
                 </div>
 
@@ -22626,12 +22862,12 @@ var Profile = {
                     </div>
                 </div>
 
-                <!-- TAB 4: BORDER PROFIL (BELI & PASANG BORDER PROFIL PILIHAN ADMIN DENGAN BERLIAN) -->
+                <!-- TAB 4: BORDER PROFIL (BELI & PASANG BORDER PROFIL PILIHAN ADMIN DENGAN BERLIAN + DURASI) -->
                 <div id="dm-tab-panel-border" class="${activeTab === 'border' ? '' : 'hidden'} p-4 space-y-3.5">
                     <div class="bg-gradient-to-r from-pink-500/20 via-purple-500/15 to-amber-500/20 border border-pink-400/35 rounded-2xl p-4 flex items-center justify-between gap-3">
                         <div>
                             <div class="text-xs text-pink-200 font-bold uppercase tracking-wider">Katalog Border Profil Berlian (${activeBorders.length} Border)</div>
-                            <div class="text-xs text-white/70 mt-0.5">Beli dengan Berlian untuk membuka & langsung memasang Border pilihan ke foto profil Anda (Khusus Border Profil, tidak termasuk paket VIP).</div>
+                            <div class="text-xs text-white/70 mt-0.5">Beli dengan Berlian untuk membuka & langsung memasang Border pilihan ke foto profil Anda sesuai durasi yang tertera.</div>
                         </div>
                         <button onclick="Profile.switchDiamondTopupTab('berlian')" class="px-3.5 py-2 rounded-xl bg-pink-500 hover:bg-pink-400 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shrink-0">
                             <span>+ Top-Up</span>
@@ -22653,9 +22889,13 @@ var Profile = {
                                 : '';
                             var fallbackStaticUrl = '/borders/' + (bd.file || ((bd.borderId || bd.id) + '.png'));
                             var fallbackApiUrl = '/api/borders?action=image&id=' + encodeURIComponent(bd.borderId || bd.id);
+                            var bdDurBadge = (bd.isPermanent || !bd.days || Number(bd.days) <= 0) ? 'Permanen' : (bd.days + ' Hari');
                             return `
                             <div class="p-3.5 rounded-2xl bg-[#262530] border ${isEquipped ? 'border-emerald-400/60 bg-emerald-500/10' : 'border-white/10 hover:border-pink-400/40'} flex flex-col items-center text-center justify-between gap-2.5 transition shadow-md">
-                                <span class="px-2.5 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/35 text-amber-300 text-[9px] font-black uppercase tracking-wider max-w-full truncate">${Profile.escapeHtml(bd.badge || 'EKSKLUSIF')}</span>
+                                <div class="flex items-center justify-center gap-1.5 flex-wrap w-full">
+                                    <span class="px-2 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/35 text-amber-300 text-[9px] font-black uppercase tracking-wider truncate">${Profile.escapeHtml(bd.badge || 'EKSKLUSIF')}</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-400/35 text-pink-200 text-[9px] font-black uppercase tracking-wider truncate">${Profile.escapeHtml(bdDurBadge)}</span>
+                                </div>
                                 <!-- Rasio Avatar & Border Sama Persis dengan Profile (w-14 h-14 [56px] avatar + w-[88px] h-[88px] border + Auth.getBorderScaleStyle) -->
                                 <div class="relative w-24 h-24 flex items-center justify-center my-0.5 shrink-0">
                                     <div class="w-14 h-14 rounded-full overflow-hidden bg-black/90 flex items-center justify-center shadow-inner z-0">
@@ -22666,6 +22906,54 @@ var Profile = {
                                 <div class="text-xs font-extrabold text-white line-clamp-1 px-1">${Profile.escapeHtml(bd.name)}</div>
                                 <button onclick="Profile.buyDiamondBorder('${Profile.escapeHtml(bd.borderId || bd.id)}', ${isOwned ? 0 : (Number(bd.cost) || 300)})" class="w-full py-2 rounded-full font-extrabold text-[11px] sm:text-xs text-white flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition shadow-md" style="${isEquipped ? 'background: linear-gradient(90deg, #10b981 0%, #059669 100%);' : 'background: linear-gradient(90deg, #ec4899 0%, #8b5cf6 100%);'}">
                                     ${isEquipped ? `<i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i><span>Terpasang</span>` : (isOwned ? `<span>Pasang Gratis</span>` : `<span>Beli •</span>${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}<span>${(Number(bd.cost) || 300).toLocaleString('id-ID')}</span>`)}
+                                </button>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- TAB 5: NAMA WARNA (BELI & PASANG EFEK WARNA NAMA MENYALA DENGAN BERLIAN + DURASI) -->
+                <div id="dm-tab-panel-namawarna" class="${activeTab === 'namawarna' ? '' : 'hidden'} p-4 space-y-3.5">
+                    <div class="bg-gradient-to-r from-cyan-500/20 via-purple-500/15 to-pink-500/20 border border-cyan-400/35 rounded-2xl p-4 flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs text-cyan-200 font-bold uppercase tracking-wider">Katalog Nama Warna Berlian (${activeNameGlows.length} Efek)</div>
+                            <div class="text-xs text-white/70 mt-0.5">Beli dengan Berlian untuk membuat nama akun Anda menyala di Profil, Global Chat & Leaderboard sesuai durasi!</div>
+                        </div>
+                        <button onclick="Profile.switchDiamondTopupTab('berlian')" class="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs flex items-center gap-1.5 cursor-pointer shrink-0">
+                            <span>+ Top-Up</span>
+                            ${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        ${activeNameGlows.length === 0 ? `
+                        <div class="sm:col-span-2 p-6 rounded-2xl bg-[#262530] border border-white/5 text-center text-xs text-white/45">
+                            Belum ada Nama Warna yang dicentang Admin untuk ditampilkan.
+                        </div>
+                        ` : activeNameGlows.map(function(ng) {
+                            var gId = ng.glowId || 'cyber_neon';
+                            var unlockedGlows = Array.isArray(u.unlockedDiamondNameGlows) ? u.unlockedDiamondNameGlows : [];
+                            var isEquipped = (String(u.nameGlow || 'none') === String(gId));
+                            var isOwned = isEquipped || unlockedGlows.includes(gId) || unlockedGlows.includes(ng.id);
+                            var ngDurBadge = (ng.isPermanent || !ng.days || Number(ng.days) <= 0) ? 'Permanen' : (ng.days + ' Hari');
+                            var previewGlowName = (typeof Auth !== 'undefined' && typeof Auth.renderUsernameWithGlow === 'function')
+                                ? Auth.renderUsernameWithGlow('@' + uName, gId, 'text-base sm:text-lg font-black tracking-wide truncate')
+                                : `<span class="text-base font-black text-cyan-300">@${Profile.escapeHtml(uName)}</span>`;
+                            return `
+                            <div class="p-3.5 rounded-2xl bg-[#262530] border ${isEquipped ? 'border-emerald-400/60 bg-emerald-500/10' : 'border-white/10 hover:border-cyan-400/40'} flex flex-col justify-between gap-3 transition shadow-md">
+                                <div class="flex items-center justify-between gap-1.5">
+                                    <span class="px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-400/35 text-cyan-200 text-[9px] font-black uppercase tracking-wider">${Profile.escapeHtml(ng.badge || 'GLOW')}</span>
+                                    <span class="px-2 py-0.5 rounded-md bg-purple-500/25 border border-purple-400/40 text-purple-200 text-[9px] font-black uppercase tracking-wider">${Profile.escapeHtml(ngDurBadge)}</span>
+                                </div>
+                                <div class="py-3 px-3 rounded-xl bg-black/55 border border-white/10 flex items-center justify-center text-center overflow-hidden shadow-inner">
+                                    ${previewGlowName}
+                                </div>
+                                <div>
+                                    <div class="text-xs font-extrabold text-white truncate">${Profile.escapeHtml(ng.name || gId)}</div>
+                                    <div class="text-[10px] text-white/55 truncate mt-0.5">${Profile.escapeHtml(ng.subtitle || 'Efek Nama Menyala Eksklusif')}</div>
+                                </div>
+                                <button onclick="Profile.buyDiamondNameGlow('${Profile.escapeHtml(gId)}', ${isOwned ? 0 : (Number(ng.cost) || 250)})" class="w-full py-2 rounded-full font-extrabold text-xs text-white flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition shadow-md" style="${isEquipped ? 'background: linear-gradient(90deg, #10b981 0%, #059669 100%);' : 'background: linear-gradient(90deg, #06b6d4 0%, #8b5cf6 100%);'}">
+                                    ${isEquipped ? `<i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i><span>Sedang Dipakai</span>` : (isOwned ? `<span>Pasang Gratis</span>` : `<span>Beli & Pakai •</span>${Profile.getMiniDiamondSvg('w-3.5 h-3.5')}<span>${(Number(ng.cost) || 250).toLocaleString('id-ID')}</span>`)}
                                 </button>
                             </div>`;
                         }).join('')}
@@ -22687,15 +22975,15 @@ var Profile = {
     },
 
     switchDiamondTopupTab(tab) {
-        var tabs = ['berlian', 'bintang', 'customid', 'border'];
+        var tabs = ['berlian', 'bintang', 'customid', 'border', 'namawarna'];
         tabs.forEach(function(t) {
             var btn = gid('dm-tab-btn-' + t);
             var panel = gid('dm-tab-panel-' + t);
             var isActive = (t === tab);
             if (panel) panel.classList.toggle('hidden', !isActive);
             if (btn) {
-                var roundClass = t === 'berlian' ? 'rounded-tl-3xl ' : (t === 'border' ? 'rounded-tr-3xl ' : '');
-                btn.className = 'py-3.5 px-1 text-center font-extrabold text-xs sm:text-sm transition cursor-pointer truncate ' +
+                var roundClass = t === 'berlian' ? 'rounded-tl-3xl ' : (t === 'namawarna' ? 'rounded-tr-3xl ' : '');
+                btn.className = 'py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate ' +
                     (isActive ? (roundClass + 'text-white bg-[#272635] border-b-2 border-purple-400') : 'text-white/45 hover:text-white/80');
             }
         });
@@ -22995,6 +23283,7 @@ var Profile = {
         var slotId = String(adInfo?.adsenseSlotId || cfg.adsenseSlotId || '').trim();
         var remToday = adInfo?.remainingToday !== undefined ? Number(adInfo.remainingToday) : 5;
         var maxDay = adInfo?.maxClaimsPerDay !== undefined ? Number(adInfo.maxClaimsPerDay) : 5;
+        Profile._activeAdWatchToken = String(adInfo?.adWatchToken || '').trim();
 
         var modal = document.createElement('div');
         modal.id = 'musifystar-rewarded-ad-modal';
@@ -23128,6 +23417,7 @@ var Profile = {
                 body: JSON.stringify({
                     action: 'claim_daily_diamonds',
                     token: token,
+                    adWatchToken: Profile._activeAdWatchToken || '',
                     userId: u.id || '',
                     originalId: u.originalId || '',
                     username: u.username || '',
@@ -23136,10 +23426,15 @@ var Profile = {
                 })
             });
             var data = await res.json();
+            Profile._activeAdWatchToken = '';
             Profile.closeRewardedAdModal(true);
             if (data && data.status) {
                 Auth.currentUser.diamonds = data.diamonds;
+                if (data.diamondSignature) Auth.currentUser.diamondSignature = data.diamondSignature;
                 Auth.currentUser.lastDailyDiamondClaim = data.lastDailyDiamondClaim;
+                if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                    window.Security.registerServerUser(Auth.currentUser);
+                }
                 if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
                 if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
                 var el1 = gid('diamond-top-pill-count');
@@ -23190,6 +23485,9 @@ var Profile = {
             var data = await res.json();
             if (data && data.status) {
                 Object.assign(Auth.currentUser, data.user || {});
+                if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                    window.Security.registerServerUser(Auth.currentUser);
+                }
                 if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
                 if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
                 var el1 = gid('diamond-top-pill-count');
@@ -23249,6 +23547,9 @@ var Profile = {
                         sessionStorage.setItem('musifystar_auth_token', data.token);
                     }
                 }
+                if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                    window.Security.registerServerUser(Auth.currentUser);
+                }
                 if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
                 if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
                 if (typeof showToast === 'function') showToast(data.message || `Custom ID #${customId} berhasil dipasang!`);
@@ -23293,12 +23594,62 @@ var Profile = {
             var data = await res.json();
             if (data && data.status) {
                 Object.assign(Auth.currentUser, data.user || {});
+                if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                    window.Security.registerServerUser(Auth.currentUser);
+                }
                 if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
                 if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
                 if (typeof showToast === 'function') showToast(data.message || 'Border Profil berhasil dipasang!');
                 await Profile.openDiamondTopupModal('border');
             } else {
                 if (typeof showToast === 'function') showToast(data?.message || 'Gagal membeli Border Profil.');
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');
+        }
+    },
+
+    async buyDiamondNameGlow(glowId, cost) {
+        if (typeof Auth === 'undefined' || !Auth.currentUser) return;
+        var cur = Number(Auth.currentUser.diamonds || 0);
+        if (cost > 0 && cur < cost) {
+            if (typeof showToast === 'function') {
+                showToast(`Saldo Berlian Anda (${cur.toLocaleString('id-ID')} 💎) belum cukup! Butuh ${cost.toLocaleString('id-ID')} 💎 untuk membeli Nama Warna ini.`);
+            }
+            Profile.switchDiamondTopupTab('berlian');
+            return;
+        }
+        try {
+            var token = Profile.getCurrentUserAuthToken();
+            var u = Auth.currentUser || {};
+            var res = await fetch('/api/user-auth?action=buy_diamond_name_glow', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    action: 'buy_diamond_name_glow',
+                    glowId: glowId,
+                    token: token,
+                    userId: u.id || '',
+                    originalId: u.originalId || '',
+                    username: u.username || '',
+                    email: u.email || u.rawEmail || ''
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                Object.assign(Auth.currentUser, data.user || {});
+                if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                    window.Security.registerServerUser(Auth.currentUser);
+                }
+                if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+                if (typeof showToast === 'function') showToast(data.message || 'Nama Warna berhasil dipasang!');
+                await Profile.openDiamondTopupModal('namawarna');
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal membeli Nama Warna.');
             }
         } catch (e) {
             if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');
