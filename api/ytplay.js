@@ -114,11 +114,12 @@ async function resolveCandidateVideoIds(query, excludeSet = new Set()) {
     }
   }
 
-  // 2. YouTube Music / Remix Search API
+  // 2. YouTube Music Search API
   try {
     const payload = {
       context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20240101.00.00', hl: 'id', gl: 'ID' } },
-      query: clean
+      query: clean,
+      params: 'EgWKAQIIAWoSEAQQAxAFEAkQChAVEBAQERAO'
     };
     const { data } = await axios.post('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', payload, {
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
