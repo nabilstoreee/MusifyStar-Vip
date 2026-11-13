@@ -354,9 +354,26 @@ var Search = {
                 return;
             }
 
+            var dedupItems = function(arr) {
+                var seenIds = {};
+                var seenTitles = {};
+                return (arr || []).filter(function(item) {
+                    var vid = String(item.videoId || item.id || '').trim();
+                    if (!vid || seenIds[vid]) return false;
+                    var normKey = String(item.title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + '::' + String(item.artist || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+                    if (normKey && seenTitles[normKey]) return false;
+                    seenIds[vid] = true;
+                    if (normKey) seenTitles[normKey] = true;
+                    return true;
+                });
+            };
+
+            data.result.songs = dedupItems(data.result.songs || []);
+            data.result.videos = dedupItems(data.result.videos || []);
+
             S.searchData = data.result;
-            S.ar = data.result.songs || [];
-            S.videos = data.result.videos || [];
+            S.ar = data.result.songs;
+            S.videos = data.result.videos;
             S.albums = data.result.albums || [];
             S.artists = data.result.artists || [];
             S.playlists = data.result.playlists || [];
@@ -436,7 +453,7 @@ var Search = {
                     <div class="search-section mb-6">
                         <div class="flex items-center justify-between mb-3">
                             <h2 class="text-base font-bold text-white flex items-center gap-2">
-                                <span class="w-1.5 h-4 bg-white/90 rounded-full inline-block"></span>
+                                <span class="w-1.5 h-4 bg-purple-400 rounded-full inline-block"></span>
                                 <span>Lagu</span>
                             </h2>
                             <button onclick="Search.setFilter('songs')" class="text-xs font-semibold text-white/60 hover:text-white transition-colors">Lihat Semua</button>
@@ -531,14 +548,18 @@ var Search = {
         }, 120);
     },
 
+    isSameTrack(ct, item) {
+        if (!ct || !item) return false;
+        var ctId = String(ct.videoId || ct.id || '').trim();
+        var itemId = String(item.videoId || item.id || '').trim();
+        if (ctId && itemId) {
+            return ctId === itemId;
+        }
+        return Boolean(ct.title && item.title && ct.title === item.title && ct.artist === item.artist);
+    },
+
     renderSongItem(t, idx, sourceKey) {
-        var isCur = S.ct && (
-            S.ct.id === t.id ||
-            S.ct.videoId === t.id ||
-            (S.ct.id && t.videoId && S.ct.id === t.videoId) ||
-            (S.ct.videoId && t.id && S.ct.videoId === t.id) ||
-            (S.ct.title === t.title && S.ct.artist === t.artist)
-        );
+        var isCur = Search.isSameTrack(S.ct, t);
         var isPlay = isCur && S.ip;
         var isLoad = isCur && S.il;
 
@@ -562,7 +583,7 @@ var Search = {
         return `
         <div onclick="Search.playSong(${idx})" onpointerdown="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" onpointerenter="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" data-idx="${idx}" class="search-song-row glass-card group flex items-center gap-3 p-1.5 pr-3.5 sm:p-2 sm:pr-4 rounded-full border ${rowBg} cursor-pointer active:scale-95 transition-all duration-200 backdrop-blur-md select-none">
             <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden shrink-0 shadow-sm border border-white/20 bg-black/40 relative">
-                <img src="${toWebp(t.cover || t.thumbnail || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
+                <img src="${toWebp(t.cover || t.thumbnail || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onload="if(this.naturalWidth===120&&this.naturalHeight===90)handleImgError(this)" onerror="handleImgError(this)" />
             </div>
             <div class="min-w-0 flex-1">
                 <h4 class="search-song-title text-xs sm:text-sm truncate ${titleColor}">${es(t.title)}</h4>
@@ -627,13 +648,7 @@ var Search = {
     },
 
     renderVideoItem(v, idx) {
-        var isCur = S.ct && (
-            S.ct.id === v.id ||
-            S.ct.videoId === v.id ||
-            (S.ct.id && v.videoId && S.ct.id === v.videoId) ||
-            (S.ct.videoId && v.id && S.ct.videoId === v.id) ||
-            (S.ct.title === v.title && S.ct.artist === v.artist)
-        );
+        var isCur = Search.isSameTrack(S.ct, v);
         var isPlay = isCur && S.ip;
         var isLoad = isCur && S.il;
 
@@ -654,8 +669,8 @@ var Search = {
 
         return `
         <div onclick="Search.playVideo(${idx})" onpointerdown="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" onpointerenter="if(typeof prefetchTrackAudio==='function')prefetchTrackAudio('${vid}')" data-idx="${idx}" class="search-video-row glass-card group flex items-center gap-3 p-2.5 rounded-2xl border ${rowBg} cursor-pointer active:scale-[0.98] transition-all backdrop-blur-md">
-            <div class="relative w-28 aspect-video rounded-xl overflow-hidden shrink-0 shadow-md">
-                <img src="${toWebp(v.cover || v.thumbnail || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
+            <div class="relative w-28 aspect-video rounded-xl overflow-hidden shrink-0 shadow-md bg-black/40">
+                <img src="${toWebp(v.cover || v.thumbnail || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onload="if(this.naturalWidth===120&&this.naturalHeight===90)handleImgError(this)" onerror="handleImgError(this)" />
                 <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono text-white/90">${es(String(v.duration || 'Video').replace('.', ':'))}</span>
                 <div class="search-video-icon absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity ${isCur ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}">
                     ${playIconHtml}
@@ -669,13 +684,7 @@ var Search = {
     },
 
     renderVideoCard(v, idx) {
-        var isCur = S.ct && (
-            S.ct.id === v.id ||
-            S.ct.videoId === v.id ||
-            (S.ct.id && v.videoId && S.ct.id === v.videoId) ||
-            (S.ct.videoId && v.id && S.ct.videoId === v.id) ||
-            (S.ct.title === v.title && S.ct.artist === v.artist)
-        );
+        var isCur = Search.isSameTrack(S.ct, v);
         var isPlay = isCur && S.ip;
         var isLoad = isCur && S.il;
 
@@ -695,8 +704,8 @@ var Search = {
 
         return `
         <div onclick="Search.playVideo(${idx})" data-idx="${idx}" class="search-video-card glass-card flex-shrink-0 w-48 group p-2.5 rounded-2xl border ${cardBg} cursor-pointer active:scale-95 transition-all flex flex-col backdrop-blur-md">
-            <div class="relative w-full aspect-video rounded-xl overflow-hidden mb-2 shadow-md">
-                <img src="${toWebp(v.cover || v.thumbnail || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="handleImgError(this)" />
+            <div class="relative w-full aspect-video rounded-xl overflow-hidden mb-2 shadow-md bg-black/40">
+                <img src="${toWebp(v.cover || v.thumbnail || FI)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onload="if(this.naturalWidth===120&&this.naturalHeight===90)handleImgError(this)" onerror="handleImgError(this)" />
                 <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono text-white/90">${es(String(v.duration || 'Video').replace('.', ':'))}</span>
                 <div class="search-video-icon absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity ${isCur ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}">
                     ${playIconHtml}
@@ -783,13 +792,7 @@ var Search = {
                 if (isNaN(idx) || !songList[idx]) return;
                 var t = songList[idx];
 
-                var isCur = S.ct && (
-                    S.ct.id === t.id ||
-                    S.ct.videoId === t.id ||
-                    (S.ct.id && t.videoId && S.ct.id === t.videoId) ||
-                    (S.ct.videoId && t.id && S.ct.videoId === t.id) ||
-                    (S.ct.title === t.title && S.ct.artist === t.artist)
-                );
+                var isCur = Search.isSameTrack(S.ct, t);
                 var isPlay = isCur && S.ip;
                 var isLoad = isCur && S.il;
 
@@ -838,13 +841,7 @@ var Search = {
                 if (isNaN(idx) || !videoList[idx]) return;
                 var v = videoList[idx];
 
-                var isCur = S.ct && (
-                    S.ct.id === v.id ||
-                    S.ct.videoId === v.id ||
-                    (S.ct.id && v.videoId && S.ct.id === v.videoId) ||
-                    (S.ct.videoId && v.id && S.ct.videoId === v.id) ||
-                    (S.ct.title === v.title && S.ct.artist === v.artist)
-                );
+                var isCur = Search.isSameTrack(S.ct, v);
                 var isPlay = isCur && S.ip;
                 var isLoad = isCur && S.il;
 

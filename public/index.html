@@ -84,8 +84,8 @@
             try {
                 caches.keys().then(function(keys) {
                     keys.forEach(function(k) {
-                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v120') ||
-                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v120')) {
+                        if ((k.indexOf('MusifyStar-static-') === 0 && k !== 'MusifyStar-static-v126') ||
+                            (k.indexOf('MusifyStar-api-') === 0 && k !== 'MusifyStar-api-v126')) {
                             caches.delete(k);
                         }
                     });
@@ -2317,10 +2317,10 @@
     <div id="yt-player" style="position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;"></div>
     <audio id="audio-player" preload="auto" style="display:none;"></audio>
 
-    <script src="/player.js?v=122"></script>
+    <script src="/player.js?v=126"></script>
     <script src="/auth.js?v=127"></script>
     <script src="/home.js?v=124"></script>
-    <script src="/search.js?v=120"></script>
+    <script src="/search.js?v=126"></script>
     <script src="/liked.js?v=101"></script>
     <script src="/library.js?v=101"></script>
     <script src="/profile.js?v=139"></script>
@@ -2333,23 +2333,27 @@
     <script src="/global-stats.js?v=116"></script>
     <script src="/admin-chat.js?v=101"></script>
     <script src="/dynamic-island.js?v=101"></script>
-    <script src="/app.js?v=123"></script>
+    <script src="/app.js?v=126"></script>
     <script>(function () {
   document.addEventListener('visibilitychange', function () {
     document.documentElement.classList.toggle('tab-hidden', document.hidden);
   });
-  // Failsafe timer to hide splash screen and ensure Home view is rendered if anything delays
+  // Failsafe timer to hide splash screen and ensure Offline or Home view is rendered if anything delays
   setTimeout(function() {
-      var vh = document.getElementById('view-home');
-      if (vh && !vh.innerHTML.trim() && typeof Home !== 'undefined' && typeof Home.render === 'function') {
-          try { Home.render(); Home.fetch(); } catch(e) {}
+      if (!navigator.onLine && typeof App !== 'undefined' && typeof App.switch === 'function') {
+          try { App.switch('offline'); } catch(e) {}
+      } else {
+          var vh = document.getElementById('view-home');
+          if (vh && !vh.innerHTML.trim() && typeof Home !== 'undefined' && typeof Home.render === 'function') {
+              try { Home.render(); Home.fetch(); } catch(e) {}
+          }
       }
       var sp = document.getElementById('splash-screen');
       if (sp && !sp.classList.contains('hide')) {
           sp.classList.add('hide');
           setTimeout(function() { if (sp && sp.parentNode) sp.parentNode.removeChild(sp); }, 700);
       }
-  }, 2200);
+  }, 1500);
 })();</script>
 </body>
 

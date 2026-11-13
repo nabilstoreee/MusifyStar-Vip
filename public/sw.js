@@ -1,5 +1,6 @@
-const CACHE_STATIC_NAME = 'MusifyStar-static-v120';
-const CACHE_DATA_NAME = 'MusifyStar-api-v120';
+const CACHE_STATIC_NAME = 'MusifyStar-static-v126';
+const CACHE_DATA_NAME = 'MusifyStar-api-v126';
+const CACHE_AUDIO_NAME = 'musifystar-audio-v1';
 
 const STATIC_ASSETS = [
   '/',
@@ -7,21 +8,42 @@ const STATIC_ASSETS = [
   '/manifest.json',
   '/logo.png',
   '/banner.png',
-  '/app.js',
   '/player.js',
-  '/fullplayer.js',
-  '/miniplayer.js',
+  '/auth.js',
   '/home.js',
-  '/library.js',
-  '/liked.js',
   '/search.js',
-  '/album.js',
-  '/artist.js',
+  '/liked.js',
+  '/library.js',
   '/profile.js',
+  '/miniplayer.js',
+  '/fullplayer.js',
+  '/artist.js',
+  '/album.js',
+  '/islamic-clock.js',
   '/global-chat.js',
+  '/global-stats.js',
+  '/admin-chat.js',
+  '/dynamic-island.js',
+  '/app.js',
   'https://cdn.tailwindcss.com',
   'https://unpkg.com/lucide@latest'
 ];
+
+function fetchWithTimeout(req, timeoutMs) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return Promise.reject(new Error('Offline'));
+  }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Network timeout')), timeoutMs || 2800);
+    fetch(req).then((res) => {
+      clearTimeout(timer);
+      resolve(res);
+    }).catch((err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
 
 // Install Event - Pre-cache Static Shell
 self.addEventListener('install', (event) => {
@@ -44,13 +66,13 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate Event - Clean Up Old Caches & Claim Immediately
+// Activate Event - Clean Up Old Caches (preserve offline audio cache) & Claim Immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_STATIC_NAME && key !== CACHE_DATA_NAME) {
+          if (key !== CACHE_STATIC_NAME && key !== CACHE_DATA_NAME && key !== CACHE_AUDIO_NAME) {
             console.log('[SW] Removing old cache:', key);
             return caches.delete(key);
           }
@@ -75,29 +97,56 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 1. Navigation requests and local JS scripts -> Network first, fallback to cached version
+  // 0. Offline Audio Binary Cache (/offline-audio/<videoId>)
+  if (url.pathname.startsWith('/offline-audio/')) {
+    event.respondWith(
+      caches.open(CACHE_AUDIO_NAME).then((cache) => {
+        return cache.match(url.pathname, { ignoreSearch: true });
+      }).then((cachedAudio) => {
+        if (cachedAudio) return cachedAudio;
+        return new Response('Offline audio not found', { status: 404 });
+      })
+    );
+    return;
+  }
+
+  // 1. Navigation requests and local JS scripts -> Fast network first, fallback to cached version (ignoring ?v= query)
   const isScript = url.pathname.endsWith('.js');
   const isNavigation = request.mode === 'navigate';
 
   if (isNavigation || isScript) {
     event.respondWith(
-      fetch(request)
+      fetchWithTimeout(request, 2800)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
+            const responseForBase = networkResponse.clone();
             caches.open(CACHE_STATIC_NAME).then((cache) => {
               cache.put(request, responseToCache);
+              if (isScript && url.search) {
+                cache.put(url.pathname, responseForBase);
+              }
             });
           }
           return networkResponse;
         })
-        .catch(() => {
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) return cachedResponse;
-            if (isNavigation) {
-              return caches.match('/index.html') || caches.match('/');
-            }
-          });
+        .catch(async () => {
+          const exactMatch = await caches.match(request);
+          if (exactMatch) return exactMatch;
+
+          const cleanPathMatch = await caches.match(url.pathname, { ignoreSearch: true });
+          if (cleanPathMatch) return cleanPathMatch;
+
+          const ignoreSearchMatch = await caches.match(request, { ignoreSearch: true });
+          if (ignoreSearchMatch) return ignoreSearchMatch;
+
+          if (isNavigation) {
+            const idxMatch = await caches.match('/index.html', { ignoreSearch: true });
+            if (idxMatch) return idxMatch;
+            const rootMatch = await caches.match('/', { ignoreSearch: true });
+            if (rootMatch) return rootMatch;
+          }
+          return new Response('', { status: 503, statusText: 'Offline' });
         })
     );
     return;

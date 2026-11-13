@@ -78,9 +78,10 @@ function handleImgError(img) {
     var isArtist = img.classList.contains('artist-photo') || 
                    img.classList.contains('rounded-full') || 
                    (img.closest && (img.closest('#home-section-artis-populer') || img.closest('#artist-modal') || img.closest('#artist-content')));
-    var fallback = isArtist ? FA : FI;
+    var fallback = isArtist ? FA : '/logo.png';
     var retries = parseInt(img.getAttribute('data-img-retry') || '0', 10);
-    if (retries >= 3) {
+    if (retries >= 2) {
+        img.onerror = function() { img.src = FI; };
         img.src = fallback;
         return;
     }
@@ -97,8 +98,21 @@ function handleImgError(img) {
     } else if (orig && img.src !== orig) {
         img.src = orig;
     } else {
+        img.onerror = function() { img.src = FI; };
         img.src = fallback;
     }
+}
+
+// Automatically replace YouTube's 120x90 gray "[...]" missing thumbnail placeholder anywhere in the app
+if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('load', function(e) {
+        var el = e && e.target;
+        if (el && el.tagName === 'IMG' && el.src && (el.src.indexOf('ytimg.com') !== -1 || el.src.indexOf('youtube.com') !== -1)) {
+            if (el.naturalWidth === 120 && el.naturalHeight === 90) {
+                handleImgError(el);
+            }
+        }
+    }, true);
 }
 const S={ht:[],sr:[],ar:[],hc:[],hcp:[],hca:[],sq:'',filter:'all',ct:null,pl:[],pi:-1,ps:'',ip:false,il:false,rm:'all',isShuffle:false,currentAccentColor:'#f43f5e',autoNext:true,iv:null,pt:0,pd:0,at:'home',ld:{type:'none',lines:[]},cli:-1,lo:false,lyricOffset:0,playbackRate:1.0,sleepSecondsLeft:0,sleepEndWithTrack:false,volume:1.0,lastVolume:1.0};
 try{S.playbackRate=parseFloat(localStorage.getItem('nanzz_playback_rate'))||1.0;}catch(e){S.playbackRate=1.0;}
@@ -568,14 +582,19 @@ function getCachedAudioUrl(vid) {
     var entry = audioUrlCache[qKey] || audioUrlCache[vid];
     if (!entry) return null;
     if (typeof entry === 'string') {
+        if (!entry.includes('googlevideo.com')) {
+            return normalizeAudioStreamUrl(entry);
+        }
         delete audioUrlCache[qKey];
         delete audioUrlCache[vid];
         return null;
     }
-    if (entry.quality && String(entry.quality) !== getActiveStreamingBitrate()) {
+    if (navigator.onLine && entry.quality && String(entry.quality) !== getActiveStreamingBitrate()) {
         return null;
     }
-    if (!entry.url || !entry.ts || (Date.now() - entry.ts > AUDIO_CACHE_TTL_MS) || entry.url.includes('googlevideo.com')) {
+    var isOfflineSaved = (typeof isOfflineSong === 'function') && isOfflineSong({ videoId: vid, id: vid });
+    var isExpired = !entry.ts || (Date.now() - entry.ts > AUDIO_CACHE_TTL_MS);
+    if (!entry.url || entry.url.includes('googlevideo.com') || (isExpired && navigator.onLine && !isOfflineSaved)) {
         delete audioUrlCache[qKey];
         delete audioUrlCache[vid];
         return null;
@@ -1426,11 +1445,30 @@ async function fetchAudioAndPlay(track,resumeAt,isRetry){
     S.il=true;UB();
     var vid = track.videoId || track.id;
     try{
-        var audioUrl = isRetry ? null : getCachedAudioUrl(vid);
+        // 1. Check Offline Binary Audio Cache ('musifystar-audio-v1') first for instant & 100% offline playback
+        var offlineBlobUrl = null;
+        if ('caches' in window && vid) {
+            try {
+                var audioCache = await caches.open('musifystar-audio-v1');
+                var cachedResp = await audioCache.match('/offline-audio/' + vid, { ignoreSearch: true });
+                if (cachedResp && cachedResp.ok) {
+                    var audioBlob = await cachedResp.blob();
+                    if (audioBlob && audioBlob.size > 1024) {
+                        if (window._activeOfflineObjectUrl) {
+                            try { URL.revokeObjectURL(window._activeOfflineObjectUrl); } catch(e){}
+                        }
+                        offlineBlobUrl = URL.createObjectURL(audioBlob);
+                        window._activeOfflineObjectUrl = offlineBlobUrl;
+                    }
+                }
+            } catch (cacheErr) {}
+        }
+
+        var audioUrl = offlineBlobUrl || (isRetry ? null : getCachedAudioUrl(vid));
         if (!audioUrl) {
             if (!navigator.onLine) {
                 S.il = false; S.ip = false; UB();
-                if(typeof showToast === 'function') showToast('Mode Offline: Lagu ini belum tersimpan di cache PWA');
+                if(typeof showToast === 'function') showToast('Mode Offline: Lagu ini belum diunduh ke penyimpanan Offline');
                 return;
             }
             var ytUrl=track.ytUrl||('https://youtube.com/watch?v='+vid);
@@ -1451,6 +1489,16 @@ async function fetchAudioAndPlay(track,resumeAt,isRetry){
                 if(d.result.download && d.result.download.audio){
                     audioUrl = normalizeAudioStreamUrl(d.result.download.audio);
                     setCachedAudioUrl(vid, audioUrl);
+                    // If this song is in Offline Songs list but didn't have binary blob yet, cache it in background
+                    if ('caches' in window && typeof isOfflineSong === 'function' && isOfflineSong(track)) {
+                        fetch('/api/proxy-audio?url=' + encodeURIComponent(audioUrl)).then(function(resp) {
+                            if (resp && resp.ok) {
+                                caches.open('musifystar-audio-v1').then(function(c) {
+                                    c.put('/offline-audio/' + vid, resp);
+                                }).catch(function(){});
+                            }
+                        }).catch(function(){});
+                    }
                 }
                 if(d.result.duration && (!track.duration || track.duration === '0:00' || track.duration === 'Video')){
                     track.duration = d.result.duration;
@@ -1464,7 +1512,10 @@ async function fetchAudioAndPlay(track,resumeAt,isRetry){
         }
         if(signal.aborted || S.ct!==track)return;
         if(audioUrl){
-            if (typeof audioCtx !== 'undefined' && audioCtx) {
+            if (audioUrl.indexOf('blob:') === 0 || !navigator.onLine) {
+                AU.removeAttribute('crossorigin');
+                AU.src = audioUrl;
+            } else if (typeof audioCtx !== 'undefined' && audioCtx) {
                 if (audioCtx.state === 'suspended') {
                     audioCtx.resume().catch(function(){});
                 }
