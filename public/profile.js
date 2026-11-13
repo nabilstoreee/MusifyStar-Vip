@@ -21008,6 +21008,50 @@ var Profile = {
                 }
             });
 
+            var defaultChatBubbles = [
+                { id: 'dmcb_kapibara', bubbleId: 'kapibara', name: 'Kapibara', subtitle: 'Balon karakter Kapibara santai menggemaskan', badge: 'CUTE', cost: 180, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_katak', bubbleId: 'katak', name: 'Katak', subtitle: 'Balon karakter Katak hijau ceria', badge: 'FROG', cost: 180, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_kucing_anjing', bubbleId: 'kucing_anjing', name: 'Kucing dan anjing', subtitle: 'Balon krem bergelombang Kucing & Anjing mengintip', badge: 'FAVORIT', cost: 260, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_tepuk_jidat', bubbleId: 'tepuk_jidat', name: 'Tepuk jidat', subtitle: 'Balon komik ekspresi tepuk jidat lucu', badge: 'MEME', cost: 200, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_pepe_hati', bubbleId: 'pepe_hati', name: 'Pepe hati', subtitle: 'Balon pink pastel Pepe jatuh cinta', badge: 'LOVE', cost: 240, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_babi_hiu', bubbleId: 'babi_hiu', name: 'Babi dan hiu', subtitle: 'Balon biru muda Babi & Hiu imut di sudut pesan', badge: 'DUO', cost: 250, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_beruang_melet', bubbleId: 'beruang_melet', name: 'Beruang melet', subtitle: 'Balon pink manis Beruang menjulurkan lidah', badge: 'BEAR', cost: 240, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_doge', bubbleId: 'doge', name: 'Doge', subtitle: 'Balon emas Shiba Doge jempol mantap', badge: 'SULTAN', cost: 300, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_katak_ayam', bubbleId: 'katak_ayam', name: 'Katak dan anak ayam', subtitle: 'Balon biru langit Katak & Anak Ayam bersahabat', badge: 'BESTIE', cost: 260, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_anjing_lapar', bubbleId: 'anjing_lapar', name: 'Anjing lapar', subtitle: 'Balon merah bata Anjing lapar menggigit tulang', badge: 'HUNGRY', cost: 220, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_dino', bubbleId: 'dino', name: 'Dino', subtitle: 'Balon biru es Dinosaurus imut mengintip', badge: 'DINO', cost: 240, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_dachshund', bubbleId: 'dachshund', name: 'Dachshund', subtitle: 'Balon cokelat anjing panjang Dachshund setia', badge: 'DOGGY', cost: 220, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_katak_lapar', bubbleId: 'katak_lapar', name: 'Katak lapar', subtitle: 'Balon hijau daun Katak lapar siap makan', badge: 'GREEN', cost: 220, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_screamer', bubbleId: 'screamer', name: 'Screamer', subtitle: 'Balon koral ekspresi kaget berteriak', badge: 'SHOCK', cost: 250, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_panda_bambu', bubbleId: 'panda_bambu', name: 'Panda bambu', subtitle: 'Balon hijau mint dengan Panda imut memeluk bambu', badge: 'PANDA', cost: 280, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_kelinci_wortel', bubbleId: 'kelinci_wortel', name: 'Kelinci wortel', subtitle: 'Balon peach bergelombang dengan Kelinci mengunyah wortel', badge: 'BUNNY', cost: 260, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_rubah_salju', bubbleId: 'rubah_salju', name: 'Rubah salju', subtitle: 'Balon senja oranye dengan Rubah ekor lebat berujung putih', badge: 'FOX', cost: 300, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_koala_tidur', bubbleId: 'koala_tidur', name: 'Koala mengantuk', subtitle: 'Balon biru-abu eucalyptus dengan Koala tidur Zzz', badge: 'SLEEPY', cost: 240, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_pinguin_es', bubbleId: 'pinguin_es', name: 'Pinguin es', subtitle: 'Balon biru kutub dingin dengan Pinguin tuksedo menggemaskan', badge: 'ICE', cost: 270, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_hamster_pipi', bubbleId: 'hamster_pipi', name: 'Hamster kuaci', subtitle: 'Balon kuning mentega dengan Hamster pipi gembul makan kuaci', badge: 'CHUBBY', cost: 250, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_naga_api', bubbleId: 'naga_api', name: 'Naga api', subtitle: 'Balon marun emas dengan Naga kecil menyemburkan api', badge: 'DRAGON', cost: 420, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_kucing_hitam', bubbleId: 'kucing_hitam', name: 'Kucing hitam', subtitle: 'Balon ungu malam mistik dengan Kucing Hitam mata emas', badge: 'MYSTIC', cost: 320, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_axolotl_pink', bubbleId: 'axolotl_pink', name: 'Axolotl pink', subtitle: 'Balon pink permen dengan Axolotl senyum & gelembung air', badge: 'AQUA', cost: 310, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_burung_hantu', bubbleId: 'burung_hantu', name: 'Burung hantu', subtitle: 'Balon indigo kosmik dengan Burung Hantu malam & bintang', badge: 'NIGHT', cost: 290, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_harimau_belang', bubbleId: 'harimau_belang', name: 'Harimau kecil', subtitle: 'Balon amber belang dengan Anak Harimau imut mengaum', badge: 'TIGER', cost: 330, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_bebek_kuning', bubbleId: 'bebek_kuning', name: 'Bebek karet', subtitle: 'Balon kuning cerah berombak biru dengan duet Bebek imut', badge: 'DUCKY', cost: 230, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_gurita_laut', bubbleId: 'gurita_laut', name: 'Gurita laut', subtitle: 'Balon lavender bergelombang dengan Gurita & sulur tentakel', badge: 'OCEAN', cost: 270, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_rusa_bambi', bubbleId: 'rusa_bambi', name: 'Rusa hutan', subtitle: 'Balon cokelat karamel hutan dengan Rusa bertanduk ranting', badge: 'FOREST', cost: 290, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_unicorn_pelangi', bubbleId: 'unicorn_pelangi', name: 'Unicorn pelangi', subtitle: 'Balon mutiara fantasi dengan Unicorn bertanduk emas & pelangi', badge: 'FANTASY', cost: 400, days: 0, isPermanent: true, enabled: true },
+                { id: 'dmcb_monyet_pisang', bubbleId: 'monyet_pisang', name: 'Monyet pisang', subtitle: 'Balon tropis ceria dengan Monyet memegang pisang kuning', badge: 'TROPIS', cost: 250, days: 0, isPermanent: true, enabled: true }
+            ];
+            var shopChatBubbles = (Array.isArray(payCfg.diamondShopChatBubbles) && payCfg.diamondShopChatBubbles.length)
+                ? JSON.parse(JSON.stringify(payCfg.diamondShopChatBubbles))
+                : JSON.parse(JSON.stringify(defaultChatBubbles));
+            defaultChatBubbles.forEach(function(defCb) {
+                var exists = shopChatBubbles.some(function(x) {
+                    return x && (String(x.bubbleId) === String(defCb.bubbleId) || String(x.id) === String(defCb.id));
+                });
+                if (!exists) {
+                    shopChatBubbles.push(Object.assign({}, defCb));
+                }
+            });
+
             var defaultTargetUser = prevSelectedUser || (Auth?.currentUser?.id ? String(Auth.currentUser.id) : (users[0]?.id ? String(users[0].id) : ''));
 
             var rawAdCfg = (payCfg && payCfg.rewardedAdConfig && typeof payCfg.rewardedAdConfig === 'object') ? payCfg.rewardedAdConfig : {};
@@ -21028,6 +21072,7 @@ var Profile = {
                 diamondShopCustomIds: shopCustomIds,
                 diamondShopBorders: shopBorders,
                 diamondShopNameGlows: shopNameGlows,
+                diamondShopChatBubbles: shopChatBubbles,
                 rewardedAdConfig: rewardedAdConfig,
                 ewallets: ew,
                 adminWhatsapp: payCfg.adminWhatsapp || '6281234567890',
@@ -21045,7 +21090,7 @@ var Profile = {
 
     switchAdminDiamondSubTab(subTab) {
         Profile._adminDiamondSubTab = subTab || 'all';
-        var tabs = ['all', 'users', 'topup', 'bintang', 'customid', 'border', 'namawarna'];
+        var tabs = ['all', 'users', 'topup', 'bintang', 'customid', 'border', 'namawarna', 'gayabalon'];
         tabs.forEach(function(t) {
             var btn = gid('adm-dm-subtab-btn-' + t);
             var isAct = (t === Profile._adminDiamondSubTab);
@@ -21055,7 +21100,7 @@ var Profile = {
                     : 'px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap';
             }
         });
-        var panels = ['users', 'topup', 'bintang', 'customid', 'border', 'namawarna'];
+        var panels = ['users', 'topup', 'bintang', 'customid', 'border', 'namawarna', 'gayabalon'];
         panels.forEach(function(p) {
             var el = gid('adm-dm-subpanel-' + p);
             if (el) {
@@ -21122,6 +21167,7 @@ var Profile = {
         var customIds = draft.diamondShopCustomIds || [];
         var borders = draft.diamondShopBorders || [];
         var nameGlows = draft.diamondShopNameGlows || [];
+        var chatBubbles = draft.diamondShopChatBubbles || [];
         var selectedUid = draft.selectedUserId || (users[0]?.id ? String(users[0].id) : '');
         var selectedUserObj = users.find(function(u) { return String(u.id) === String(selectedUid); }) || users[0] || null;
         if (selectedUserObj && !selectedUid) selectedUid = String(selectedUserObj.id);
@@ -21133,6 +21179,7 @@ var Profile = {
         var enabledCustomIdsCount = customIds.filter(function(c) { return c && c.enabled !== false; }).length;
         var enabledStarCount = starPkgs.filter(function(s) { return s && s.enabled !== false; }).length;
         var enabledNameGlowsCount = nameGlows.filter(function(g) { return g && g.enabled !== false; }).length;
+        var enabledChatBubblesCount = chatBubbles.filter(function(cb) { return cb && cb.enabled !== false; }).length;
         var sampleAvatar = (typeof Auth !== 'undefined' && Auth.currentUser && Auth.currentUser.avatar)
             ? Auth.currentUser.avatar
             : 'https://api.dicebear.com/7.x/bottts/svg?seed=MusifyStar';
@@ -21148,6 +21195,39 @@ var Profile = {
             { id: 'liquid_glass', label: 'Liquid Glass iOS 27', cls: 'vip-name-glow vip-name-glow-liquid_glass' }
         ];
 
+        var bubbleStyleOptions = [
+            { id: 'kapibara', label: 'Kapibara' },
+            { id: 'katak', label: 'Katak' },
+            { id: 'kucing_anjing', label: 'Kucing dan anjing' },
+            { id: 'tepuk_jidat', label: 'Tepuk jidat' },
+            { id: 'pepe_hati', label: 'Pepe hati' },
+            { id: 'babi_hiu', label: 'Babi dan hiu' },
+            { id: 'beruang_melet', label: 'Beruang melet' },
+            { id: 'doge', label: 'Doge' },
+            { id: 'katak_ayam', label: 'Katak dan anak ayam' },
+            { id: 'anjing_lapar', label: 'Anjing lapar' },
+            { id: 'dino', label: 'Dino' },
+            { id: 'dachshund', label: 'Dachshund' },
+            { id: 'katak_lapar', label: 'Katak lapar' },
+            { id: 'screamer', label: 'Screamer' },
+            { id: 'panda_bambu', label: 'Panda bambu' },
+            { id: 'kelinci_wortel', label: 'Kelinci wortel' },
+            { id: 'rubah_salju', label: 'Rubah salju' },
+            { id: 'koala_tidur', label: 'Koala mengantuk' },
+            { id: 'pinguin_es', label: 'Pinguin es' },
+            { id: 'hamster_pipi', label: 'Hamster kuaci' },
+            { id: 'naga_api', label: 'Naga api' },
+            { id: 'kucing_hitam', label: 'Kucing hitam' },
+            { id: 'axolotl_pink', label: 'Axolotl pink' },
+            { id: 'burung_hantu', label: 'Burung hantu' },
+            { id: 'harimau_belang', label: 'Harimau kecil' },
+            { id: 'bebek_kuning', label: 'Bebek karet' },
+            { id: 'gurita_laut', label: 'Gurita laut' },
+            { id: 'rusa_bambi', label: 'Rusa hutan' },
+            { id: 'unicorn_pelangi', label: 'Unicorn pelangi' },
+            { id: 'monyet_pisang', label: 'Monyet pisang' }
+        ];
+
         container.innerHTML = `
             <div class="space-y-4">
                 <!-- HEADER BANNER UTAMA -->
@@ -21160,10 +21240,10 @@ var Profile = {
                             <div class="space-y-1">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <h3 class="text-base sm:text-lg font-black text-white tracking-tight">Pusat Kendali Top-Up & Toko Berlian</h3>
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r from-cyan-400 to-purple-400 text-black">5 Tab Pengguna</span>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r from-cyan-400 to-purple-400 text-black">6 Tab Pengguna</span>
                                 </div>
                                 <p class="text-xs text-white/65 leading-relaxed">
-                                    Kelola saldo Berlian akun pengguna, harga paket Top-Up, serta katalog <strong>Bintang VIP</strong>, <strong>Custom ID</strong>, <strong>35+ Border Profil</strong>, dan <strong>Nama Warna</strong>.
+                                    Kelola saldo Berlian akun pengguna, harga paket Top-Up, serta katalog <strong>Bintang VIP</strong>, <strong>Custom ID</strong>, <strong>35+ Border Profil</strong>, <strong>Nama Warna</strong>, dan <strong>Gaya Balon Chat</strong>.
                                 </p>
                             </div>
                         </div>
@@ -21180,7 +21260,7 @@ var Profile = {
                     </div>
 
                     <!-- RINGKASAN CEPAT STATISTIK TOKO BERLIAN -->
-                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
+                    <div class="grid grid-cols-2 sm:grid-cols-6 gap-2.5 pt-1">
                         <div onclick="Profile.switchAdminDiamondSubTab('users')" class="p-3 rounded-2xl bg-black/35 border border-cyan-400/25 hover:border-cyan-400/50 cursor-pointer transition flex items-center gap-2.5">
                             <div class="w-9 h-9 rounded-xl bg-cyan-500/15 text-cyan-300 flex items-center justify-center shrink-0">
                                 <i data-lucide="users" class="w-4 h-4"></i>
@@ -21217,13 +21297,22 @@ var Profile = {
                                 <div class="text-sm font-black text-pink-300 truncate">${enabledBordersCount}/${borders.length} Aktif</div>
                             </div>
                         </div>
-                        <div onclick="Profile.switchAdminDiamondSubTab('namawarna')" class="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-black/35 border border-fuchsia-400/25 hover:border-fuchsia-400/50 cursor-pointer transition flex items-center gap-2.5">
+                        <div onclick="Profile.switchAdminDiamondSubTab('namawarna')" class="p-3 rounded-2xl bg-black/35 border border-fuchsia-400/25 hover:border-fuchsia-400/50 cursor-pointer transition flex items-center gap-2.5">
                             <div class="w-9 h-9 rounded-xl bg-fuchsia-500/15 text-fuchsia-300 flex items-center justify-center shrink-0">
                                 <i data-lucide="sparkles" class="w-4 h-4"></i>
                             </div>
                             <div class="min-w-0">
                                 <div class="text-[10px] text-white/50 font-bold uppercase">Nama Warna</div>
                                 <div class="text-sm font-black text-fuchsia-300 truncate">${enabledNameGlowsCount}/${nameGlows.length} Aktif</div>
+                            </div>
+                        </div>
+                        <div onclick="Profile.switchAdminDiamondSubTab('gayabalon')" class="p-3 rounded-2xl bg-black/35 border border-emerald-400/25 hover:border-emerald-400/50 cursor-pointer transition flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center shrink-0">
+                                <i data-lucide="message-square-heart" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] text-white/50 font-bold uppercase">Gaya Balon</div>
+                                <div class="text-sm font-black text-emerald-300 truncate">${enabledChatBubblesCount}/${chatBubbles.length} Aktif</div>
                             </div>
                         </div>
                     </div>
@@ -21257,6 +21346,10 @@ var Profile = {
                         <button type="button" id="adm-dm-subtab-btn-namawarna" onclick="Profile.switchAdminDiamondSubTab('namawarna')" class="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap">
                             <i data-lucide="sparkles" class="w-3.5 h-3.5 text-fuchsia-300"></i>
                             <span>6. Nama Warna (${nameGlows.length})</span>
+                        </button>
+                        <button type="button" id="adm-dm-subtab-btn-gayabalon" onclick="Profile.switchAdminDiamondSubTab('gayabalon')" class="px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 whitespace-nowrap">
+                            <i data-lucide="message-square-heart" class="w-3.5 h-3.5 text-emerald-300"></i>
+                            <span>7. Gaya Balon (${chatBubbles.length})</span>
                         </button>
                     </div>
                 </div>
@@ -21902,11 +21995,102 @@ var Profile = {
                     </div>
                 </div>
 
+                <!-- ============================================================== -->
+                <!-- SUB-PANEL 7: KELOLA TAB "GAYA BALON" (GELEMBUNG CHAT KARAKTER + DURASI) -->
+                <!-- ============================================================== -->
+                <div id="adm-dm-subpanel-gayabalon" class="p-4 sm:p-5 rounded-3xl bg-[#141826]/90 border border-emerald-400/35 space-y-3.5 shadow-lg">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-black text-xs flex items-center justify-center">7</span>
+                            <div>
+                                <h4 class="text-sm font-black uppercase tracking-wider text-emerald-300">Katalog Tab "Gaya Balon" Chat (${enabledChatBubblesCount}/${chatBubbles.length} Ditampilkan)</h4>
+                                <p class="text-[11px] text-white/55">Centang gelembung chat karakter yang ingin dijual di tab <strong>Gaya Balon</strong> beserta Harga Berlian &amp; Durasi Hari (0 = Permanen).</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5 self-start sm:self-auto shrink-0">
+                            <button type="button" onclick="Profile.toggleAllAdminDiamondChatBubbles(true)" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+                                <span>Centang Semua (${chatBubbles.length})</span>
+                            </button>
+                            <button type="button" onclick="Profile.toggleAllAdminDiamondChatBubbles(false)" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white/75 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                                <span>Hapus Centang</span>
+                            </button>
+                            <button type="button" onclick="Profile.addAdminDiamondChatBubbleRow()" class="px-3.5 py-1.5 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/35 border border-emerald-400/40 text-emerald-200 font-black text-xs flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>Tambah Gaya Balon</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                        ${chatBubbles.map(function(cb, idx) {
+                            var bId = String(cb.bubbleId || 'kucing_anjing').trim().toLowerCase();
+                            var cbDurLabel = (cb.isPermanent || !cb.days || Number(cb.days) <= 0) ? 'Permanen' : (cb.days + ' Hari');
+                            var thumbHtml = (window.GlobalChat && typeof window.GlobalChat.getChatBubbleThumbnailHtml === 'function')
+                                ? window.GlobalChat.getChatBubbleThumbnailHtml(bId)
+                                : `<div class="w-16 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-[10px] font-bold text-emerald-200">${Profile.escapeHtml(bId)}</div>`;
+                            return `
+                            <div class="p-3.5 rounded-2xl bg-black/50 border ${cb.enabled !== false ? 'border-emerald-400/45' : 'border-white/10 opacity-65'} flex flex-col gap-2.5">
+                                <div class="flex items-center justify-between gap-2.5">
+                                    <label class="flex items-center gap-3 cursor-pointer min-w-0">
+                                        <input type="checkbox" id="adm-dmcb-en-${idx}" ${cb.enabled !== false ? 'checked' : ''} class="w-4 h-4 accent-emerald-400 rounded cursor-pointer shrink-0" />
+                                        <div id="adm-dmcb-prev-${idx}" class="px-2 py-1 rounded-xl bg-[#161926] border border-white/10 shrink-0 flex items-center justify-center">
+                                            ${thumbHtml}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="text-xs font-extrabold text-white truncate">${Profile.escapeHtml(cb.name || 'Gaya Balon')}</div>
+                                            <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                                <span class="text-[10px] text-emerald-300 font-bold uppercase">${Profile.escapeHtml(cb.badge || 'BALON')}</span>
+                                                <span class="px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-400/35 text-emerald-200 text-[9px] font-black uppercase">${Profile.escapeHtml(cbDurLabel)}</span>
+                                            </div>
+                                        </div>
+                                    </label>
+                                    ${chatBubbles.length > 1 ? `
+                                    <button type="button" onclick="Profile.removeAdminDiamondChatBubbleRow(${idx})" class="text-rose-400 hover:text-rose-300 p-1.5 rounded-lg bg-rose-500/10 cursor-pointer shrink-0" title="Hapus Gaya Balon">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>` : ''}
+                                </div>
+                                <div class="grid grid-cols-12 gap-2 text-xs">
+                                    <div class="col-span-6 sm:col-span-4">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Nama Balon:</label>
+                                        <input type="text" id="adm-dmcb-name-${idx}" value="${Profile.escapeHtml(cb.name || '')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white font-bold text-xs" />
+                                    </div>
+                                    <div class="col-span-6 sm:col-span-4">
+                                        <label class="block text-[10px] text-emerald-300 font-bold mb-0.5">Desain Karakter:</label>
+                                        <select id="adm-dmcb-style-${idx}" onchange="var p=gid('adm-dmcb-prev-${idx}');if(p&&window.GlobalChat&&window.GlobalChat.getChatBubbleThumbnailHtml)p.innerHTML=window.GlobalChat.getChatBubbleThumbnailHtml(this.value);" class="w-full px-2 py-1.5 bg-black/70 border border-emerald-400/35 rounded-lg text-emerald-200 font-bold text-[11px]">
+                                            ${bubbleStyleOptions.map(function(opt) {
+                                                return `<option value="${opt.id}" ${bId === opt.id ? 'selected' : ''}>${opt.label}</option>`;
+                                            }).join('')}
+                                        </select>
+                                    </div>
+                                    <div class="col-span-6 sm:col-span-2">
+                                        <label class="block text-[10px] text-cyan-300 font-bold mb-0.5">Harga 💎:</label>
+                                        <input type="number" id="adm-dmcb-cost-${idx}" value="${Number(cb.cost) || 220}" class="w-full px-2 py-1.5 bg-black/70 border border-cyan-400/35 rounded-lg text-cyan-300 font-mono font-bold text-xs" />
+                                    </div>
+                                    <div class="col-span-6 sm:col-span-2">
+                                        <label class="block text-[10px] text-emerald-300 font-bold mb-0.5">Hari (0=Permanen):</label>
+                                        <input type="number" id="adm-dmcb-days-${idx}" min="0" value="${cb.isPermanent ? 0 : (Number(cb.days) || 0)}" title="0 = Permanen" class="w-full px-2 py-1.5 bg-black/70 border border-emerald-400/35 rounded-lg text-emerald-200 font-mono font-bold text-xs" />
+                                    </div>
+                                    <div class="col-span-8">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Keterangan Balon:</label>
+                                        <input type="text" id="adm-dmcb-sub-${idx}" value="${Profile.escapeHtml(cb.subtitle || '')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-white/80 text-[11px]" />
+                                    </div>
+                                    <div class="col-span-4">
+                                        <label class="block text-[10px] text-white/45 mb-0.5">Badge:</label>
+                                        <input type="text" id="adm-dmcb-badge-${idx}" value="${Profile.escapeHtml(cb.badge || 'BALON')}" class="w-full px-2 py-1.5 bg-black/70 border border-white/15 rounded-lg text-amber-300 font-bold text-[10px]" />
+                                    </div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+
                 <!-- TOMBOL SIMPAN UTAMA DI BAWAH -->
                 <div class="flex justify-end pt-2">
                     <button type="button" onclick="Profile.saveAdminDiamondStoreConfig()" id="adm-dmstore-save-btn" class="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-purple-500 hover:from-cyan-300 hover:to-purple-400 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xl shadow-cyan-500/20 cursor-pointer active:scale-95 transition">
                         <i data-lucide="save" class="w-4 h-4"></i>
-                        <span>Simpan Semua Paket Harga, Bintang VIP, Custom ID, Border & Nama Warna</span>
+                        <span>Simpan Semua Paket Harga, VIP, Custom ID, Border, Nama Warna & Gaya Balon</span>
                     </button>
                 </div>
             </div>
@@ -22029,6 +22213,28 @@ var Profile = {
             }
             if (sbEl) ng.subtitle = sbEl.value.trim();
             if (bgEl) ng.badge = bgEl.value.trim();
+        });
+
+        // Sync Gaya Balon (Chat Bubbles + Durasi Hari / Permanen)
+        (draft.diamondShopChatBubbles || []).forEach(function(cb, idx) {
+            var enEl = gid('adm-dmcb-en-' + idx);
+            var nmEl = gid('adm-dmcb-name-' + idx);
+            var stEl = gid('adm-dmcb-style-' + idx);
+            var csEl = gid('adm-dmcb-cost-' + idx);
+            var dyEl = gid('adm-dmcb-days-' + idx);
+            var sbEl = gid('adm-dmcb-sub-' + idx);
+            var bgEl = gid('adm-dmcb-badge-' + idx);
+            if (enEl) cb.enabled = Boolean(enEl.checked);
+            if (nmEl) cb.name = nmEl.value.trim();
+            if (stEl) cb.bubbleId = stEl.value.trim();
+            if (csEl) cb.cost = Math.max(1, Number(csEl.value) || 220);
+            if (dyEl) {
+                var cbDays = Math.max(0, Number(dyEl.value) || 0);
+                cb.days = cbDays;
+                cb.isPermanent = (cbDays === 0);
+            }
+            if (sbEl) cb.subtitle = sbEl.value.trim();
+            if (bgEl) cb.badge = bgEl.value.trim();
         });
 
         // Sync Rewarded Ad Config (Google AdSense)
@@ -22201,6 +22407,42 @@ var Profile = {
         Profile.renderAdminDiamondStoreDraft();
     },
 
+    toggleAllAdminDiamondChatBubbles(checked) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft || !Array.isArray(Profile._adminDiamondDraft.diamondShopChatBubbles)) return;
+        Profile._adminDiamondDraft.diamondShopChatBubbles.forEach(function(cb) {
+            if (cb) cb.enabled = Boolean(checked);
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    addAdminDiamondChatBubbleRow() {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft) return;
+        if (!Array.isArray(Profile._adminDiamondDraft.diamondShopChatBubbles)) {
+            Profile._adminDiamondDraft.diamondShopChatBubbles = [];
+        }
+        Profile._adminDiamondDraft.diamondShopChatBubbles.unshift({
+            id: 'dmcb_' + Date.now(),
+            bubbleId: 'kucing_anjing',
+            name: 'Kucing dan anjing Spesial',
+            subtitle: 'Balon karakter Kucing & Anjing mengintip lucu',
+            badge: 'FAVORIT',
+            cost: 260,
+            days: 0,
+            isPermanent: true,
+            enabled: true
+        });
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
+    removeAdminDiamondChatBubbleRow(idx) {
+        Profile.syncAdminDiamondDraftFromInputs();
+        if (!Profile._adminDiamondDraft || !Array.isArray(Profile._adminDiamondDraft.diamondShopChatBubbles)) return;
+        Profile._adminDiamondDraft.diamondShopChatBubbles.splice(idx, 1);
+        Profile.renderAdminDiamondStoreDraft();
+    },
+
     handleDiamondShopBorderFileUpload(event, idx) {
         var file = event?.target?.files?.[0];
         if (!file) return;
@@ -22245,6 +22487,7 @@ var Profile = {
                     diamondShopCustomIds: draft.diamondShopCustomIds,
                     diamondShopBorders: draft.diamondShopBorders,
                     diamondShopNameGlows: draft.diamondShopNameGlows,
+                    diamondShopChatBubbles: draft.diamondShopChatBubbles,
                     rewardedAdConfig: draft.rewardedAdConfig
                 })
             });
@@ -22252,7 +22495,7 @@ var Profile = {
             if (data && data.status && data.config) {
                 Profile.cachedPaymentConfig = data.config;
                 if (typeof showToast === 'function') {
-                    showToast('Pengaturan Harga Berlian, Bintang VIP, Custom ID, Border & Nama Warna berhasil disimpan!');
+                    showToast('Pengaturan Toko Berlian & Gaya Balon berhasil disimpan!');
                 }
                 await Profile.loadAdminDiamondStoreTab();
             } else {
@@ -22261,7 +22504,7 @@ var Profile = {
         } catch (err) {
             if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan saat menyimpan.');
         } finally {
-            if (btn1) { btn1.disabled = false; btn1.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Semua Paket Harga, Bintang VIP, Custom ID, Border & Nama Warna</span>'; }
+            if (btn1) { btn1.disabled = false; btn1.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Semua Paket Harga, VIP, Custom ID, Border, Nama Warna & Gaya Balon</span>'; }
             if (btn2) { btn2.disabled = false; btn2.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Semua Perubahan</span>'; }
             if (window.lucide) lucide.createIcons();
         }
@@ -22527,7 +22770,7 @@ var Profile = {
         var uBorderScaleStyle = (typeof Auth.getBorderScaleStyle === 'function' && uBorder) ? Auth.getBorderScaleStyle(uBorder) : '';
         var uId = u.id || u.originalId || '8589478687';
         var uDiamonds = Number(u.diamonds || 0);
-        var validTabs = ['berlian', 'bintang', 'customid', 'border', 'namawarna'];
+        var validTabs = ['berlian', 'bintang', 'customid', 'border', 'namawarna', 'gayabalon'];
         var activeTab = validTabs.includes(initialTab) ? initialTab : 'berlian';
 
         var activeDiamondPkgs = Profile.getActiveDiamondPackages();
@@ -22591,6 +22834,60 @@ var Profile = {
                 { id: 'dmng_liquid_glass', glowId: 'liquid_glass', name: 'iOS 26 Liquid Glass', subtitle: 'Refraksi Kaca Kristal iOS 26', badge: 'LIQUID', cost: 450, days: 0, isPermanent: true, enabled: true }
             ]).filter(function(item) { return item && item.enabled !== false; });
 
+        var fallbackDefaultChatBubbles = [
+            { id: 'dmcb_kapibara', bubbleId: 'kapibara', name: 'Kapibara', subtitle: 'Balon karakter Kapibara santai menggemaskan', badge: 'CUTE', cost: 180, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_katak', bubbleId: 'katak', name: 'Katak', subtitle: 'Balon karakter Katak hijau ceria', badge: 'FROG', cost: 180, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_kucing_anjing', bubbleId: 'kucing_anjing', name: 'Kucing dan anjing', subtitle: 'Balon krem bergelombang Kucing & Anjing mengintip', badge: 'FAVORIT', cost: 260, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_tepuk_jidat', bubbleId: 'tepuk_jidat', name: 'Tepuk jidat', subtitle: 'Balon komik ekspresi tepuk jidat lucu', badge: 'MEME', cost: 200, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_pepe_hati', bubbleId: 'pepe_hati', name: 'Pepe hati', subtitle: 'Balon pink pastel Pepe jatuh cinta', badge: 'LOVE', cost: 240, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_babi_hiu', bubbleId: 'babi_hiu', name: 'Babi dan hiu', subtitle: 'Balon biru muda Babi & Hiu imut di sudut pesan', badge: 'DUO', cost: 250, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_beruang_melet', bubbleId: 'beruang_melet', name: 'Beruang melet', subtitle: 'Balon pink manis Beruang menjulurkan lidah', badge: 'BEAR', cost: 240, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_doge', bubbleId: 'doge', name: 'Doge', subtitle: 'Balon emas Shiba Doge jempol mantap', badge: 'SULTAN', cost: 300, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_katak_ayam', bubbleId: 'katak_ayam', name: 'Katak dan anak ayam', subtitle: 'Balon biru langit Katak & Anak Ayam bersahabat', badge: 'BESTIE', cost: 260, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_anjing_lapar', bubbleId: 'anjing_lapar', name: 'Anjing lapar', subtitle: 'Balon merah bata Anjing lapar menggigit tulang', badge: 'HUNGRY', cost: 220, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_dino', bubbleId: 'dino', name: 'Dino', subtitle: 'Balon biru es Dinosaurus imut mengintip', badge: 'DINO', cost: 240, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_dachshund', bubbleId: 'dachshund', name: 'Dachshund', subtitle: 'Balon cokelat anjing panjang Dachshund setia', badge: 'DOGGY', cost: 220, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_katak_lapar', bubbleId: 'katak_lapar', name: 'Katak lapar', subtitle: 'Balon hijau daun Katak lapar siap makan', badge: 'GREEN', cost: 220, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_screamer', bubbleId: 'screamer', name: 'Screamer', subtitle: 'Balon koral ekspresi kaget berteriak', badge: 'SHOCK', cost: 250, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_panda_bambu', bubbleId: 'panda_bambu', name: 'Panda bambu', subtitle: 'Balon hijau mint dengan Panda imut memeluk bambu', badge: 'PANDA', cost: 280, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_kelinci_wortel', bubbleId: 'kelinci_wortel', name: 'Kelinci wortel', subtitle: 'Balon peach bergelombang dengan Kelinci mengunyah wortel', badge: 'BUNNY', cost: 260, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_rubah_salju', bubbleId: 'rubah_salju', name: 'Rubah salju', subtitle: 'Balon senja oranye dengan Rubah ekor lebat berujung putih', badge: 'FOX', cost: 300, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_koala_tidur', bubbleId: 'koala_tidur', name: 'Koala mengantuk', subtitle: 'Balon biru-abu eucalyptus dengan Koala tidur Zzz', badge: 'SLEEPY', cost: 240, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_pinguin_es', bubbleId: 'pinguin_es', name: 'Pinguin es', subtitle: 'Balon biru kutub dingin dengan Pinguin tuksedo menggemaskan', badge: 'ICE', cost: 270, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_hamster_pipi', bubbleId: 'hamster_pipi', name: 'Hamster kuaci', subtitle: 'Balon kuning mentega dengan Hamster pipi gembul makan kuaci', badge: 'CHUBBY', cost: 250, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_naga_api', bubbleId: 'naga_api', name: 'Naga api', subtitle: 'Balon marun emas dengan Naga kecil menyemburkan api', badge: 'DRAGON', cost: 420, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_kucing_hitam', bubbleId: 'kucing_hitam', name: 'Kucing hitam', subtitle: 'Balon ungu malam mistik dengan Kucing Hitam mata emas', badge: 'MYSTIC', cost: 320, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_axolotl_pink', bubbleId: 'axolotl_pink', name: 'Axolotl pink', subtitle: 'Balon pink permen dengan Axolotl senyum & gelembung air', badge: 'AQUA', cost: 310, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_burung_hantu', bubbleId: 'burung_hantu', name: 'Burung hantu', subtitle: 'Balon indigo kosmik dengan Burung Hantu malam & bintang', badge: 'NIGHT', cost: 290, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_harimau_belang', bubbleId: 'harimau_belang', name: 'Harimau kecil', subtitle: 'Balon amber belang dengan Anak Harimau imut mengaum', badge: 'TIGER', cost: 330, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_bebek_kuning', bubbleId: 'bebek_kuning', name: 'Bebek karet', subtitle: 'Balon kuning cerah berombak biru dengan duet Bebek imut', badge: 'DUCKY', cost: 230, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_gurita_laut', bubbleId: 'gurita_laut', name: 'Gurita laut', subtitle: 'Balon lavender bergelombang dengan Gurita & sulur tentakel', badge: 'OCEAN', cost: 270, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_rusa_bambi', bubbleId: 'rusa_bambi', name: 'Rusa hutan', subtitle: 'Balon cokelat karamel hutan dengan Rusa bertanduk ranting', badge: 'FOREST', cost: 290, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_unicorn_pelangi', bubbleId: 'unicorn_pelangi', name: 'Unicorn pelangi', subtitle: 'Balon mutiara fantasi dengan Unicorn bertanduk emas & pelangi', badge: 'FANTASY', cost: 400, days: 0, isPermanent: true, enabled: true },
+            { id: 'dmcb_monyet_pisang', bubbleId: 'monyet_pisang', name: 'Monyet pisang', subtitle: 'Balon tropis ceria dengan Monyet memegang pisang kuning', badge: 'TROPIS', cost: 250, days: 0, isPermanent: true, enabled: true }
+        ];
+        var mergedBubbleList = (Array.isArray(payCfg.diamondShopChatBubbles) && payCfg.diamondShopChatBubbles.length)
+            ? JSON.parse(JSON.stringify(payCfg.diamondShopChatBubbles))
+            : JSON.parse(JSON.stringify(fallbackDefaultChatBubbles));
+        fallbackDefaultChatBubbles.forEach(function(defCb) {
+            var exists = mergedBubbleList.some(function(x) {
+                return x && (String(x.bubbleId) === String(defCb.bubbleId) || String(x.id) === String(defCb.id));
+            });
+            if (!exists) {
+                mergedBubbleList.push(Object.assign({}, defCb));
+            }
+        });
+        var activeChatBubbles = mergedBubbleList.filter(function(item) { return item && item.enabled !== false; });
+
+        var currentEquippedBubble = String(u.chatBubble || 'default').trim().toLowerCase() || 'default';
+        if (!Profile._selectedPreviewChatBubble) {
+            Profile._selectedPreviewChatBubble = currentEquippedBubble === 'default' ? 'kucing_anjing' : currentEquippedBubble;
+        }
+        var allPickerBubbles = [
+            { id: 'dmcb_default', bubbleId: 'default', name: 'Default', subtitle: 'Balon standar bawaan', badge: 'GRATIS', cost: 0, days: 0, isPermanent: true, enabled: true }
+        ].concat(activeChatBubbles);
+        Profile._cachedPickerChatBubbles = allPickerBubbles;
+
         var uName = u.username || 'Musisi';
         var isUserVip = Boolean(u.isPremium || u.is_premium || (u.vipTier && u.vipTier !== 'none'));
         var renderedUserTopName = (typeof Auth !== 'undefined' && typeof Auth.renderUsernameWithGlow === 'function' && u.nameGlow && u.nameGlow !== 'none')
@@ -22599,7 +22896,7 @@ var Profile = {
 
         var modal = document.createElement('div');
         modal.id = 'musifystar-diamond-topup-modal';
-        modal.className = 'fixed inset-0 z-[10050] bg-[#121118] text-white overflow-y-auto flex flex-col select-none animate-fade-in';
+        modal.className = 'fixed inset-0 z-[100050] bg-[#121118] text-white overflow-y-auto flex flex-col select-none animate-fade-in';
 
         modal.innerHTML = `
             <!-- Header Atas Rapi & Proporsional -->
@@ -22670,22 +22967,25 @@ var Profile = {
 
             <!-- Main Content Container -->
             <div class="flex-1 bg-[#181720] rounded-t-3xl flex flex-col max-w-xl w-full mx-auto pb-12 border-t border-white/10 shadow-2xl">
-                <!-- 5 Tab Bar Bersih: Berlian | Bintang | Custom ID | Border Profil | Nama Warna -->
-                <div class="grid grid-cols-5 border-b border-white/10 bg-[#1e1d28] rounded-t-3xl">
-                    <button id="dm-tab-btn-berlian" onclick="Profile.switchDiamondTopupTab('berlian')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate rounded-tl-3xl ${activeTab === 'berlian' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                <!-- 6 Tab Bar Bersih: Berlian | Bintang | Custom ID | Border | Nama Warna | Gaya Balon -->
+                <div class="grid grid-cols-6 border-b border-white/10 bg-[#1e1d28] rounded-t-3xl">
+                    <button id="dm-tab-btn-berlian" onclick="Profile.switchDiamondTopupTab('berlian')" class="py-3.5 px-1 text-center font-extrabold text-[10px] sm:text-xs transition cursor-pointer truncate rounded-tl-3xl ${activeTab === 'berlian' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
                         Berlian
                     </button>
-                    <button id="dm-tab-btn-bintang" onclick="Profile.switchDiamondTopupTab('bintang')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate ${activeTab === 'bintang' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                    <button id="dm-tab-btn-bintang" onclick="Profile.switchDiamondTopupTab('bintang')" class="py-3.5 px-1 text-center font-extrabold text-[10px] sm:text-xs transition cursor-pointer truncate ${activeTab === 'bintang' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
                         Bintang
                     </button>
-                    <button id="dm-tab-btn-customid" onclick="Profile.switchDiamondTopupTab('customid')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate ${activeTab === 'customid' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                    <button id="dm-tab-btn-customid" onclick="Profile.switchDiamondTopupTab('customid')" class="py-3.5 px-1 text-center font-extrabold text-[10px] sm:text-xs transition cursor-pointer truncate ${activeTab === 'customid' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
                         Custom ID
                     </button>
-                    <button id="dm-tab-btn-border" onclick="Profile.switchDiamondTopupTab('border')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate ${activeTab === 'border' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
-                        Border Profil
+                    <button id="dm-tab-btn-border" onclick="Profile.switchDiamondTopupTab('border')" class="py-3.5 px-1 text-center font-extrabold text-[10px] sm:text-xs transition cursor-pointer truncate ${activeTab === 'border' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                        Border
                     </button>
-                    <button id="dm-tab-btn-namawarna" onclick="Profile.switchDiamondTopupTab('namawarna')" class="py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate rounded-tr-3xl ${activeTab === 'namawarna' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                    <button id="dm-tab-btn-namawarna" onclick="Profile.switchDiamondTopupTab('namawarna')" class="py-3.5 px-1 text-center font-extrabold text-[10px] sm:text-xs transition cursor-pointer truncate ${activeTab === 'namawarna' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
                         Nama Warna
+                    </button>
+                    <button id="dm-tab-btn-gayabalon" onclick="Profile.switchDiamondTopupTab('gayabalon')" class="py-3.5 px-1 text-center font-extrabold text-[10px] sm:text-xs transition cursor-pointer truncate rounded-tr-3xl ${activeTab === 'gayabalon' ? 'text-white bg-[#272635] border-b-2 border-purple-400' : 'text-white/45 hover:text-white/80'}">
+                        Gaya Balon
                     </button>
                 </div>
 
@@ -22959,10 +23259,113 @@ var Profile = {
                         }).join('')}
                     </div>
                 </div>
+
+                <!-- TAB 6: GAYA BALON ("Pilih gaya balon" Persis Seperti Gambar Referensi) -->
+                <div id="dm-tab-panel-gayabalon" class="${activeTab === 'gayabalon' ? '' : 'hidden'} flex flex-col">
+                    <!-- Area Atas Hitam Pekat: Header "Batal | Pilih gaya balon | Simpan" + Live Preview 2 Balon Chat -->
+                    <div class="bg-[#050507] px-4 pt-3.5 pb-6 space-y-5 border-b border-white/10">
+                        <!-- Top Bar: Batal | Pilih gaya balon | Simpan -->
+                        <div class="flex items-center justify-between">
+                            <button type="button" onclick="Profile.resetPreviewChatBubble()" class="text-sm font-semibold text-white/85 hover:text-white cursor-pointer active:scale-95 transition">
+                                Batal
+                            </button>
+                            <span class="text-sm sm:text-base font-extrabold text-white tracking-tight">Pilih gaya balon</span>
+                            <button type="button" id="dm-chat-bubble-top-save-btn" onclick="Profile.saveSelectedChatBubble()" class="text-sm font-extrabold text-[#fe2c55] hover:text-[#ff4769] cursor-pointer active:scale-95 transition">
+                                Simpan
+                            </button>
+                        </div>
+
+                        <!-- Live Preview Area -->
+                        <div class="space-y-4 pt-2">
+                            <!-- Pesan Keluar (Kanan) dibungkus Karakter Balon yang sedang dipilih -->
+                            <div class="flex justify-end pr-2 pt-2">
+                                <div id="dm-chat-bubble-live-preview-box" class="max-w-[82%] transition-all duration-200">
+                                    ${(window.GlobalChat && typeof window.GlobalChat.renderCharacterBubbleBox === 'function')
+                                        ? window.GlobalChat.renderCharacterBubbleBox(Profile._selectedPreviewChatBubble || 'kucing_anjing', {
+                                            bodyHtml: `<div class="text-[13px] sm:text-sm font-medium leading-relaxed">Kamu kini bisa ganti gaya balon dan semua obrolanmu akan tampil baru. Keren banget!</div>`,
+                                            isMe: true,
+                                            isPreview: true
+                                        })
+                                        : `<div class="px-4 py-2.5 rounded-2xl bg-[#FFF6DF] text-[#3B2818] text-xs font-semibold">Kamu kini bisa ganti gaya balon dan semua obrolanmu akan tampil baru. Keren banget!</div>`}
+                                </div>
+                            </div>
+
+                            <!-- Pesan Masuk Balasan (Kiri) -->
+                            <div class="flex items-end gap-2.5 pl-1">
+                                <div class="w-7 h-7 rounded-full bg-white/15 border border-white/15 flex items-center justify-center shrink-0 overflow-hidden">
+                                    <svg class="w-4 h-4 text-white/80" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0 2c-3.33 0-10 1.67-10 5v3h20v-3c0-3.33-6.67-5-10-5z"/></svg>
+                                </div>
+                                <div class="px-4 py-2.5 rounded-2xl bg-[#222227] text-white/95 text-[13px] sm:text-sm font-medium shadow-md">
+                                    Keren abis! Aku mau ganti juga.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Sheet Gelap (#1b1b20): Handle Bar + Deskripsi + Grid 4 Kolom 15 Karakter Balon -->
+                    <div class="bg-[#1b1b20] px-3.5 pt-3 pb-6 space-y-4 rounded-t-3xl -mt-2 relative z-10 shadow-2xl">
+                        <div class="w-10 h-1 rounded-full bg-white/25 mx-auto"></div>
+                        <p class="text-[11px] sm:text-xs text-white/60 leading-relaxed px-1">
+                            Gelembung ini diterapkan ke semua obrolan. Ini hanya memengaruhi pesan yang kamu kirim setelah disimpan.
+                        </p>
+
+                        <!-- Grid 4 Kolom Persis Seperti Gambar Referensi -->
+                        <div class="grid grid-cols-4 gap-2 sm:gap-2.5 pt-1">
+                            ${allPickerBubbles.map(function(cb) {
+                                var bId = String(cb.bubbleId || 'default').trim().toLowerCase();
+                                var unlockedBubbles = Array.isArray(u.unlockedDiamondChatBubbles) ? u.unlockedDiamondChatBubbles : [];
+                                var isEquipped = (currentEquippedBubble === bId);
+                                var isOwned = (bId === 'default') || isEquipped || unlockedBubbles.includes(bId) || unlockedBubbles.includes(cb.id);
+                                var isSelected = (String(Profile._selectedPreviewChatBubble || 'kucing_anjing') === bId);
+                                var durText = (bId === 'default' || cb.isPermanent || !cb.days || Number(cb.days) <= 0) ? 'Permanen' : (cb.days + ' Hari');
+                                var thumbHtml = (window.GlobalChat && typeof window.GlobalChat.getChatBubbleThumbnailHtml === 'function')
+                                    ? window.GlobalChat.getChatBubbleThumbnailHtml(bId)
+                                    : `<div class="w-16 h-9 rounded-xl bg-blue-500"></div>`;
+                                var priceBadgeHtml = '';
+                                if (isEquipped) {
+                                    priceBadgeHtml = `<span class="text-[9px] font-extrabold text-emerald-400">✓ Dipakai</span>`;
+                                } else if (isOwned) {
+                                    priceBadgeHtml = `<span class="text-[9px] font-bold text-cyan-300">Dimiliki • ${Profile.escapeHtml(durText)}</span>`;
+                                } else {
+                                    priceBadgeHtml = `<span class="inline-flex items-center gap-0.5 text-[9px] font-extrabold text-amber-300">${Profile.getMiniDiamondSvg('w-2.5 h-2.5')}<span>${(Number(cb.cost) || 200).toLocaleString('id-ID')}</span><span class="text-white/45 font-normal">• ${Profile.escapeHtml(durText)}</span></span>`;
+                                }
+                                return `
+                                <div id="dm-cb-card-${Profile.escapeHtml(bId)}" data-cb-id="${Profile.escapeHtml(bId)}" onclick="Profile.selectPreviewChatBubble('${Profile.escapeHtml(bId)}')" class="p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-between gap-1.5 cursor-pointer transition-all select-none ${isSelected ? 'bg-[#2c2c34] border-2 border-white shadow-lg' : 'bg-transparent hover:bg-white/[0.04] border-2 border-transparent'}">
+                                    <div class="h-14 flex items-center justify-center w-full pt-1">
+                                        ${thumbHtml}
+                                    </div>
+                                    <div class="text-[11px] font-medium text-white/90 text-center w-full truncate px-0.5">${Profile.escapeHtml(cb.name || bId)}</div>
+                                    <div class="text-center leading-none">${priceBadgeHtml}</div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+
+                        <!-- Bar Aksi Simpan / Beli & Pakai di Bawah Grid -->
+                        <div id="dm-chat-bubble-bottom-action-bar" class="pt-2">
+                            ${(function() {
+                                var selId = String(Profile._selectedPreviewChatBubble || 'kucing_anjing');
+                                var selItem = allPickerBubbles.find(function(x) { return String(x.bubbleId) === selId; }) || allPickerBubbles[0];
+                                var unlockedBubbles = Array.isArray(u.unlockedDiamondChatBubbles) ? u.unlockedDiamondChatBubbles : [];
+                                var isEquipped = (currentEquippedBubble === selId);
+                                var isOwned = (selId === 'default') || isEquipped || unlockedBubbles.includes(selId) || unlockedBubbles.includes(selItem.id);
+                                var costVal = isOwned ? 0 : (Number(selItem.cost) || 200);
+                                var durLabel = (selId === 'default' || selItem.isPermanent || !selItem.days || Number(selItem.days) <= 0) ? 'Permanen' : (selItem.days + ' Hari');
+                                return `
+                                <button type="button" onclick="Profile.buyDiamondChatBubble('${Profile.escapeHtml(selId)}', ${costVal})" class="w-full py-3 rounded-2xl font-extrabold text-xs sm:text-sm text-white flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition shadow-xl" style="${isEquipped ? 'background: linear-gradient(90deg, #10b981 0%, #059669 100%);' : 'background: linear-gradient(90deg, #fe2c55 0%, #9333ea 100%);'}">
+                                    ${isEquipped
+                                        ? `<i data-lucide="check" class="w-4 h-4 stroke-[3]"></i><span>Gaya Balon "${Profile.escapeHtml(selItem.name)}" Sedang Dipakai</span>`
+                                        : (isOwned
+                                            ? `<span>Simpan & Pakai "${Profile.escapeHtml(selItem.name)}" (${Profile.escapeHtml(durLabel)})</span>`
+                                            : `<span>Beli & Simpan "${Profile.escapeHtml(selItem.name)}" (${Profile.escapeHtml(durLabel)}) •</span>${Profile.getMiniDiamondSvg('w-4 h-4')}<span>${costVal.toLocaleString('id-ID')}</span>`)}
+                                </button>`;
+                            })()}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- SLOT BOTTOM SHEET METODE PEMBAYARAN -->
-            <div id="diamond-payment-method-sheet" class="hidden fixed inset-0 z-[10060] bg-black/70 backdrop-blur-xs flex items-end justify-center"></div>
+            <div id="diamond-payment-method-sheet" class="hidden fixed inset-0 z-[100060] bg-black/70 backdrop-blur-xs flex items-end justify-center"></div>
         `;
 
         document.body.appendChild(modal);
@@ -22975,15 +23378,15 @@ var Profile = {
     },
 
     switchDiamondTopupTab(tab) {
-        var tabs = ['berlian', 'bintang', 'customid', 'border', 'namawarna'];
+        var tabs = ['berlian', 'bintang', 'customid', 'border', 'namawarna', 'gayabalon'];
         tabs.forEach(function(t) {
             var btn = gid('dm-tab-btn-' + t);
             var panel = gid('dm-tab-panel-' + t);
             var isActive = (t === tab);
             if (panel) panel.classList.toggle('hidden', !isActive);
             if (btn) {
-                var roundClass = t === 'berlian' ? 'rounded-tl-3xl ' : (t === 'namawarna' ? 'rounded-tr-3xl ' : '');
-                btn.className = 'py-3.5 px-1 text-center font-extrabold text-[11px] sm:text-sm transition cursor-pointer truncate ' +
+                var roundClass = t === 'berlian' ? 'rounded-tl-3xl ' : (t === 'gayabalon' ? 'rounded-tr-3xl ' : '');
+                btn.className = 'py-3.5 px-1 text-center font-extrabold text-[10px] sm:text-xs transition cursor-pointer truncate ' +
                     (isActive ? (roundClass + 'text-white bg-[#272635] border-b-2 border-purple-400') : 'text-white/45 hover:text-white/80');
             }
         });
@@ -23650,6 +24053,148 @@ var Profile = {
                 await Profile.openDiamondTopupModal('namawarna');
             } else {
                 if (typeof showToast === 'function') showToast(data?.message || 'Gagal membeli Nama Warna.');
+            }
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');
+        }
+    },
+
+    selectPreviewChatBubble(bubbleId) {
+        var bId = String(bubbleId || 'default').trim().toLowerCase() || 'default';
+        Profile._selectedPreviewChatBubble = bId;
+
+        // Update live preview box at top
+        var previewBox = gid('dm-chat-bubble-live-preview-box');
+        if (previewBox && window.GlobalChat && typeof window.GlobalChat.renderCharacterBubbleBox === 'function') {
+            previewBox.innerHTML = window.GlobalChat.renderCharacterBubbleBox(bId, {
+                bodyHtml: `<div class="text-[13px] sm:text-sm font-medium leading-relaxed">Kamu kini bisa ganti gaya balon dan semua obrolanmu akan tampil baru. Keren banget!</div>`,
+                isMe: true,
+                isPreview: true
+            });
+        }
+
+        // Update white selection frame on grid cards
+        var allCards = document.querySelectorAll('[data-cb-id]');
+        allCards.forEach(function(card) {
+            var cid = card.getAttribute('data-cb-id');
+            if (cid === bId) {
+                card.className = 'p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-between gap-1.5 cursor-pointer transition-all select-none bg-[#2c2c34] border-2 border-white shadow-lg';
+            } else {
+                card.className = 'p-2 sm:p-2.5 rounded-2xl flex flex-col items-center justify-between gap-1.5 cursor-pointer transition-all select-none bg-transparent hover:bg-white/[0.04] border-2 border-transparent';
+            }
+        });
+
+        // Update bottom action button
+        var actionBar = gid('dm-chat-bubble-bottom-action-bar');
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
+        var currentEquippedBubble = String(u.chatBubble || 'default').trim().toLowerCase() || 'default';
+        var allPickerBubbles = Profile._cachedPickerChatBubbles || [];
+        var selItem = allPickerBubbles.find(function(x) { return String(x.bubbleId) === bId; }) || { bubbleId: bId, name: bId, cost: 200, days: 0, isPermanent: true };
+        var unlockedBubbles = Array.isArray(u.unlockedDiamondChatBubbles) ? u.unlockedDiamondChatBubbles : [];
+        var isEquipped = (currentEquippedBubble === bId);
+        var isOwned = (bId === 'default') || isEquipped || unlockedBubbles.includes(bId) || unlockedBubbles.includes(selItem.id);
+        var costVal = isOwned ? 0 : (Number(selItem.cost) || 200);
+        var durLabel = (bId === 'default' || selItem.isPermanent || !selItem.days || Number(selItem.days) <= 0) ? 'Permanen' : (selItem.days + ' Hari');
+
+        if (actionBar) {
+            actionBar.innerHTML = `
+                <button type="button" onclick="Profile.buyDiamondChatBubble('${Profile.escapeHtml(bId)}', ${costVal})" class="w-full py-3 rounded-2xl font-extrabold text-xs sm:text-sm text-white flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition shadow-xl" style="${isEquipped ? 'background: linear-gradient(90deg, #10b981 0%, #059669 100%);' : 'background: linear-gradient(90deg, #fe2c55 0%, #9333ea 100%);'}">
+                    ${isEquipped
+                        ? `<i data-lucide="check" class="w-4 h-4 stroke-[3]"></i><span>Gaya Balon "${Profile.escapeHtml(selItem.name)}" Sedang Dipakai</span>`
+                        : (isOwned
+                            ? `<span>Simpan & Pakai "${Profile.escapeHtml(selItem.name)}" (${Profile.escapeHtml(durLabel)})</span>`
+                            : `<span>Beli & Simpan "${Profile.escapeHtml(selItem.name)}" (${Profile.escapeHtml(durLabel)}) •</span>${Profile.getMiniDiamondSvg('w-4 h-4')}<span>${costVal.toLocaleString('id-ID')}</span>`)}
+                </button>`;
+            if (window.lucide) lucide.createIcons();
+        }
+    },
+
+    resetPreviewChatBubble() {
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
+        var eq = String(u.chatBubble || 'default').trim().toLowerCase() || 'default';
+        Profile.selectPreviewChatBubble(eq);
+        Profile.closeDiamondTopupModal();
+    },
+
+    saveSelectedChatBubble() {
+        var bId = String(Profile._selectedPreviewChatBubble || 'default').trim().toLowerCase() || 'default';
+        var u = (typeof Auth !== 'undefined' && Auth.currentUser) ? Auth.currentUser : {};
+        var currentEquippedBubble = String(u.chatBubble || 'default').trim().toLowerCase() || 'default';
+        var allPickerBubbles = Profile._cachedPickerChatBubbles || [];
+        var selItem = allPickerBubbles.find(function(x) { return String(x.bubbleId) === bId; }) || { bubbleId: bId, name: bId, cost: 200 };
+        var unlockedBubbles = Array.isArray(u.unlockedDiamondChatBubbles) ? u.unlockedDiamondChatBubbles : [];
+        var isOwned = (bId === 'default') || (currentEquippedBubble === bId) || unlockedBubbles.includes(bId) || unlockedBubbles.includes(selItem.id);
+        var costVal = isOwned ? 0 : (Number(selItem.cost) || 200);
+        Profile.buyDiamondChatBubble(bId, costVal);
+    },
+
+    async buyDiamondChatBubble(bubbleId, cost) {
+        if (typeof Auth === 'undefined' || !Auth.currentUser) return;
+        var cur = Number(Auth.currentUser.diamonds || 0);
+        if (cost > 0 && cur < cost) {
+            if (typeof showToast === 'function') {
+                showToast(`Saldo Berlian Anda (${cur.toLocaleString('id-ID')} 💎) belum cukup! Butuh ${cost.toLocaleString('id-ID')} 💎 untuk membeli Gaya Balon ini.`);
+            }
+            Profile.switchDiamondTopupTab('berlian');
+            return;
+        }
+        try {
+            var token = Profile.getCurrentUserAuthToken();
+            var adminTok = (typeof Profile.getAdminToken === 'function') ? Profile.getAdminToken() : '';
+            var u = Auth.currentUser || {};
+            var headers = {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            };
+            if (adminTok) headers['x-admin-token'] = adminTok;
+
+            var res = await fetch('/api/user-auth?action=buy_diamond_chat_bubble', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    action: 'buy_diamond_chat_bubble',
+                    bubbleId: bubbleId,
+                    token: token,
+                    userId: u.id || '',
+                    originalId: u.originalId || '',
+                    username: u.username || '',
+                    email: u.email || u.rawEmail || ''
+                })
+            });
+            var data = await res.json();
+            if (data && data.status) {
+                Object.assign(Auth.currentUser, data.user || {});
+                var activeBid = String(Auth.currentUser.chatBubble || bubbleId || 'default').trim().toLowerCase() || 'default';
+                Profile._selectedPreviewChatBubble = activeBid;
+                if (!Array.isArray(Auth.currentUser.unlockedDiamondChatBubbles)) {
+                    Auth.currentUser.unlockedDiamondChatBubbles = [];
+                }
+                if (activeBid !== 'default' && !Auth.currentUser.unlockedDiamondChatBubbles.includes(activeBid)) {
+                    Auth.currentUser.unlockedDiamondChatBubbles.push(activeBid);
+                }
+                if (window.Security && typeof window.Security.registerServerUser === 'function') {
+                    window.Security.registerServerUser(Auth.currentUser);
+                }
+                if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                if (typeof Auth.updateHeaderUI === 'function') Auth.updateHeaderUI();
+                if (window.GlobalChat) {
+                    if (window.GlobalChat._userBubbleCache) {
+                        if (Auth.currentUser.id) window.GlobalChat._userBubbleCache[String(Auth.currentUser.id)] = Auth.currentUser.chatBubble || '';
+                        if (Auth.currentUser.username) window.GlobalChat._userBubbleCache[String(Auth.currentUser.username).toLowerCase().trim()] = Auth.currentUser.chatBubble || '';
+                    }
+                    if (typeof window.GlobalChat.toggleOwnedBubblesDrawer === 'function') {
+                        window.GlobalChat.toggleOwnedBubblesDrawer(true);
+                    } else if (typeof window.GlobalChat.renderOwnedBubblesDrawer === 'function') {
+                        window.GlobalChat.renderOwnedBubblesDrawer();
+                    }
+                    if (typeof window.GlobalChat.renderMessagesList === 'function') {
+                        window.GlobalChat.renderMessagesList(window.GlobalChat.messages || [], false);
+                    }
+                }
+                if (typeof showToast === 'function') showToast(data.message || 'Gaya Balon Chat berhasil disimpan ke Koleksi Balon Saya!');
+                await Profile.openDiamondTopupModal('gayabalon');
+            } else {
+                if (typeof showToast === 'function') showToast(data?.message || 'Gagal menyimpan Gaya Balon Chat.');
             }
         } catch (e) {
             if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan.');

@@ -26,6 +26,641 @@
         lastMessageCount: 0,
         messages: [],
         isSending: false,
+        _userBubbleCache: {},
+
+        CHAT_BUBBLE_STYLES: {
+            'default': {
+                id: 'default',
+                name: 'Default',
+                bg: '#222834',
+                previewBg: '#1d6ff2',
+                border: '#334155',
+                textColor: '#f8fafc',
+                metaColor: '#94a3b8',
+                isLight: false
+            },
+            'kapibara': {
+                id: 'kapibara',
+                name: 'Kapibara',
+                bg: '#cf9155',
+                border: '#4f2c11',
+                bottomBar: '#a86e38',
+                textColor: '#261305',
+                metaColor: '#4f2c11',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 60 36" class="w-12 h-7 pointer-events-none select-none overflow-visible"><ellipse cx="26" cy="22" rx="20" ry="12" fill="#b8793e" stroke="#4f2c11" stroke-width="2.2"/><ellipse cx="14" cy="22" rx="9" ry="8" fill="#9c622c" stroke="#4f2c11" stroke-width="2"/><circle cx="34" cy="11" r="4.5" fill="#9c622c" stroke="#4f2c11" stroke-width="2"/><path d="M21 19 Q25 21 29 19" stroke="#4f2c11" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="11" cy="20" r="1.6" fill="#4f2c11"/><path d="M10 25 Q13 27 16 25" stroke="#4f2c11" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>`,
+                bottomLeftSvg: `<svg viewBox="0 0 40 16" class="w-8 h-3.5 pointer-events-none select-none"><ellipse cx="12" cy="8" rx="7" ry="4.5" fill="#9c622c" stroke="#4f2c11" stroke-width="2"/><ellipse cx="28" cy="8" rx="7" ry="4.5" fill="#9c622c" stroke="#4f2c11" stroke-width="2"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 36 16" class="w-7 h-3.5 pointer-events-none select-none"><ellipse cx="18" cy="8" rx="8" ry="4.5" fill="#9c622c" stroke="#4f2c11" stroke-width="2"/></svg>`
+            },
+            'katak': {
+                id: 'katak',
+                name: 'Katak',
+                bg: '#24b345',
+                border: '#114a1e',
+                bottomBar: '#e04f33',
+                textColor: '#ffffff',
+                metaColor: '#dcfce7',
+                isLight: false,
+                topLeftSvg: `<svg viewBox="0 0 36 30" class="w-8 h-6 pointer-events-none select-none overflow-visible"><circle cx="18" cy="15" r="11" fill="#24b345" stroke="#114a1e" stroke-width="2.4"/><circle cx="18" cy="15" r="7" fill="#ffffff"/><circle cx="19" cy="15" r="4" fill="#111827"/><circle cx="20.5" cy="13.5" r="1.4" fill="#ffffff"/></svg>`,
+                topRightSvg: `<svg viewBox="0 0 36 30" class="w-8 h-6 pointer-events-none select-none overflow-visible"><circle cx="18" cy="15" r="11" fill="#24b345" stroke="#114a1e" stroke-width="2.4"/><circle cx="18" cy="15" r="7" fill="#ffffff"/><circle cx="17" cy="15" r="4" fill="#111827"/><circle cx="18.5" cy="13.5" r="1.4" fill="#ffffff"/></svg>`,
+                bottomLeftSvg: `<svg viewBox="0 0 32 14" class="w-6 h-3 pointer-events-none select-none"><path d="M4 8 Q10 2 18 8 Z" fill="#24b345" stroke="#114a1e" stroke-width="2"/></svg>`
+            },
+            'kucing_anjing': {
+                id: 'kucing_anjing',
+                name: 'Kucing dan anjing',
+                bg: '#fff9db',
+                border: '#784b2a',
+                wavyBorder: true,
+                textColor: '#2d1c10',
+                metaColor: '#784b2a',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 64 38" class="w-12 h-7 pointer-events-none select-none overflow-visible"><path d="M10 28 L12 9 L23 17 Q30 15 37 17 L46 9 L48 28 Z" fill="#f59e0b" stroke="#6b3410" stroke-width="2.2" stroke-linejoin="round"/><path d="M14 13 L15 21 L21 17 Z" fill="#fde68a"/><path d="M44 13 L43 21 L37 17 Z" fill="#fde68a"/><line x1="27" y1="16" x2="27" y2="21" stroke="#b45309" stroke-width="2" stroke-linecap="round"/><line x1="31" y1="16" x2="31" y2="21" stroke="#b45309" stroke-width="2" stroke-linecap="round"/><circle cx="22" cy="23" r="2.1" fill="#2d1c10"/><circle cx="36" cy="23" r="2.1" fill="#2d1c10"/><ellipse cx="18" cy="25" rx="2.5" ry="1.4" fill="#fb7185" opacity="0.7"/><ellipse cx="40" cy="25" rx="2.5" ry="1.4" fill="#fb7185" opacity="0.7"/><path d="M26 25 Q29 28 32 25" stroke="#6b3410" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="49" cy="27" r="4" fill="#fde68a" stroke="#6b3410" stroke-width="2"/></svg>`,
+                topRightSvg: `<svg viewBox="0 0 64 38" class="w-12 h-7 pointer-events-none select-none overflow-visible"><ellipse cx="32" cy="23" rx="16" ry="11" fill="#bae6fd" stroke="#1e3a5f" stroke-width="2.2"/><ellipse cx="15" cy="22" rx="5" ry="8" transform="rotate(20 15 22)" fill="#7dd3fc" stroke="#1e3a5f" stroke-width="2"/><ellipse cx="49" cy="22" rx="5" ry="8" transform="rotate(-20 49 22)" fill="#7dd3fc" stroke="#1e3a5f" stroke-width="2"/><circle cx="26" cy="22" r="2.1" fill="#0f172a"/><circle cx="38" cy="22" r="2.1" fill="#0f172a"/><ellipse cx="32" cy="24" rx="2.5" ry="1.8" fill="#0f172a"/><circle cx="20" cy="28" r="4" fill="#e0f2fe" stroke="#1e3a5f" stroke-width="2"/></svg>`,
+                bottomLeftSvg: `<svg viewBox="0 0 54 20" class="w-10 h-4 pointer-events-none select-none overflow-visible"><ellipse cx="14" cy="10" rx="7" ry="5" fill="#f59e0b" stroke="#6b3410" stroke-width="2"/><ellipse cx="30" cy="10" rx="7" ry="5" fill="#fbbf24" stroke="#6b3410" stroke-width="2"/><circle cx="12" cy="9" r="1.2" fill="#6b3410"/><circle cx="16" cy="9" r="1.2" fill="#6b3410"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 54 20" class="w-10 h-4 pointer-events-none select-none overflow-visible"><ellipse cx="24" cy="10" rx="7" ry="5" fill="#bae6fd" stroke="#1e3a5f" stroke-width="2"/><ellipse cx="40" cy="10" rx="7" ry="5" fill="#7dd3fc" stroke="#1e3a5f" stroke-width="2"/></svg>`
+            },
+            'tepuk_jidat': {
+                id: 'tepuk_jidat',
+                name: 'Tepuk jidat',
+                bg: '#ffffff',
+                border: '#1f2937',
+                topBar: '#18181b',
+                textColor: '#111827',
+                metaColor: '#4b5563',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 52 38" class="w-11 h-7 pointer-events-none select-none overflow-visible"><circle cx="24" cy="22" r="14" fill="#ffffff" stroke="#18181b" stroke-width="2.3"/><path d="M11 18 Q24 8 37 18" fill="#18181b"/><path d="M14 23 Q22 17 28 22" fill="#ffffff" stroke="#18181b" stroke-width="2" stroke-linecap="round"/><line x1="30" y1="21" x2="35" y2="21" stroke="#18181b" stroke-width="2.2" stroke-linecap="round"/><line x1="39" y1="14" x2="39" y2="22" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 40 24" class="w-8 h-5 pointer-events-none select-none overflow-visible"><path d="M8 18 Q20 4 32 16 Z" fill="#ffffff" stroke="#18181b" stroke-width="2.2"/></svg>`
+            },
+            'pepe_hati': {
+                id: 'pepe_hati',
+                name: 'Pepe hati',
+                bg: '#f3c1d3',
+                border: '#5e233b',
+                textColor: '#2d0f1b',
+                metaColor: '#6b2843',
+                isLight: true,
+                topRightSvg: `<svg viewBox="0 0 36 32" class="w-7 h-6 pointer-events-none select-none overflow-visible"><path d="M18 28 C18 28 5 19 5 10 C5 5 9 2 14 2 C16.5 2 18 4 18 4 C18 4 19.5 2 22 2 C27 2 31 5 31 10 C31 19 18 28 18 28 Z" fill="#e11d48" stroke="#4c0519" stroke-width="2"/></svg>`,
+                bottomLeftSvg: `<svg viewBox="0 0 56 38" class="w-11 h-7 pointer-events-none select-none overflow-visible"><ellipse cx="24" cy="23" rx="16" ry="12" fill="#65a30d" stroke="#1a2e05" stroke-width="2.2"/><circle cx="18" cy="12" r="5.5" fill="#65a30d" stroke="#1a2e05" stroke-width="2"/><circle cx="29" cy="12" r="5.5" fill="#65a30d" stroke="#1a2e05" stroke-width="2"/><circle cx="18" cy="12" r="3" fill="#ffffff"/><circle cx="29" cy="12" r="3" fill="#ffffff"/><circle cx="19" cy="12" r="1.5" fill="#000"/><circle cx="30" cy="12" r="1.5" fill="#000"/><path d="M14 24 Q24 29 33 24" stroke="#dc2626" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M40 28 C40 28 33 22 33 17 C33 14 35 12 38 12 C39.5 12 40 13.5 40 13.5 C40 13.5 40.5 12 42 12 C45 12 47 14 47 17 C47 22 40 28 40 28 Z" fill="#fb7185" stroke="#881337" stroke-width="1.8"/></svg>`
+            },
+            'babi_hiu': {
+                id: 'babi_hiu',
+                name: 'Babi dan hiu',
+                bg: '#dceeff',
+                border: '#34506b',
+                textColor: '#102438',
+                metaColor: '#34506b',
+                isLight: true,
+                bottomLeftSvg: `<svg viewBox="0 0 54 32" class="w-11 h-6 pointer-events-none select-none overflow-visible"><ellipse cx="26" cy="19" rx="16" ry="10" fill="#f9a8d4" stroke="#831843" stroke-width="2"/><polygon points="15,12 12,4 21,9" fill="#f472b6" stroke="#831843" stroke-width="1.8"/><polygon points="34,12 37,4 28,9" fill="#f472b6" stroke="#831843" stroke-width="1.8"/><ellipse cx="25" cy="20" rx="5.5" ry="3.8" fill="#f472b6" stroke="#831843" stroke-width="1.6"/><circle cx="23.5" cy="20" r="1" fill="#831843"/><circle cx="26.5" cy="20" r="1" fill="#831843"/><circle cx="18" cy="16" r="1.6" fill="#1f2937"/><circle cx="32" cy="16" r="1.6" fill="#1f2937"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 56 34" class="w-11 h-6 pointer-events-none select-none overflow-visible"><path d="M8 24 Q20 8 38 18 L48 10 L45 24 L50 28 L36 25 Q22 29 8 24 Z" fill="#60a5fa" stroke="#1e3a8a" stroke-width="2" stroke-linejoin="round"/><path d="M24 14 L28 4 L33 15 Z" fill="#60a5fa" stroke="#1e3a8a" stroke-width="2"/><path d="M12 24 Q22 21 32 25" fill="#eff6ff"/><circle cx="17" cy="19" r="1.8" fill="#0f172a"/></svg>`
+            },
+            'beruang_melet': {
+                id: 'beruang_melet',
+                name: 'Beruang melet',
+                bg: '#ffd4e0',
+                border: '#8c2246',
+                bottomBar: '#e85d88',
+                textColor: '#2e0b17',
+                metaColor: '#8c2246',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 56 44" class="w-11 h-8 pointer-events-none select-none overflow-visible"><circle cx="14" cy="12" r="6" fill="#92400e" stroke="#451a03" stroke-width="2.2"/><circle cx="38" cy="12" r="6" fill="#92400e" stroke="#451a03" stroke-width="2.2"/><ellipse cx="26" cy="24" rx="16" ry="14" fill="#b45309" stroke="#451a03" stroke-width="2.2"/><ellipse cx="26" cy="26" rx="7" ry="5.5" fill="#fde68a"/><circle cx="20" cy="20" r="2.2" fill="#1c1917"/><circle cx="32" cy="20" r="2.2" fill="#1c1917"/><ellipse cx="26" cy="24" rx="2.5" ry="1.8" fill="#451a03"/><path d="M23 29 Q26 36 29 29 Z" fill="#fb7185" stroke="#881337" stroke-width="1.6"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 36 18" class="w-7 h-3.5 pointer-events-none select-none"><circle cx="24" cy="9" r="6" fill="#b45309" stroke="#451a03" stroke-width="2"/></svg>`
+            },
+            'doge': {
+                id: 'doge',
+                name: 'Doge',
+                bg: '#fae29c',
+                border: '#784e14',
+                textColor: '#291903',
+                metaColor: '#784e14',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 60 44" class="w-12 h-8 pointer-events-none select-none overflow-visible"><polygon points="14,16 11,4 22,11" fill="#d97706" stroke="#451a03" stroke-width="2"/><polygon points="36,16 39,4 28,11" fill="#d97706" stroke="#451a03" stroke-width="2"/><ellipse cx="25" cy="23" rx="15" ry="13" fill="#f59e0b" stroke="#451a03" stroke-width="2.2"/><ellipse cx="25" cy="26" rx="10" ry="7" fill="#fef3c7"/><circle cx="20" cy="20" r="2" fill="#1c1917"/><circle cx="30" cy="20" r="2" fill="#1c1917"/><ellipse cx="25" cy="24" rx="2.5" ry="1.8" fill="#1c1917"/><path d="M21 28 Q25 31 29 28" stroke="#451a03" stroke-width="1.8" fill="none"/><rect x="40" y="16" width="10" height="14" rx="4" fill="#fbbf24" stroke="#451a03" stroke-width="2"/><path d="M43 16 L43 10 Q46 8 48 12 L48 16 Z" fill="#fbbf24" stroke="#451a03" stroke-width="2"/></svg>`,
+                topRightSvg: `<svg viewBox="0 0 44 28" class="w-9 h-5 pointer-events-none select-none overflow-visible"><polygon points="12,20 15,6 24,18" fill="#f59e0b" stroke="#451a03" stroke-width="2"/><polygon points="26,20 31,6 38,18" fill="#f59e0b" stroke="#451a03" stroke-width="2"/></svg>`
+            },
+            'katak_ayam': {
+                id: 'katak_ayam',
+                name: 'Katak dan anak ayam',
+                bg: '#8be0e8',
+                border: '#1c5a63',
+                textColor: '#09282e',
+                metaColor: '#1c5a63',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 48 32" class="w-10 h-6 pointer-events-none select-none overflow-visible"><ellipse cx="24" cy="20" rx="14" ry="9" fill="#4ade80" stroke="#14532d" stroke-width="2"/><circle cx="17" cy="11" r="4.5" fill="#4ade80" stroke="#14532d" stroke-width="2"/><circle cx="31" cy="11" r="4.5" fill="#4ade80" stroke="#14532d" stroke-width="2"/><circle cx="17" cy="11" r="2" fill="#000"/><circle cx="31" cy="11" r="2" fill="#000"/><path d="M20 21 Q24 24 28 21" stroke="#14532d" stroke-width="1.8" fill="none"/></svg>`,
+                topRightSvg: `<svg viewBox="0 0 44 32" class="w-9 h-6 pointer-events-none select-none overflow-visible"><circle cx="22" cy="19" r="10" fill="#facc15" stroke="#713f12" stroke-width="2"/><circle cx="18" cy="17" r="1.6" fill="#000"/><circle cx="26" cy="17" r="1.6" fill="#000"/><polygon points="22,19 19,22 25,22" fill="#f97316"/></svg>`
+            },
+            'anjing_lapar': {
+                id: 'anjing_lapar',
+                name: 'Anjing lapar',
+                bg: '#d9534f',
+                border: '#571815',
+                textColor: '#ffffff',
+                metaColor: '#fee2e2',
+                isLight: false,
+                topLeftSvg: `<svg viewBox="0 0 56 42" class="w-11 h-8 pointer-events-none select-none overflow-visible"><ellipse cx="22" cy="22" rx="15" ry="13" fill="#fbbf24" stroke="#451a03" stroke-width="2.2"/><ellipse cx="11" cy="22" rx="5" ry="9" fill="#d97706" stroke="#451a03" stroke-width="2"/><circle cx="24" cy="17" r="2.2" fill="#000"/><path d="M26 22 L38 18 L34 29 L26 27 Z" fill="#ffffff" stroke="#451a03" stroke-width="1.8"/></svg>`,
+                topRightSvg: `<svg viewBox="0 0 36 28" class="w-7 h-5 pointer-events-none select-none overflow-visible"><path d="M10 22 Q22 4 30 12 Q26 22 14 24 Z" fill="#fbbf24" stroke="#451a03" stroke-width="2"/></svg>`
+            },
+            'dino': {
+                id: 'dino',
+                name: 'Dino',
+                bg: '#9ce0f5',
+                border: '#205266',
+                textColor: '#0c2936',
+                metaColor: '#205266',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 56 38" class="w-11 h-7 pointer-events-none select-none overflow-visible"><path d="M10 30 L10 14 Q10 6 22 6 L36 6 Q42 6 42 13 L30 16 L40 22 L26 26 Z" fill="#38bdf8" stroke="#0c4a6e" stroke-width="2.2" stroke-linejoin="round"/><polygon points="28,15 30,19 32,15" fill="#fff"/><polygon points="33,15 35,19 37,15" fill="#fff"/><circle cx="20" cy="11" r="2.2" fill="#0f172a"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 44 24" class="w-9 h-5 pointer-events-none select-none overflow-visible"><path d="M6 16 L28 16 L38 6 L34 20 L6 20 Z" fill="#38bdf8" stroke="#0c4a6e" stroke-width="2" stroke-linejoin="round"/></svg>`
+            },
+            'dachshund': {
+                id: 'dachshund',
+                name: 'Dachshund',
+                bg: '#8c583a',
+                border: '#3b1f0e',
+                textColor: '#ffffff',
+                metaColor: '#fde68a',
+                isLight: false,
+                topLeftSvg: `<svg viewBox="0 0 58 38" class="w-12 h-7 pointer-events-none select-none overflow-visible"><ellipse cx="28" cy="20" rx="14" ry="11" fill="#78350f" stroke="#291002" stroke-width="2.2"/><ellipse cx="14" cy="21" rx="9" ry="5.5" fill="#78350f" stroke="#291002" stroke-width="2"/><circle cx="7" cy="20" r="2.5" fill="#000"/><ellipse cx="33" cy="24" rx="5.5" ry="9" fill="#451a03" stroke="#291002" stroke-width="2"/><circle cx="23" cy="17" r="2" fill="#000"/></svg>`,
+                bottomLeftSvg: `<svg viewBox="0 0 40 16" class="w-8 h-3.5 pointer-events-none select-none"><ellipse cx="16" cy="8" rx="6" ry="4.5" fill="#78350f" stroke="#291002" stroke-width="2"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 48 22" class="w-9 h-4 pointer-events-none select-none overflow-visible"><ellipse cx="18" cy="14" rx="6" ry="4.5" fill="#78350f" stroke="#291002" stroke-width="2"/><path d="M28 14 Q38 4 42 8" stroke="#78350f" stroke-width="4.5" stroke-linecap="round" fill="none"/></svg>`
+            },
+            'katak_lapar': {
+                id: 'katak_lapar',
+                name: 'Katak lapar',
+                bg: '#eef5db',
+                border: '#5c4023',
+                bottomBar: '#8c6239',
+                textColor: '#1f2912',
+                metaColor: '#5c4023',
+                isLight: true,
+                bottomLeftSvg: `<svg viewBox="0 0 54 36" class="w-11 h-7 pointer-events-none select-none overflow-visible"><ellipse cx="24" cy="22" rx="15" ry="11" fill="#65a30d" stroke="#1a2e05" stroke-width="2.2"/><circle cx="17" cy="11" r="4.5" fill="#65a30d" stroke="#1a2e05" stroke-width="2"/><circle cx="29" cy="11" r="4.5" fill="#65a30d" stroke="#1a2e05" stroke-width="2"/><circle cx="17" cy="11" r="2" fill="#000"/><circle cx="29" cy="11" r="2" fill="#000"/><path d="M18 22 Q24 26 30 22" stroke="#1a2e05" stroke-width="2" fill="none"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 36 26" class="w-7 h-5 pointer-events-none select-none overflow-visible"><path d="M18 22 Q18 10 28 8 Q26 18 18 22 Z" fill="#84cc16" stroke="#1a2e05" stroke-width="1.8"/></svg>`
+            },
+            'screamer': {
+                id: 'screamer',
+                name: 'Screamer',
+                bg: '#ff9e85',
+                border: '#692414',
+                textColor: '#2b0b04',
+                metaColor: '#692414',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 52 44" class="w-10 h-8 pointer-events-none select-none overflow-visible"><ellipse cx="24" cy="24" rx="15" ry="14" fill="#ff9e85" stroke="#692414" stroke-width="2.2"/><ellipse cx="18" cy="26" rx="6" ry="9" fill="#450a0a" stroke="#692414" stroke-width="1.8"/><path d="M14 20 L22 20" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/><path d="M14 31 L22 31" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/><circle cx="26" cy="15" r="2.2" fill="#000"/></svg>`,
+                topRightSvg: `<svg viewBox="0 0 42 36" class="w-8 h-7 pointer-events-none select-none overflow-visible"><path d="M6 18 L26 6 L22 18 L28 28 Z" fill="#ff9e85" stroke="#692414" stroke-width="2.2" stroke-linejoin="round"/></svg>`
+            },
+            'panda_bambu': {
+                id: 'panda_bambu',
+                name: 'Panda bambu',
+                bg: '#d8f3dc',
+                border: '#1b4332',
+                bottomBar: '#40916c',
+                textColor: '#081c15',
+                metaColor: '#1b4332',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 58 42" class="w-11 h-8 pointer-events-none select-none overflow-visible"><circle cx="14" cy="11" r="6" fill="#18181b"/><circle cx="38" cy="11" r="6" fill="#18181b"/><ellipse cx="26" cy="23" rx="16" ry="13" fill="#ffffff" stroke="#18181b" stroke-width="2.2"/><ellipse cx="19" cy="21" rx="4.5" ry="3.5" transform="rotate(-15 19 21)" fill="#18181b"/><ellipse cx="33" cy="21" rx="4.5" ry="3.5" transform="rotate(15 33 21)" fill="#18181b"/><circle cx="19.5" cy="20.5" r="1.4" fill="#ffffff"/><circle cx="32.5" cy="20.5" r="1.4" fill="#ffffff"/><ellipse cx="26" cy="25" rx="2.5" ry="1.8" fill="#18181b"/><ellipse cx="14" cy="25" rx="2.8" ry="1.5" fill="#fb7185" opacity="0.75"/><ellipse cx="38" cy="25" rx="2.8" ry="1.5" fill="#fb7185" opacity="0.75"/><rect x="44" y="8" width="5" height="24" rx="2" fill="#2d6a4f" stroke="#081c15" stroke-width="1.6"/><line x1="44" y1="16" x2="49" y2="16" stroke="#d8f3dc" stroke-width="1.5"/><line x1="44" y1="24" x2="49" y2="24" stroke="#d8f3dc" stroke-width="1.5"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 42 18" class="w-8 h-3.5 pointer-events-none select-none"><ellipse cx="14" cy="9" rx="6.5" ry="4.5" fill="#18181b"/><ellipse cx="28" cy="9" rx="6.5" ry="4.5" fill="#18181b"/><circle cx="14" cy="9" r="2" fill="#f472b6"/><circle cx="28" cy="9" r="2" fill="#f472b6"/></svg>`
+            },
+            'kelinci_wortel': {
+                id: 'kelinci_wortel',
+                name: 'Kelinci wortel',
+                bg: '#ffe5d9',
+                border: '#7f2b16',
+                wavyBorder: true,
+                textColor: '#3b1106',
+                metaColor: '#7f2b16',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 60 46" class="w-12 h-8 pointer-events-none select-none overflow-visible"><ellipse cx="19" cy="12" rx="4.5" ry="11" transform="rotate(-10 19 12)" fill="#ffffff" stroke="#7f2b16" stroke-width="2"/><ellipse cx="19" cy="13" rx="2.2" ry="7" transform="rotate(-10 19 13)" fill="#fbcfe8"/><ellipse cx="31" cy="12" rx="4.5" ry="11" transform="rotate(10 31 12)" fill="#ffffff" stroke="#7f2b16" stroke-width="2"/><ellipse cx="31" cy="13" rx="2.2" ry="7" transform="rotate(10 31 13)" fill="#fbcfe8"/><ellipse cx="25" cy="28" rx="15" ry="12" fill="#ffffff" stroke="#7f2b16" stroke-width="2.2"/><circle cx="19" cy="26" r="2" fill="#291002"/><circle cx="31" cy="26" r="2" fill="#291002"/><ellipse cx="25" cy="29" rx="2.2" ry="1.5" fill="#fb7185"/><polygon points="36,32 52,22 48,35" fill="#f97316" stroke="#7f2b16" stroke-width="1.8" stroke-linejoin="round"/><path d="M50 24 L56 19 M51 27 L57 25" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 36 22" class="w-7 h-4 pointer-events-none select-none overflow-visible"><circle cx="22" cy="11" r="7" fill="#ffffff" stroke="#7f2b16" stroke-width="2"/></svg>`
+            },
+            'rubah_salju': {
+                id: 'rubah_salju',
+                name: 'Rubah salju',
+                bg: '#ffedd5',
+                border: '#7c2d12',
+                bottomBar: '#ea580c',
+                textColor: '#2a0f04',
+                metaColor: '#7c2d12',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 58 42" class="w-11 h-8 pointer-events-none select-none overflow-visible"><polygon points="10,22 12,5 24,15" fill="#ea580c" stroke="#431407" stroke-width="2" stroke-linejoin="round"/><polygon points="42,22 40,5 28,15" fill="#ea580c" stroke="#431407" stroke-width="2" stroke-linejoin="round"/><ellipse cx="26" cy="24" rx="16" ry="12" fill="#f97316" stroke="#431407" stroke-width="2.2"/><path d="M12 25 Q26 36 40 25 Q33 21 26 28 Q19 21 12 25 Z" fill="#ffffff"/><circle cx="19" cy="21" r="2" fill="#1c1917"/><circle cx="33" cy="21" r="2" fill="#1c1917"/><circle cx="26" cy="27" r="2.3" fill="#1c1917"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 52 28" class="w-10 h-5 pointer-events-none select-none overflow-visible"><path d="M8 20 Q24 4 44 10 Q40 24 20 24 Z" fill="#f97316" stroke="#431407" stroke-width="2"/><path d="M32 8 Q44 10 41 18 Q34 17 32 8 Z" fill="#ffffff"/></svg>`
+            },
+            'koala_tidur': {
+                id: 'koala_tidur',
+                name: 'Koala mengantuk',
+                bg: '#e2e8f0',
+                border: '#334155',
+                topBar: '#64748b',
+                textColor: '#0f172a',
+                metaColor: '#334155',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 60 42" class="w-12 h-8 pointer-events-none select-none overflow-visible"><circle cx="11" cy="16" r="8" fill="#94a3b8" stroke="#1e293b" stroke-width="2"/><circle cx="11" cy="16" r="4.5" fill="#f1f5f9"/><circle cx="41" cy="16" r="8" fill="#94a3b8" stroke="#1e293b" stroke-width="2"/><circle cx="41" cy="16" r="4.5" fill="#f1f5f9"/><ellipse cx="26" cy="24" rx="15" ry="12" fill="#cbd5e1" stroke="#1e293b" stroke-width="2.2"/><path d="M17 22 Q20 25 23 22" stroke="#1e293b" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M29 22 Q32 25 35 22" stroke="#1e293b" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="26" cy="24" rx="3.5" ry="5" fill="#334155"/><text x="45" y="14" fill="#2563eb" font-size="10" font-weight="900">Zzz</text></svg>`,
+                bottomLeftSvg: `<svg viewBox="0 0 38 16" class="w-7 h-3.5 pointer-events-none select-none"><ellipse cx="14" cy="8" rx="6" ry="4.5" fill="#94a3b8" stroke="#1e293b" stroke-width="2"/><ellipse cx="26" cy="8" rx="6" ry="4.5" fill="#94a3b8" stroke="#1e293b" stroke-width="2"/></svg>`
+            },
+            'pinguin_es': {
+                id: 'pinguin_es',
+                name: 'Pinguin es',
+                bg: '#dff6ff',
+                border: '#075985',
+                bottomBar: '#38bdf8',
+                textColor: '#082f49',
+                metaColor: '#075985',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 54 42" class="w-11 h-8 pointer-events-none select-none overflow-visible"><ellipse cx="26" cy="24" rx="15" ry="13" fill="#1e293b" stroke="#0f172a" stroke-width="2.2"/><ellipse cx="26" cy="26" rx="11" ry="9.5" fill="#ffffff"/><circle cx="21" cy="21" r="2" fill="#0f172a"/><circle cx="31" cy="21" r="2" fill="#0f172a"/><polygon points="26,22 22,26 30,26" fill="#f59e0b"/><ellipse cx="17" cy="24" rx="2.5" ry="1.4" fill="#fb7185" opacity="0.8"/><ellipse cx="35" cy="24" rx="2.5" ry="1.4" fill="#fb7185" opacity="0.8"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 42 20" class="w-8 h-4 pointer-events-none select-none"><ellipse cx="14" cy="11" rx="6" ry="4" fill="#f59e0b" stroke="#78350f" stroke-width="1.8"/><ellipse cx="28" cy="11" rx="6" ry="4" fill="#f59e0b" stroke="#78350f" stroke-width="1.8"/></svg>`
+            },
+            'hamster_pipi': {
+                id: 'hamster_pipi',
+                name: 'Hamster kuaci',
+                bg: '#fef9c3',
+                border: '#854d0e',
+                wavyBorder: true,
+                textColor: '#3f2305',
+                metaColor: '#854d0e',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 60 42" class="w-12 h-8 pointer-events-none select-none overflow-visible"><circle cx="14" cy="12" r="5.5" fill="#f59e0b" stroke="#78350f" stroke-width="2"/><circle cx="38" cy="12" r="5.5" fill="#f59e0b" stroke="#78350f" stroke-width="2"/><ellipse cx="26" cy="24" rx="17" ry="12" fill="#fcd34d" stroke="#78350f" stroke-width="2.2"/><circle cx="15" cy="26" r="7" fill="#fef3c7" stroke="#78350f" stroke-width="1.8"/><circle cx="37" cy="26" r="7" fill="#fef3c7" stroke="#78350f" stroke-width="1.8"/><circle cx="21" cy="20" r="2" fill="#1c1917"/><circle cx="31" cy="20" r="2" fill="#1c1917"/><ellipse cx="26" cy="25" rx="3" ry="4.5" fill="#451a03" stroke="#ffffff" stroke-width="1.2"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 38 16" class="w-7 h-3.5 pointer-events-none select-none"><ellipse cx="14" cy="8" rx="5.5" ry="4" fill="#fde68a" stroke="#78350f" stroke-width="1.8"/><ellipse cx="26" cy="8" rx="5.5" ry="4" fill="#fde68a" stroke="#78350f" stroke-width="1.8"/></svg>`
+            },
+            'naga_api': {
+                id: 'naga_api',
+                name: 'Naga api',
+                bg: '#450a0a',
+                border: '#f59e0b',
+                bottomBar: '#dc2626',
+                textColor: '#fef2f2',
+                metaColor: '#fde68a',
+                isLight: false,
+                topLeftSvg: `<svg viewBox="0 0 62 44" class="w-12 h-8 pointer-events-none select-none overflow-visible"><polygon points="15,14 10,2 21,11" fill="#fbbf24" stroke="#78350f" stroke-width="1.8"/><polygon points="35,14 40,2 29,11" fill="#fbbf24" stroke="#78350f" stroke-width="1.8"/><ellipse cx="25" cy="24" rx="15" ry="12" fill="#dc2626" stroke="#fbbf24" stroke-width="2.2"/><circle cx="20" cy="21" r="2.2" fill="#fef08a"/><circle cx="30" cy="21" r="2.2" fill="#fef08a"/><path d="M40 22 Q52 14 58 22 Q50 30 40 25 Z" fill="#f97316" stroke="#fde047" stroke-width="1.8"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 48 26" class="w-9 h-5 pointer-events-none select-none overflow-visible"><path d="M6 18 Q22 18 34 8 L42 6 L38 16 L32 14 Q22 22 6 22 Z" fill="#dc2626" stroke="#fbbf24" stroke-width="1.8"/></svg>`
+            },
+            'kucing_hitam': {
+                id: 'kucing_hitam',
+                name: 'Kucing hitam',
+                bg: '#2e1065',
+                border: '#c084fc',
+                bottomBar: '#581c87',
+                textColor: '#faf5ff',
+                metaColor: '#e9d5ff',
+                isLight: false,
+                topLeftSvg: `<svg viewBox="0 0 58 42" class="w-11 h-8 pointer-events-none select-none overflow-visible"><polygon points="12,20 12,4 24,14" fill="#18181b" stroke="#c084fc" stroke-width="2"/><polygon points="40,20 40,4 28,14" fill="#18181b" stroke="#c084fc" stroke-width="2"/><ellipse cx="26" cy="24" rx="15" ry="12" fill="#18181b" stroke="#c084fc" stroke-width="2.2"/><ellipse cx="20" cy="22" rx="3.5" ry="3" fill="#facc15"/><ellipse cx="32" cy="22" rx="3.5" ry="3" fill="#facc15"/><ellipse cx="20" cy="22" rx="1.2" ry="2.6" fill="#000"/><ellipse cx="32" cy="22" rx="1.2" ry="2.6" fill="#000"/><polygon points="26,25 24,28 28,28" fill="#f472b6"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 46 26" class="w-9 h-5 pointer-events-none select-none overflow-visible"><path d="M8 20 Q28 22 36 6" stroke="#18181b" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M8 20 Q28 22 36 6" stroke="#c084fc" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>`
+            },
+            'axolotl_pink': {
+                id: 'axolotl_pink',
+                name: 'Axolotl pink',
+                bg: '#fce7f3',
+                border: '#9d174d',
+                textColor: '#500724',
+                metaColor: '#9d174d',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 62 42" class="w-12 h-8 pointer-events-none select-none overflow-visible"><path d="M12 16 L4 9 M11 22 L3 20 M12 28 L5 30" stroke="#ec4899" stroke-width="3.5" stroke-linecap="round"/><path d="M44 16 L52 9 M45 22 L53 20 M44 28 L51 30" stroke="#ec4899" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="28" cy="24" rx="16" ry="12" fill="#f9a8d4" stroke="#9d174d" stroke-width="2.2"/><circle cx="21" cy="22" r="2" fill="#1f2937"/><circle cx="35" cy="22" r="2" fill="#1f2937"/><path d="M24 26 Q28 29 32 26" stroke="#9d174d" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`,
+                topRightSvg: `<svg viewBox="0 0 36 30" class="w-7 h-6 pointer-events-none select-none overflow-visible"><circle cx="14" cy="18" r="5" fill="#bae6fd" stroke="#0284c7" stroke-width="1.6"/><circle cx="24" cy="10" r="3.5" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/></svg>`
+            },
+            'burung_hantu': {
+                id: 'burung_hantu',
+                name: 'Burung hantu',
+                bg: '#1e1b4b',
+                border: '#818cf8',
+                topBar: '#312e81',
+                textColor: '#eef2ff',
+                metaColor: '#c7d2fe',
+                isLight: false,
+                topLeftSvg: `<svg viewBox="0 0 58 42" class="w-11 h-8 pointer-events-none select-none overflow-visible"><ellipse cx="26" cy="23" rx="16" ry="13" fill="#78350f" stroke="#fde68a" stroke-width="2"/><circle cx="19" cy="21" r="6" fill="#fef3c7" stroke="#451a03" stroke-width="1.8"/><circle cx="33" cy="21" r="6" fill="#fef3c7" stroke="#451a03" stroke-width="1.8"/><circle cx="19" cy="21" r="3" fill="#0f172a"/><circle cx="33" cy="21" r="3" fill="#0f172a"/><polygon points="26,23 23,28 29,28" fill="#f59e0b"/></svg>`,
+                topRightSvg: `<svg viewBox="0 0 36 30" class="w-7 h-6 pointer-events-none select-none overflow-visible"><polygon points="18,4 21,12 29,12 22,17 25,25 18,20 11,25 14,17 7,12 15,12" fill="#facc15" stroke="#ca8a04" stroke-width="1.5"/></svg>`
+            },
+            'harimau_belang': {
+                id: 'harimau_belang',
+                name: 'Harimau kecil',
+                bg: '#fed7aa',
+                border: '#7c2d12',
+                bottomBar: '#ea580c',
+                textColor: '#290d02',
+                metaColor: '#7c2d12',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 58 42" class="w-11 h-8 pointer-events-none select-none overflow-visible"><circle cx="13" cy="12" r="5.5" fill="#f97316" stroke="#1c1917" stroke-width="2"/><circle cx="39" cy="12" r="5.5" fill="#f97316" stroke="#1c1917" stroke-width="2"/><ellipse cx="26" cy="24" rx="16" ry="12" fill="#fb923c" stroke="#1c1917" stroke-width="2.2"/><line x1="26" y1="12" x2="26" y2="18" stroke="#1c1917" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="22" x2="17" y2="22" stroke="#1c1917" stroke-width="2.2" stroke-linecap="round"/><line x1="35" y1="22" x2="40" y2="22" stroke="#1c1917" stroke-width="2.2" stroke-linecap="round"/><circle cx="20" cy="21" r="2" fill="#1c1917"/><circle cx="32" cy="21" r="2" fill="#1c1917"/><ellipse cx="26" cy="26" rx="6" ry="4.5" fill="#fff7ed"/><polygon points="26,24 23,27 29,27" fill="#fb7185"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 40 18" class="w-8 h-3.5 pointer-events-none select-none"><ellipse cx="14" cy="9" rx="6" ry="4.5" fill="#fb923c" stroke="#1c1917" stroke-width="2"/><ellipse cx="28" cy="9" rx="6" ry="4.5" fill="#fb923c" stroke="#1c1917" stroke-width="2"/></svg>`
+            },
+            'bebek_kuning': {
+                id: 'bebek_kuning',
+                name: 'Bebek karet',
+                bg: '#fef08a',
+                border: '#854d0e',
+                bottomBar: '#38bdf8',
+                textColor: '#3b2104',
+                metaColor: '#713f12',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 56 42" class="w-11 h-8 pointer-events-none select-none overflow-visible"><path d="M23 11 Q26 4 30 9" stroke="#facc15" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="26" cy="24" rx="15" ry="12" fill="#facc15" stroke="#854d0e" stroke-width="2.2"/><circle cx="20" cy="21" r="2" fill="#0f172a"/><circle cx="32" cy="21" r="2" fill="#0f172a"/><ellipse cx="26" cy="26" rx="6.5" ry="3.5" fill="#f97316" stroke="#7c2d12" stroke-width="1.8"/></svg>`,
+                topRightSvg: `<svg viewBox="0 0 42 32" class="w-8 h-6 pointer-events-none select-none overflow-visible"><circle cx="20" cy="19" r="9" fill="#fde047" stroke="#854d0e" stroke-width="1.8"/><circle cx="17" cy="17" r="1.5" fill="#000"/><polygon points="24,18 32,20 24,22" fill="#f97316"/></svg>`
+            },
+            'gurita_laut': {
+                id: 'gurita_laut',
+                name: 'Gurita laut',
+                bg: '#f3e8ff',
+                border: '#6b21a8',
+                wavyBorder: true,
+                textColor: '#2e1065',
+                metaColor: '#6b21a8',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 56 42" class="w-11 h-8 pointer-events-none select-none overflow-visible"><ellipse cx="26" cy="22" rx="15" ry="13" fill="#c084fc" stroke="#581c87" stroke-width="2.2"/><circle cx="20" cy="21" r="2.2" fill="#1e1b4b"/><circle cx="32" cy="21" r="2.2" fill="#1e1b4b"/><circle cx="26" cy="26" r="3" fill="#581c87"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 52 24" class="w-10 h-4.5 pointer-events-none select-none overflow-visible"><path d="M8 18 Q16 4 24 18 Q32 4 40 18" stroke="#c084fc" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M8 18 Q16 4 24 18 Q32 4 40 18" stroke="#581c87" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>`
+            },
+            'rusa_bambi': {
+                id: 'rusa_bambi',
+                name: 'Rusa hutan',
+                bg: '#f5ebe0',
+                border: '#582f0e',
+                bottomBar: '#7f4f24',
+                textColor: '#2b1605',
+                metaColor: '#582f0e',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 60 44" class="w-12 h-8 pointer-events-none select-none overflow-visible"><path d="M18 14 L13 4 M15 8 L10 9 M34 14 L39 4 M37 8 L42 9" stroke="#78350f" stroke-width="2.6" stroke-linecap="round"/><ellipse cx="26" cy="25" rx="15" ry="12" fill="#b45309" stroke="#451a03" stroke-width="2.2"/><circle cx="18" cy="19" r="1.6" fill="#ffffff"/><circle cx="34" cy="19" r="1.6" fill="#ffffff"/><circle cx="20" cy="24" r="2" fill="#1c1917"/><circle cx="32" cy="24" r="2" fill="#1c1917"/><ellipse cx="26" cy="27" rx="3" ry="2" fill="#1c1917"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 38 24" class="w-7 h-4.5 pointer-events-none select-none overflow-visible"><path d="M12 18 Q18 6 30 8 Q26 20 12 18 Z" fill="#22c55e" stroke="#14532d" stroke-width="1.8"/></svg>`
+            },
+            'unicorn_pelangi': {
+                id: 'unicorn_pelangi',
+                name: 'Unicorn pelangi',
+                bg: '#fdf4ff',
+                border: '#86198f',
+                wavyBorder: true,
+                textColor: '#3b0764',
+                metaColor: '#86198f',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 60 46" class="w-12 h-8 pointer-events-none select-none overflow-visible"><polygon points="26,2 21,16 31,16" fill="#facc15" stroke="#854d0e" stroke-width="1.8"/><ellipse cx="26" cy="27" rx="15" ry="12" fill="#ffffff" stroke="#86198f" stroke-width="2.2"/><path d="M11 22 Q6 16 14 14" stroke="#ec4899" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M41 22 Q46 16 38 14" stroke="#38bdf8" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="20" cy="25" r="2" fill="#3b0764"/><circle cx="32" cy="25" r="2" fill="#3b0764"/><ellipse cx="16" cy="28" rx="2.5" ry="1.4" fill="#f472b6"/><ellipse cx="36" cy="28" rx="2.5" ry="1.4" fill="#f472b6"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 46 24" class="w-9 h-4.5 pointer-events-none select-none overflow-visible"><path d="M8 18 Q24 4 40 18" stroke="#ec4899" stroke-width="3" fill="none"/><path d="M11 19 Q24 8 37 19" stroke="#facc15" stroke-width="3" fill="none"/><path d="M14 20 Q24 12 34 20" stroke="#38bdf8" stroke-width="3" fill="none"/></svg>`
+            },
+            'monyet_pisang': {
+                id: 'monyet_pisang',
+                name: 'Monyet pisang',
+                bg: '#fef3c7',
+                border: '#78350f',
+                bottomBar: '#d97706',
+                textColor: '#291002',
+                metaColor: '#78350f',
+                isLight: true,
+                topLeftSvg: `<svg viewBox="0 0 60 42" class="w-12 h-8 pointer-events-none select-none overflow-visible"><circle cx="10" cy="22" r="5.5" fill="#92400e" stroke="#451a03" stroke-width="2"/><circle cx="10" cy="22" r="3" fill="#fde68a"/><circle cx="42" cy="22" r="5.5" fill="#92400e" stroke="#451a03" stroke-width="2"/><circle cx="42" cy="22" r="3" fill="#fde68a"/><ellipse cx="26" cy="23" rx="14" ry="12" fill="#92400e" stroke="#451a03" stroke-width="2.2"/><ellipse cx="26" cy="25" rx="10" ry="8" fill="#fde68a"/><circle cx="21" cy="21" r="2" fill="#1c1917"/><circle cx="31" cy="21" r="2" fill="#1c1917"/><path d="M22 27 Q26 30 30 27" stroke="#451a03" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M45 28 Q54 24 52 12 Q47 20 42 25 Z" fill="#facc15" stroke="#713f12" stroke-width="1.6"/></svg>`,
+                bottomRightSvg: `<svg viewBox="0 0 44 24" class="w-8 h-4.5 pointer-events-none select-none overflow-visible"><path d="M8 18 Q28 20 34 8 Q38 4 32 4" stroke="#92400e" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg>`
+            }
+        },
+
+        getChatBubbleStyle(bubbleId) {
+            var key = String(bubbleId || 'default').trim().toLowerCase();
+            if (!key || key === 'none') key = 'default';
+            return GlobalChat.CHAT_BUBBLE_STYLES[key] || GlobalChat.CHAT_BUBBLE_STYLES['default'];
+        },
+
+        // Render Mini Thumbnail for the 4-Column "Pilih gaya balon" Grid (Exact match to Screenshot)
+        getChatBubbleThumbnailHtml(bubbleId) {
+            var st = GlobalChat.getChatBubbleStyle(bubbleId);
+            if (st.id === 'default') {
+                return `
+                <div class="w-[78px] h-[34px] rounded-full bg-[#1d6ff2] shadow-inner border border-blue-400/40 mx-auto my-2"></div>`;
+            }
+            var wavyCss = st.wavyBorder
+                ? 'border: 2.5px dashed ' + st.border + '; box-shadow: 0 0 0 2px ' + st.bg + ', 0 3px 0 ' + st.border + ';'
+                : 'border: 2.2px solid ' + st.border + ';' + (st.bottomBar ? (' border-bottom: 5px solid ' + st.bottomBar + ';') : '') + (st.topBar ? (' border-top: 5px solid ' + st.topBar + ';') : '');
+            return `
+            <div class="relative w-[80px] h-[36px] mx-auto my-2 flex items-center justify-center select-none">
+                <div class="w-[74px] h-[30px] rounded-xl relative transition-transform" style="background: ${st.bg}; ${wavyCss}"></div>
+                ${st.topLeftSvg ? `<div class="absolute -top-2.5 -left-1.5 scale-[0.68] origin-top-left z-10 pointer-events-none">${st.topLeftSvg}</div>` : ''}
+                ${st.topRightSvg ? `<div class="absolute -top-2.5 -right-1.5 scale-[0.68] origin-top-right z-10 pointer-events-none">${st.topRightSvg}</div>` : ''}
+                ${st.bottomLeftSvg ? `<div class="absolute -bottom-2 -left-1 scale-[0.68] origin-bottom-left z-10 pointer-events-none">${st.bottomLeftSvg}</div>` : ''}
+                ${st.bottomRightSvg ? `<div class="absolute -bottom-2 -right-1 scale-[0.68] origin-bottom-right z-10 pointer-events-none">${st.bottomRightSvg}</div>` : ''}
+            </div>`;
+        },
+
+        // Render Full Expandable Message Bubble with Character Mascots
+        renderCharacterBubbleBox(bubbleId, opts) {
+            opts = opts || {};
+            var st = GlobalChat.getChatBubbleStyle(bubbleId);
+            var isMe = Boolean(opts.isMe);
+            var isPreview = Boolean(opts.isPreview);
+            var contentHtml = opts.messageHtml || opts.bodyHtml || opts.innerHtml || '';
+
+            if (!bubbleId || bubbleId === 'default' || bubbleId === 'none' || !GlobalChat.CHAT_BUBBLE_STYLES[bubbleId]) {
+                if (isPreview) {
+                    return `
+                    <div class="relative bg-[#1d6ff2] text-white rounded-2xl px-4 py-2.5 shadow-md">
+                        <div class="text-xs sm:text-[13.5px] leading-relaxed font-medium">${contentHtml}</div>
+                    </div>`;
+                }
+                var defaultBoxClass = isMe
+                    ? 'relative max-w-[85%] sm:max-w-[75%] bg-[#222834] border border-slate-700/70 text-slate-100 rounded-2xl px-4 py-2.5 shadow-md shadow-black/40'
+                    : 'relative max-w-[85%] sm:max-w-[75%] bg-[#161a22] border border-slate-800 text-slate-200 rounded-2xl px-4 py-2.5 shadow-md shadow-black/40';
+                return `
+                <div class="${defaultBoxClass}">
+                    ${contentHtml}
+                </div>`;
+            }
+
+            var borderStyle = st.wavyBorder
+                ? `background: ${st.bg}; border: 2.5px dashed ${st.border}; outline: 3px solid ${st.bg}; box-shadow: 0 4px 14px rgba(0,0,0,0.45); color: ${st.textColor};`
+                : `background: ${st.bg}; border: 2.5px solid ${st.border}; ${st.bottomBar ? `border-bottom: 6px solid ${st.bottomBar};` : ''} ${st.topBar ? `border-top: 6px solid ${st.topBar};` : ''} box-shadow: 0 4px 14px rgba(0,0,0,0.45); color: ${st.textColor};`;
+
+            if (isPreview) {
+                return `
+                <div class="relative my-2 mx-2">
+                    ${st.topLeftSvg ? `<div class="absolute -top-4 -left-2.5 z-20 pointer-events-none">${st.topLeftSvg}</div>` : ''}
+                    ${st.topRightSvg ? `<div class="absolute -top-4 -right-2.5 z-20 pointer-events-none">${st.topRightSvg}</div>` : ''}
+                    ${st.bottomLeftSvg ? `<div class="absolute -bottom-2.5 -left-2 z-20 pointer-events-none">${st.bottomLeftSvg}</div>` : ''}
+                    ${st.bottomRightSvg ? `<div class="absolute -bottom-2.5 -right-2 z-20 pointer-events-none">${st.bottomRightSvg}</div>` : ''}
+                    <div class="relative z-10 rounded-2xl px-4 py-3" style="${borderStyle}">
+                        <div class="text-xs sm:text-[13.5px] leading-relaxed font-semibold" style="color: ${st.textColor};">${contentHtml}</div>
+                    </div>
+                </div>`;
+            }
+
+            return `
+            <div class="relative max-w-[85%] sm:max-w-[75%] my-1.5">
+                ${st.topLeftSvg ? `<div class="absolute -top-4 -left-2.5 z-20 pointer-events-none">${st.topLeftSvg}</div>` : ''}
+                ${st.topRightSvg ? `<div class="absolute -top-4 -right-2.5 z-20 pointer-events-none">${st.topRightSvg}</div>` : ''}
+                ${st.bottomLeftSvg ? `<div class="absolute -bottom-2.5 -left-2 z-20 pointer-events-none">${st.bottomLeftSvg}</div>` : ''}
+                ${st.bottomRightSvg ? `<div class="absolute -bottom-2.5 -right-2 z-20 pointer-events-none">${st.bottomRightSvg}</div>` : ''}
+                <div class="relative z-10 rounded-2xl px-4 py-2.5" style="${borderStyle}">
+                    ${contentHtml}
+                </div>
+            </div>`;
+        },
+
+        _isOwnedBubblesDrawerOpen: false,
+
+        getOwnedChatBubblesList(u) {
+            if (!u) u = GlobalChat.getCurrentUser() || {};
+            var rawUnlocked = Array.isArray(u.unlockedDiamondChatBubbles) ? u.unlockedDiamondChatBubbles.slice() : [];
+            var activeBubble = String(u.chatBubble || '').trim().toLowerCase();
+            if (activeBubble && activeBubble !== 'default' && activeBubble !== 'none' && !rawUnlocked.includes(activeBubble)) {
+                rawUnlocked.push(activeBubble);
+            }
+            var expiries = (u.diamondChatBubbleExpiries && typeof u.diamondChatBubbleExpiries === 'object') ? u.diamondChatBubbleExpiries : {};
+            var items = [
+                { bubbleId: 'default', name: 'Default', isPermanent: true, expiresAt: null }
+            ];
+            var seen = { 'default': true };
+            rawUnlocked.forEach(function(idStr) {
+                var cleanId = String(idStr || '').replace(/^dmcb_/, '').trim().toLowerCase();
+                if (!cleanId || seen[cleanId] || !GlobalChat.CHAT_BUBBLE_STYLES[cleanId]) return;
+                var expTs = expiries[cleanId] || null;
+                if (expTs && Date.now() > Number(expTs)) return;
+                seen[cleanId] = true;
+                var st = GlobalChat.CHAT_BUBBLE_STYLES[cleanId];
+                items.push({
+                    bubbleId: cleanId,
+                    name: st.name || cleanId,
+                    isPermanent: !expTs,
+                    expiresAt: expTs
+                });
+            });
+            return items;
+        },
+
+        toggleOwnedBubblesDrawer(forceState) {
+            var drawer = document.getElementById('global-chat-owned-bubbles-drawer');
+            if (!drawer) return;
+            if (typeof forceState === 'boolean') {
+                GlobalChat._isOwnedBubblesDrawerOpen = forceState;
+            } else {
+                GlobalChat._isOwnedBubblesDrawerOpen = !GlobalChat._isOwnedBubblesDrawerOpen;
+            }
+            if (GlobalChat._isOwnedBubblesDrawerOpen) {
+                GlobalChat.renderOwnedBubblesDrawer();
+                drawer.classList.remove('hidden');
+            } else {
+                drawer.classList.add('hidden');
+            }
+            var topBtn = document.getElementById('global-chat-top-bubble-bag-btn');
+            if (topBtn) {
+                if (GlobalChat._isOwnedBubblesDrawerOpen) {
+                    topBtn.classList.add('ring-2', 'ring-amber-400', 'bg-amber-500/30');
+                } else {
+                    topBtn.classList.remove('ring-2', 'ring-amber-400', 'bg-amber-500/30');
+                }
+            }
+        },
+
+        renderOwnedBubblesDrawer() {
+            var drawer = document.getElementById('global-chat-owned-bubbles-drawer');
+            var countEl = document.getElementById('global-chat-owned-bubbles-count');
+            var u = GlobalChat.getCurrentUser() || {};
+            var ownedList = GlobalChat.getOwnedChatBubblesList(u);
+            var activeId = String(u.chatBubble || 'default').trim().toLowerCase() || 'default';
+            if (activeId === 'none') activeId = 'default';
+
+            if (countEl) {
+                countEl.textContent = String(ownedList.length);
+            }
+            if (!drawer) return;
+
+            drawer.innerHTML = `
+                <div class="px-4 sm:px-6 py-3 bg-[#11141d] border-b border-amber-400/30 shadow-xl space-y-2.5 animate-fade-in">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                                <i data-lucide="message-circle-heart" class="w-3.5 h-3.5"></i>
+                            </span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                                    <span>Koleksi Gaya Balon Saya</span>
+                                    <span class="px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black">${ownedList.length} Item</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 truncate">Klik item balon yang sudah kamu miliki di bawah untuk langsung mengganti gaya chat:</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onclick="GlobalChat.openBubbleStoreModal()" class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-400 hover:to-pink-400 text-black font-black text-[10px] flex items-center gap-1 cursor-pointer active:scale-95 transition shadow-md">
+                                <i data-lucide="shopping-bag" class="w-3 h-3"></i>
+                                <span>+ Toko Balon</span>
+                            </button>
+                            <button type="button" onclick="GlobalChat.toggleOwnedBubblesDrawer(false)" class="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer">
+                                <i data-lucide="chevron-up" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 overflow-x-auto pb-1 pt-0.5 hide-scrollbar">
+                        ${ownedList.map(function(item) {
+                            var isEquipped = (activeId === item.bubbleId);
+                            var durLabel = 'Permanen';
+                            if (item.expiresAt) {
+                                var remDays = Math.max(1, Math.ceil((Number(item.expiresAt) - Date.now()) / (24 * 60 * 60 * 1000)));
+                                durLabel = remDays + ' Hari';
+                            }
+                            return `
+                            <div onclick="GlobalChat.equipOwnedChatBubble('${GlobalChat.escapeJs(item.bubbleId)}')" class="shrink-0 w-[104px] p-2 rounded-2xl flex flex-col items-center justify-between gap-1 cursor-pointer transition-all select-none ${isEquipped ? 'bg-[#252836] border-2 border-emerald-400 shadow-lg shadow-emerald-500/10' : 'bg-[#191c26] hover:bg-[#222634] border border-white/10'}">
+                                <div class="h-11 flex items-center justify-center w-full">
+                                    ${GlobalChat.getChatBubbleThumbnailHtml(item.bubbleId)}
+                                </div>
+                                <div class="text-[11px] font-bold text-white truncate w-full text-center">${GlobalChat.escapeHtml(item.name)}</div>
+                                <div class="text-[9px] font-extrabold ${isEquipped ? 'text-emerald-400' : 'text-amber-300/85'} flex items-center gap-1">
+                                    ${isEquipped ? '<span>✓ Dipakai</span>' : `<span>Pakai • ${GlobalChat.escapeHtml(durLabel)}</span>`}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+        },
+
+        async equipOwnedChatBubble(bubbleId) {
+            var bId = String(bubbleId || 'default').trim().toLowerCase() || 'default';
+            var u = GlobalChat.getCurrentUser();
+            if (!u) return;
+
+            // Optimistically update local user & re-render immediately
+            var newVal = (bId === 'default' || bId === 'none') ? '' : bId;
+            u.chatBubble = newVal;
+            if (typeof Auth !== 'undefined' && Auth.currentUser) {
+                Auth.currentUser.chatBubble = newVal;
+                if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+            }
+            if (GlobalChat._userBubbleCache) {
+                if (u.id) GlobalChat._userBubbleCache[String(u.id)] = newVal;
+                if (u.username) GlobalChat._userBubbleCache[String(u.username).toLowerCase().trim()] = newVal;
+            }
+            GlobalChat.renderOwnedBubblesDrawer();
+            GlobalChat.renderMessagesList(GlobalChat.messages || [], false);
+
+            try {
+                var token = (typeof Profile !== 'undefined' && typeof Profile.getCurrentUserAuthToken === 'function')
+                    ? Profile.getCurrentUserAuthToken()
+                    : ((typeof Auth !== 'undefined' && Auth.token) ? Auth.token : (localStorage.getItem('musifystar_auth_token') || ''));
+                var adminTok = (typeof Profile !== 'undefined' && typeof Profile.getAdminToken === 'function')
+                    ? Profile.getAdminToken()
+                    : (sessionStorage.getItem('musifystar_admin_token') || localStorage.getItem('musifystar_admin_token') || '');
+                var headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                };
+                if (adminTok) headers['x-admin-token'] = adminTok;
+
+                var res = await fetch('/api/user-auth?action=buy_diamond_chat_bubble', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        action: 'buy_diamond_chat_bubble',
+                        bubbleId: bId,
+                        token: token,
+                        userId: u.id || '',
+                        originalId: u.originalId || '',
+                        username: u.username || '',
+                        email: u.email || u.rawEmail || ''
+                    })
+                });
+                var data = await res.json();
+                if (data && data.status && data.user) {
+                    if (typeof Auth !== 'undefined' && Auth.currentUser) {
+                        Object.assign(Auth.currentUser, data.user);
+                        if (typeof Auth.saveUser === 'function') Auth.saveUser(Auth.currentUser);
+                    }
+                    GlobalChat.renderOwnedBubblesDrawer();
+                    GlobalChat.renderMessagesList(GlobalChat.messages || [], false);
+                    if (typeof showToast === 'function') {
+                        var stName = (GlobalChat.CHAT_BUBBLE_STYLES[bId] && GlobalChat.CHAT_BUBBLE_STYLES[bId].name) ? GlobalChat.CHAT_BUBBLE_STYLES[bId].name : 'Default';
+                        showToast('Gaya Balon "' + stName + '" aktif dipakai!');
+                    }
+                }
+            } catch (e) {}
+        },
+
+        openBubbleStoreModal() {
+            if (typeof Profile !== 'undefined' && typeof Profile.openDiamondTopupModal === 'function') {
+                Profile.openDiamondTopupModal('gayabalon');
+            }
+        },
 
         // Verified Blue Checkmark + Admin Badge (Exclusively for jrnabil570@gmail.com)
         // Format: Admin first, blue checkmark right beside it on the right (Admin ✅)
@@ -147,6 +782,11 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button id="global-chat-top-bubble-bag-btn" type="button" onclick="GlobalChat.toggleOwnedBubblesDrawer()" class="relative px-2.5 h-9 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 active:scale-95 flex items-center gap-1.5 text-amber-300 hover:text-amber-200 text-xs font-extrabold transition-all cursor-pointer" title="Koleksi Gaya Balon Saya (Klik untuk ganti gaya balon chat)">
+                        <i data-lucide="message-circle-heart" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Balon Saya</span>
+                        <span id="global-chat-owned-bubbles-count" class="px-1.5 py-0.2 rounded-full bg-amber-400 text-black text-[10px] font-black leading-tight">${GlobalChat.getOwnedChatBubblesList(u).length}</span>
+                    </button>
                     <button onclick="GlobalChat.fetchMessages(false)" class="w-9 h-9 rounded-xl bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/50 active:scale-95 flex items-center justify-center text-slate-300 hover:text-white transition-all cursor-pointer" title="Segarkan Chat">
                         <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                     </button>
@@ -155,6 +795,9 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Laci Cepat Koleksi Gaya Balon Saya di Atas Ruang Chat -->
+            <div id="global-chat-owned-bubbles-drawer" class="${GlobalChat._isOwnedBubblesDrawerOpen ? '' : 'hidden'} relative z-20 shrink-0"></div>
 
             <!-- Chat Messages Stream (Deep Dark Background, Eye-Friendly, Scrollable) -->
             <div id="global-chat-stream" class="relative z-10 flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 hide-scrollbar bg-[#0c0e14]">
@@ -177,6 +820,9 @@
             };
 
             document.body.appendChild(modal);
+            if (GlobalChat._isOwnedBubblesDrawerOpen) {
+                GlobalChat.renderOwnedBubblesDrawer();
+            }
             if (window.lucide) lucide.createIcons();
             if (typeof DynamicIsland !== 'undefined' && typeof DynamicIsland.updateState === 'function') {
                 DynamicIsland.updateState();
@@ -454,14 +1100,19 @@
                     }
                     var reqChanged = GlobalChat.incomingFriendRequests.length !== prevReqCount;
                     if (!GlobalChat._userGlowCache) GlobalChat._userGlowCache = {};
+                    if (!GlobalChat._userBubbleCache) GlobalChat._userBubbleCache = {};
                     data.messages.forEach(function(m) {
                         if (m && m.nameGlow) {
                             if (m.userId) GlobalChat._userGlowCache[String(m.userId)] = m.nameGlow;
                             if (m.username) GlobalChat._userGlowCache[String(m.username).toLowerCase().trim()] = m.nameGlow;
                         }
+                        if (m && m.chatBubble !== undefined) {
+                            if (m.userId) GlobalChat._userBubbleCache[String(m.userId)] = m.chatBubble || '';
+                            if (m.username) GlobalChat._userBubbleCache[String(m.username).toLowerCase().trim()] = m.chatBubble || '';
+                        }
                     });
                     var msgSig = data.messages.map(function(m) {
-                        return [m.id, m.username, m.avatar, m.borderUrl, m.borderName, m.equippedBadge, m.nameGlow, m.message].join(':');
+                        return [m.id, m.username, m.avatar, m.borderUrl, m.borderName, m.equippedBadge, m.nameGlow, m.chatBubble, m.message].join(':');
                     }).join('|') + '||' + GlobalChat.incomingFriendRequests.length;
                     GlobalChat.messages = data.messages;
                     GlobalChat.lastMessageCount = data.messages.length;
@@ -647,6 +1298,25 @@
 
                 var openProfileJs = `GlobalChat.showUserProfileModal('${GlobalChat.escapeJs(msgUserId)}', '${GlobalChat.escapeJs(displayUsername)}', '${GlobalChat.escapeJs(userAvatar)}', '${GlobalChat.escapeJs(userBorderUrl)}', '${GlobalChat.escapeJs(userBorderName)}', ${!!isMsgAdmin}, ${!!userIsVip}, '${GlobalChat.escapeJs(userVipTier)}', ${userVipExpires || 0}, '${GlobalChat.escapeJs(userNameGlow)}')`;
 
+                var userChatBubble = (isMe && u && u.chatBubble !== undefined)
+                    ? (u.chatBubble || '')
+                    : (m.chatBubble || (GlobalChat._userBubbleCache && (GlobalChat._userBubbleCache[msgUserId] || GlobalChat._userBubbleCache[msgUsername])) || '');
+                var bubbleStyleObj = (userChatBubble && userChatBubble !== 'default' && userChatBubble !== 'none' && GlobalChat.CHAT_BUBBLE_STYLES[userChatBubble])
+                    ? GlobalChat.CHAT_BUBBLE_STYLES[userChatBubble]
+                    : null;
+                var nameWrapAttr = (bubbleStyleObj && bubbleStyleObj.isLight && userNameGlow)
+                    ? 'class="px-2 py-0.5 rounded-md bg-black/75 inline-block"'
+                    : '';
+                var msgTextStyle = bubbleStyleObj
+                    ? `color: ${bubbleStyleObj.textColor}; font-weight: 600;`
+                    : '';
+                var metaTextStyle = bubbleStyleObj
+                    ? `color: ${bubbleStyleObj.metaColor}; font-weight: 700;`
+                    : '';
+                var nameColorStyle = (bubbleStyleObj && !userNameGlow)
+                    ? `color: ${bubbleStyleObj.textColor}; font-weight: 800;`
+                    : '';
+
                 // ==========================================
                 // 1. PESAN SAYA (AKUN INI SENDIRI: DI KANAN DENGAN AVATAR & BORDER)
                 // ==========================================
@@ -657,28 +1327,28 @@
                         </span>
                     ` : '';
 
-                    return `
-                    <div class="flex justify-end items-end gap-3.5 sm:gap-4 w-full group my-3 sm:my-3.5 pl-6 sm:pl-14">
-                        <!-- Dark Obsidian Outgoing Bubble -->
-                        <div class="relative max-w-[85%] sm:max-w-[75%] bg-[#222834] border border-slate-700/70 text-slate-100 rounded-2xl px-4 py-2.5 shadow-md shadow-black/40">
-                            <!-- Header Nama & Border Badge (Clickable to view own profile preview) -->
-                            <div class="flex items-center justify-between gap-2 mb-1.5 select-none cursor-pointer" onclick="${openProfileJs}" title="Klik untuk lihat tampilan profil & border Anda">
-                                <span class="text-xs font-semibold text-slate-200 hover:text-white transition-colors tracking-tight truncate max-w-[130px] sm:max-w-[170px]">${renderedDisplayUsername}</span>
-                                <div class="flex items-center gap-1 shrink-0 flex-nowrap overflow-x-auto hide-scrollbar">
-                                    ${userBadgesHtml}
-                                </div>
-                            </div>
-
-                            <!-- Message text -->
-                            <p class="text-[13px] sm:text-[14px] leading-relaxed select-text break-words whitespace-pre-wrap font-sans text-slate-100 font-normal">${GlobalChat.escapeHtml(m.message)}</p>
-                            
-                            <!-- Meta Time & Delete Action -->
-                            <div class="flex items-center justify-end gap-2 mt-1 select-none">
-                                ${deleteBtn}
-                                <span class="text-[10px] text-slate-400 font-mono">${timeStr}</span>
-                                ${statusSending}
+                    var myInnerBubbleHtml = `
+                        <!-- Header Nama & Border Badge (Clickable to view own profile preview) -->
+                        <div class="flex items-center justify-between gap-2 mb-1.5 select-none cursor-pointer" onclick="${openProfileJs}" title="Klik untuk lihat tampilan profil & border Anda">
+                            <span class="text-xs font-semibold text-slate-200 hover:text-white transition-colors tracking-tight truncate max-w-[130px] sm:max-w-[170px]" style="${nameColorStyle}"><span ${nameWrapAttr}>${renderedDisplayUsername}</span></span>
+                            <div class="flex items-center gap-1 shrink-0 flex-nowrap overflow-x-auto hide-scrollbar">
+                                ${userBadgesHtml}
                             </div>
                         </div>
+
+                        <!-- Message text -->
+                        <p class="text-[13px] sm:text-[14px] leading-relaxed select-text break-words whitespace-pre-wrap font-sans text-slate-100 font-normal" style="${msgTextStyle}">${GlobalChat.escapeHtml(m.message)}</p>
+                        
+                        <!-- Meta Time & Delete Action -->
+                        <div class="flex items-center justify-end gap-2 mt-1 select-none">
+                            ${deleteBtn}
+                            <span class="text-[10px] text-slate-400 font-mono" style="${metaTextStyle}">${timeStr}</span>
+                            ${statusSending}
+                        </div>`;
+
+                    return `
+                    <div class="flex justify-end items-end gap-3.5 sm:gap-4 w-full group my-3 sm:my-3.5 pl-6 sm:pl-14">
+                        ${GlobalChat.renderCharacterBubbleBox(userChatBubble, { isMe: true, innerHtml: myInnerBubbleHtml })}
 
                         <!-- Avatar Saya dengan Border Frame Eksklusif (Berjarak Aman & Elegan) -->
                         <div class="shrink-0 mb-0.5 ${userBorderUrl ? 'ml-1 sm:ml-1.5' : ''}">
@@ -690,6 +1360,24 @@
                 // ==========================================
                 // 2. PESAN ORANG LAIN (DI KIRI DENGAN AVATAR & BORDER)
                 // ==========================================
+                var otherInnerBubbleHtml = `
+                    <!-- Header Nama Pengirim & Admin Centang Biru & Border Badge -->
+                    <div class="flex items-center justify-between gap-2 mb-1.5 select-none cursor-pointer" onclick="${openProfileJs}" title="Klik untuk lihat profil & border ${GlobalChat.escapeHtml(displayUsername)}">
+                        <span class="text-xs font-semibold text-slate-200 hover:text-amber-300 transition-colors tracking-tight truncate max-w-[130px] sm:max-w-[170px]" style="${nameColorStyle}"><span ${nameWrapAttr}>${renderedDisplayUsername}</span></span>
+                        <div class="flex items-center gap-1 shrink-0 flex-nowrap overflow-x-auto hide-scrollbar">
+                            ${userBadgesHtml}
+                        </div>
+                    </div>
+
+                    <!-- Isi Pesan -->
+                    <p class="text-[13px] sm:text-[14px] leading-relaxed select-text break-words whitespace-pre-wrap font-sans text-slate-200 font-normal" style="${msgTextStyle}">${GlobalChat.escapeHtml(m.message)}</p>
+
+                    <!-- Meta Waktu & Delete Button -->
+                    <div class="flex items-center justify-end gap-2 mt-1 select-none">
+                        ${deleteBtn}
+                        <span class="text-[10px] text-slate-500 font-mono" style="${metaTextStyle}">${timeStr}</span>
+                    </div>`;
+
                 return `
                 <div class="flex justify-start items-start gap-3.5 sm:gap-4 w-full group my-3 sm:my-3.5 pr-6 sm:pr-14">
                     <!-- Avatar Pengirim dengan Border Frame Eksklusif (Berjarak Aman & Elegan) -->
@@ -697,25 +1385,7 @@
                         ${avatarHtml}
                     </div>
 
-                    <!-- Dark Obsidian Incoming Bubble -->
-                    <div class="relative max-w-[85%] sm:max-w-[75%] bg-[#161a22] border border-slate-800 text-slate-200 rounded-2xl px-4 py-2.5 shadow-md shadow-black/40">
-                        <!-- Header Nama Pengirim & Admin Centang Biru & Border Badge -->
-                        <div class="flex items-center justify-between gap-2 mb-1.5 select-none cursor-pointer" onclick="${openProfileJs}" title="Klik untuk lihat profil & border ${GlobalChat.escapeHtml(displayUsername)}">
-                            <span class="text-xs font-semibold text-slate-200 hover:text-amber-300 transition-colors tracking-tight truncate max-w-[130px] sm:max-w-[170px]">${renderedDisplayUsername}</span>
-                            <div class="flex items-center gap-1 shrink-0 flex-nowrap overflow-x-auto hide-scrollbar">
-                                ${userBadgesHtml}
-                            </div>
-                        </div>
-
-                        <!-- Isi Pesan -->
-                        <p class="text-[13px] sm:text-[14px] leading-relaxed select-text break-words whitespace-pre-wrap font-sans text-slate-200 font-normal">${GlobalChat.escapeHtml(m.message)}</p>
-
-                        <!-- Meta Waktu & Delete Button -->
-                        <div class="flex items-center justify-end gap-2 mt-1 select-none">
-                            ${deleteBtn}
-                            <span class="text-[10px] text-slate-500 font-mono">${timeStr}</span>
-                        </div>
-                    </div>
+                    ${GlobalChat.renderCharacterBubbleBox(userChatBubble, { isMe: false, innerHtml: otherInnerBubbleHtml })}
                 </div>`;
             }).join('');
 
@@ -801,6 +1471,7 @@
                 equippedBadgeIcon: u.equippedBadgeIcon || '',
                 equippedBadgeColor: u.equippedBadgeColor || '',
                 nameGlow: u.nameGlow || '',
+                chatBubble: u.chatBubble || '',
                 message: text,
                 badge: isMasterAdmin ? 'Admin' : 'Member',
                 isAdmin: isMasterAdmin,
