@@ -157,6 +157,39 @@ const DEFAULT_DIAMOND_SHOP_NAME_GLOWS = [
     { id: 'dmng_liquid_glass', glowId: 'liquid_glass', name: 'Liquid Glass iOS 27', subtitle: 'Kilau kaca cair kristal prismatik khas iOS 27 VIP', badge: 'iOS 27', className: 'vip-name-glow vip-name-glow-liquid_glass', cost: 750, days: 0, isPermanent: true, enabled: true }
 ];
 
+const DEFAULT_DIAMOND_SHOP_CHAT_BUBBLES = [
+    { id: 'dmcb_kapibara', bubbleId: 'kapibara', name: 'Kapibara', subtitle: 'Gaya balon Kapibara santai menggemaskan', badge: 'LUCU', cost: 200, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_katak', bubbleId: 'katak', name: 'Katak', subtitle: 'Gaya balon Katak hijau bermata besar', badge: 'POPULER', cost: 200, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_kucing_anjing', bubbleId: 'kucing_anjing', name: 'Kucing dan anjing', subtitle: 'Balon krem bergelombang dengan Kucing & Anjing imut', badge: 'FAVORIT', cost: 300, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_tepuk_jidat', bubbleId: 'tepuk_jidat', name: 'Tepuk jidat', subtitle: 'Gaya balon ekspresi tepuk jidat kocak', badge: 'UNIK', cost: 220, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_pepe_hati', bubbleId: 'pepe_hati', name: 'Pepe hati', subtitle: 'Balon pink pastel dengan karakter Pepe penuh cinta', badge: 'ROMANTIS', cost: 250, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_babi_hiu', bubbleId: 'babi_hiu', name: 'Babi dan hiu', subtitle: 'Balon biru langit dengan duet Babi pink & Hiu mungil', badge: 'IMUT', cost: 260, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_beruang_melet', bubbleId: 'beruang_melet', name: 'Beruang melet', subtitle: 'Balon pink manis dengan Beruang cokelat melet', badge: 'MANIS', cost: 280, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_doge', bubbleId: 'doge', name: 'Doge', subtitle: 'Balon emas Shiba Doge acung jempol legendaris', badge: 'SULTAN', cost: 350, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_katak_ayam', bubbleId: 'katak_ayam', name: 'Katak dan anak ayam', subtitle: 'Balon toska ceria dengan Katak & Anak Ayam kuning', badge: 'CERIA', cost: 260, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_anjing_lapar', bubbleId: 'anjing_lapar', name: 'Anjing lapar', subtitle: 'Balon merah dengan karakter Anjing lapar menggigit tepi', badge: 'SERU', cost: 280, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_dino', bubbleId: 'dino', name: 'Dino', subtitle: 'Balon biru es dengan Dinosaurus mungil menggemaskan', badge: 'DINO', cost: 300, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_dachshund', bubbleId: 'dachshund', name: 'Dachshund', subtitle: 'Balon anjing sosis Dachshund cokelat memanjang', badge: 'SPESIAL', cost: 320, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_katak_lapar', bubbleId: 'katak_lapar', name: 'Katak lapar', subtitle: 'Balon krem natural dengan Katak hijau melompat', badge: 'ALAM', cost: 240, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_screamer', bubbleId: 'screamer', name: 'Screamer', subtitle: 'Balon salmon ekspresi teriak heboh & sirip ekor', badge: 'HEBOH', cost: 350, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_panda_bambu', bubbleId: 'panda_bambu', name: 'Panda bambu', subtitle: 'Balon hijau mint dengan Panda imut memeluk bambu', badge: 'PANDA', cost: 280, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_kelinci_wortel', bubbleId: 'kelinci_wortel', name: 'Kelinci wortel', subtitle: 'Balon peach bergelombang dengan Kelinci mengunyah wortel', badge: 'BUNNY', cost: 260, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_rubah_salju', bubbleId: 'rubah_salju', name: 'Rubah salju', subtitle: 'Balon senja oranye dengan Rubah ekor lebat berujung putih', badge: 'FOX', cost: 300, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_koala_tidur', bubbleId: 'koala_tidur', name: 'Koala mengantuk', subtitle: 'Balon biru-abu eucalyptus dengan Koala tidur Zzz', badge: 'SLEEPY', cost: 240, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_pinguin_es', bubbleId: 'pinguin_es', name: 'Pinguin es', subtitle: 'Balon biru kutub dingin dengan Pinguin tuksedo menggemaskan', badge: 'ICE', cost: 270, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_hamster_pipi', bubbleId: 'hamster_pipi', name: 'Hamster kuaci', subtitle: 'Balon kuning mentega dengan Hamster pipi gembul makan kuaci', badge: 'CHUBBY', cost: 250, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_naga_api', bubbleId: 'naga_api', name: 'Naga api', subtitle: 'Balon marun emas dengan Naga kecil menyemburkan api', badge: 'DRAGON', cost: 420, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_kucing_hitam', bubbleId: 'kucing_hitam', name: 'Kucing hitam', subtitle: 'Balon ungu malam mistik dengan Kucing Hitam mata emas', badge: 'MYSTIC', cost: 320, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_axolotl_pink', bubbleId: 'axolotl_pink', name: 'Axolotl pink', subtitle: 'Balon pink permen dengan Axolotl senyum & gelembung air', badge: 'AQUA', cost: 310, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_burung_hantu', bubbleId: 'burung_hantu', name: 'Burung hantu', subtitle: 'Balon indigo kosmik dengan Burung Hantu malam & bintang', badge: 'NIGHT', cost: 290, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_harimau_belang', bubbleId: 'harimau_belang', name: 'Harimau kecil', subtitle: 'Balon amber belang dengan Anak Harimau imut mengaum', badge: 'TIGER', cost: 330, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_bebek_kuning', bubbleId: 'bebek_kuning', name: 'Bebek karet', subtitle: 'Balon kuning cerah berombak biru dengan duet Bebek imut', badge: 'DUCKY', cost: 230, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_gurita_laut', bubbleId: 'gurita_laut', name: 'Gurita laut', subtitle: 'Balon lavender bergelombang dengan Gurita & sulur tentakel', badge: 'OCEAN', cost: 270, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_rusa_bambi', bubbleId: 'rusa_bambi', name: 'Rusa hutan', subtitle: 'Balon cokelat karamel hutan dengan Rusa bertanduk ranting', badge: 'FOREST', cost: 290, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_unicorn_pelangi', bubbleId: 'unicorn_pelangi', name: 'Unicorn pelangi', subtitle: 'Balon mutiara fantasi dengan Unicorn bertanduk emas & pelangi', badge: 'FANTASY', cost: 400, days: 0, isPermanent: true, enabled: true },
+    { id: 'dmcb_monyet_pisang', bubbleId: 'monyet_pisang', name: 'Monyet pisang', subtitle: 'Balon tropis ceria dengan Monyet memegang pisang kuning', badge: 'TROPIS', cost: 250, days: 0, isPermanent: true, enabled: true }
+];
+
 const DEFAULT_VIP_TRIAL_CONFIG = {
     enabled: true,
     durationDays: 7,
@@ -204,6 +237,7 @@ const DEFAULT_PAYMENT_CONFIG = {
     diamondShopCustomIds: DEFAULT_DIAMOND_SHOP_CUSTOM_IDS,
     diamondShopBorders: DEFAULT_DIAMOND_SHOP_BORDERS,
     diamondShopNameGlows: DEFAULT_DIAMOND_SHOP_NAME_GLOWS,
+    diamondShopChatBubbles: DEFAULT_DIAMOND_SHOP_CHAT_BUBBLES,
     rewardedAdConfig: DEFAULT_REWARDED_AD_CONFIG,
     vipTrialConfig: DEFAULT_VIP_TRIAL_CONFIG,
     accounts: [],
@@ -388,6 +422,16 @@ async function getPaymentConfig() {
                 }
             }
 
+            let mergedShopChatBubbles = Array.isArray(data.diamondShopChatBubbles) && data.diamondShopChatBubbles.length
+                ? JSON.parse(JSON.stringify(data.diamondShopChatBubbles))
+                : JSON.parse(JSON.stringify(DEFAULT_DIAMOND_SHOP_CHAT_BUBBLES));
+            for (const defBubble of DEFAULT_DIAMOND_SHOP_CHAT_BUBBLES) {
+                const exists = mergedShopChatBubbles.some(x => x && (String(x.bubbleId) === String(defBubble.bubbleId) || String(x.id) === String(defBubble.id)));
+                if (!exists) {
+                    mergedShopChatBubbles.push(Object.assign({}, defBubble));
+                }
+            }
+
             const rawRewardedAd = (data.rewardedAdConfig && typeof data.rewardedAdConfig === 'object') ? data.rewardedAdConfig : {};
             const mergedRewardedAdConfig = {
                 enabled: rawRewardedAd.enabled !== undefined ? Boolean(rawRewardedAd.enabled) : true,
@@ -413,6 +457,7 @@ async function getPaymentConfig() {
                 diamondShopCustomIds: Array.isArray(data.diamondShopCustomIds) ? data.diamondShopCustomIds : DEFAULT_DIAMOND_SHOP_CUSTOM_IDS,
                 diamondShopBorders: mergedShopBorders,
                 diamondShopNameGlows: mergedShopNameGlows,
+                diamondShopChatBubbles: mergedShopChatBubbles,
                 rewardedAdConfig: mergedRewardedAdConfig,
                 vipTrialConfig: mergedTrialConfig,
                 accounts: cleanedAccounts,
@@ -796,6 +841,27 @@ module.exports = async (req, res) => {
                 });
         }
 
+        let updatedDiamondShopChatBubbles = currentConfig.diamondShopChatBubbles || DEFAULT_DIAMOND_SHOP_CHAT_BUBBLES;
+        if (Array.isArray(body.diamondShopChatBubbles) && body.diamondShopChatBubbles.length > 0) {
+            updatedDiamondShopChatBubbles = body.diamondShopChatBubbles
+                .filter(item => item && (item.bubbleId || item.id))
+                .map((item, idx) => {
+                    const bId = String(item.bubbleId || 'kucing_anjing').trim().toLowerCase();
+                    const daysNum = Math.max(0, Number(item.days) || 0);
+                    return {
+                        id: item.id || `dmcb_${bId}_${idx}`,
+                        bubbleId: bId,
+                        name: String(item.name || 'Gaya Balon Chat').trim(),
+                        subtitle: String(item.subtitle || 'Gaya balon karakter obrolan eksklusif').trim(),
+                        badge: String(item.badge || 'BALON').trim(),
+                        cost: Math.max(1, Number(item.cost) || 250),
+                        days: daysNum,
+                        isPermanent: item.isPermanent !== undefined ? Boolean(item.isPermanent) : (daysNum === 0),
+                        enabled: item.enabled !== false
+                    };
+                });
+        }
+
         // Parse vipTrialConfig if sent
         let updatedTrialConfig = currentConfig.vipTrialConfig || DEFAULT_VIP_TRIAL_CONFIG;
         if (body.vipTrialConfig && typeof body.vipTrialConfig === 'object') {
@@ -856,6 +922,7 @@ module.exports = async (req, res) => {
             diamondShopCustomIds: updatedDiamondShopCustomIds,
             diamondShopBorders: updatedDiamondShopBorders,
             diamondShopNameGlows: updatedDiamondShopNameGlows,
+            diamondShopChatBubbles: updatedDiamondShopChatBubbles,
             rewardedAdConfig: updatedRewardedAdConfig,
             vipTrialConfig: updatedTrialConfig,
             accounts: Array.isArray(body.accounts) ? body.accounts.map((acc, idx) => ({

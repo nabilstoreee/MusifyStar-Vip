@@ -38,6 +38,7 @@ async function initChatTable() {
             ALTER TABLE global_chat_messages ADD COLUMN IF NOT EXISTS equipped_badge_title VARCHAR(100);
             ALTER TABLE global_chat_messages ADD COLUMN IF NOT EXISTS equipped_badge_icon VARCHAR(100);
             ALTER TABLE global_chat_messages ADD COLUMN IF NOT EXISTS equipped_badge_color VARCHAR(100);
+            ALTER TABLE global_chat_messages ADD COLUMN IF NOT EXISTS chat_bubble VARCHAR(60);
             CREATE INDEX IF NOT EXISTS idx_chat_msg_time ON global_chat_messages(created_at DESC);
         `);
     } catch (e) {
@@ -437,6 +438,7 @@ module.exports = async function (req, res) {
                         equippedBadgeIcon: equippedBadgeIcon,
                         equippedBadgeColor: equippedBadgeColor,
                         nameGlow: matchedUser?.nameGlow || (isTargetAdmin ? (usersList.find(u => ((u.email || u.rawEmail || '').toLowerCase().trim() === 'jrnabil570@gmail.com' || String(u.id) === '8589478687' || String(u.username || '').toLowerCase().trim() === 'musifystar') && u.nameGlow)?.nameGlow || '') : '') || lbEntry?.nameGlow || '',
+                        chatBubble: (matchedUser && (!matchedUser.chatBubbleExpiresAt || Date.now() <= Number(matchedUser.chatBubbleExpiresAt))) ? (matchedUser.chatBubble || '') : '',
                         donatur: donaturInfo,
                         globalStatsRank: globalStatsRank,
                         listeningSeconds: listeningSeconds,
@@ -473,7 +475,7 @@ module.exports = async function (req, res) {
             const callerName = String(req.headers['x-user-name'] || req.query.myName || '').trim();
 
             const result = await pool.query(`
-                SELECT id, user_id, username, email, message, badge, is_admin, avatar_color, avatar_url, border_id, border_url, border_name, is_vip, vip_tier, equipped_badge, equipped_badge_title, equipped_badge_icon, equipped_badge_color, created_at 
+                SELECT id, user_id, username, email, message, badge, is_admin, avatar_color, avatar_url, border_id, border_url, border_name, is_vip, vip_tier, equipped_badge, equipped_badge_title, equipped_badge_icon, equipped_badge_color, chat_bubble, created_at 
                 FROM global_chat_messages 
                 ORDER BY created_at DESC 
                 LIMIT 60
@@ -547,6 +549,9 @@ module.exports = async function (req, res) {
                     equippedBadgeIcon: equippedBadgeIcon,
                     equippedBadgeColor: equippedBadgeColor,
                     nameGlow: matchedUser?.nameGlow || (isMsgMasterAdmin ? (userMapByEmail.get('jrnabil570@gmail.com')?.nameGlow || userMapById.get('8589478687')?.nameGlow || userMapByName.get('musifystar')?.nameGlow || '') : ''),
+                    chatBubble: matchedUser
+                        ? ((isMsgMasterAdmin || !matchedUser.chatBubbleExpiresAt || Date.now() <= Number(matchedUser.chatBubbleExpiresAt)) ? (matchedUser.chatBubble || '') : '')
+                        : (r.chat_bubble || ''),
                     donatur: matchedUser ? referralsApi.resolveUserDonaturInfo(matchedUser) : null,
                     createdAt: r.created_at,
                     // Email is ONLY visible to the master admin for moderation; hidden for all other users
@@ -892,6 +897,7 @@ module.exports = async function (req, res) {
             let equippedBadgeIcon = currentUser.equippedBadgeIcon || body.equippedBadgeIcon || '';
             let equippedBadgeColor = currentUser.equippedBadgeColor || body.equippedBadgeColor || '';
             let activeNameGlow = currentUser.nameGlow || '';
+            let activeChatBubble = currentUser.chatBubble || '';
 
             try {
                 const dbData = await storage.readDataAsync('users.json', { users: [], sessions: {} });
@@ -911,6 +917,10 @@ module.exports = async function (req, res) {
                     if (matched.equippedBadgeIcon !== undefined) equippedBadgeIcon = matched.equippedBadgeIcon;
                     if (matched.equippedBadgeColor !== undefined) equippedBadgeColor = matched.equippedBadgeColor;
                     if (matched.nameGlow) activeNameGlow = matched.nameGlow;
+                    if (matched.chatBubble !== undefined) {
+                        const bubbleExpired = !isMasterAdmin && matched.chatBubbleExpiresAt && Date.now() > Number(matched.chatBubbleExpiresAt);
+                        activeChatBubble = bubbleExpired ? '' : (matched.chatBubble || '');
+                    }
                 }
             } catch (e) {}
 
@@ -919,10 +929,10 @@ module.exports = async function (req, res) {
             // Insert into PRIMARY Neon PostgreSQL database
             const insertResult = await pool.query(
                 `INSERT INTO global_chat_messages 
-                (user_id, username, email, message, badge, is_admin, avatar_color, avatar_url, border_id, border_url, border_name, is_vip, vip_tier, equipped_badge, equipped_badge_title, equipped_badge_icon, equipped_badge_color, ip_address, created_at) 
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW()) 
-                RETURNING id, user_id, username, message, badge, is_admin, avatar_color, avatar_url, border_id, border_url, border_name, is_vip, vip_tier, equipped_badge, equipped_badge_title, equipped_badge_icon, equipped_badge_color, created_at`,
-                [userId, displayUsername, email, cleanMessage, badge, isMasterAdmin, avatarColor, userAvatar, borderInfo.borderId, borderInfo.borderUrl, borderInfo.borderName, isVipActive, vipTier, equippedBadge, equippedBadgeTitle, equippedBadgeIcon, equippedBadgeColor, clientIp]
+                (user_id, username, email, message, badge, is_admin, avatar_color, avatar_url, border_id, border_url, border_name, is_vip, vip_tier, equipped_badge, equipped_badge_title, equipped_badge_icon, equipped_badge_color, chat_bubble, ip_address, created_at) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW()) 
+                RETURNING id, user_id, username, message, badge, is_admin, avatar_color, avatar_url, border_id, border_url, border_name, is_vip, vip_tier, equipped_badge, equipped_badge_title, equipped_badge_icon, equipped_badge_color, chat_bubble, created_at`,
+                [userId, displayUsername, email, cleanMessage, badge, isMasterAdmin, avatarColor, userAvatar, borderInfo.borderId, borderInfo.borderUrl, borderInfo.borderName, isVipActive, vipTier, equippedBadge, equippedBadgeTitle, equippedBadgeIcon, equippedBadgeColor, activeChatBubble, clientIp]
             );
 
             const saved = insertResult.rows[0];
@@ -951,6 +961,7 @@ module.exports = async function (req, res) {
                     equippedBadgeIcon: saved.equipped_badge_icon || equippedBadgeIcon,
                     equippedBadgeColor: saved.equipped_badge_color || equippedBadgeColor,
                     nameGlow: activeNameGlow || currentUser?.nameGlow || '',
+                    chatBubble: saved.chat_bubble || activeChatBubble || '',
                     donatur: referralsApi.resolveUserDonaturInfo(currentUser),
                     createdAt: saved.created_at,
                     clientTempId: body.clientTempId || undefined

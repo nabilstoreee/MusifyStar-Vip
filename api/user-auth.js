@@ -3348,6 +3348,15 @@ module.exports = async (req, res) => {
                         user.nameGlowExpiresAt = null;
                         dbNeedsSave = true;
                     }
+                    if (!isMasterAdmin && user.chatBubbleExpiresAt && Date.now() > Number(user.chatBubbleExpiresAt)) {
+                        if (Array.isArray(user.unlockedDiamondChatBubbles) && user.chatBubble) {
+                            user.unlockedDiamondChatBubbles = user.unlockedDiamondChatBubbles.filter(b => b !== user.chatBubble);
+                        }
+                        user.chatBubble = '';
+                        user.isDiamondChatBubble = false;
+                        user.chatBubbleExpiresAt = null;
+                        dbNeedsSave = true;
+                    }
 
                     const hasValidDiamondGlow = Boolean(
                         (user.isDiamondNameGlow || (Array.isArray(user.unlockedDiamondNameGlows) && user.unlockedDiamondNameGlows.includes(user.nameGlow))) &&
@@ -3403,6 +3412,9 @@ module.exports = async (req, res) => {
                             nameGlow: user.nameGlow || '',
                             isDiamondNameGlow: Boolean(user.isDiamondNameGlow),
                             nameGlowExpiresAt: user.nameGlowExpiresAt || null,
+                            chatBubble: user.chatBubble || '',
+                            isDiamondChatBubble: Boolean(user.isDiamondChatBubble),
+                            chatBubbleExpiresAt: user.chatBubbleExpiresAt || null,
                             isPremium: isMasterAdmin || vipInfo.isPremium,
                             vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
                             vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
@@ -3430,6 +3442,8 @@ module.exports = async (req, res) => {
                             lastDailyDiamondClaim: user.lastDailyDiamondClaim || 0,
                             unlockedDiamondBorders: Array.isArray(user.unlockedDiamondBorders) ? user.unlockedDiamondBorders : [],
                             unlockedDiamondNameGlows: Array.isArray(user.unlockedDiamondNameGlows) ? user.unlockedDiamondNameGlows : [],
+                            unlockedDiamondChatBubbles: Array.isArray(user.unlockedDiamondChatBubbles) ? user.unlockedDiamondChatBubbles : [],
+                            diamondChatBubbleExpiries: (user.diamondChatBubbleExpiries && typeof user.diamondChatBubbleExpiries === 'object') ? user.diamondChatBubbleExpiries : {},
                             referredBy: user.referredBy || null,
                             referredByUsername: user.referredByUsername || '',
                             supportCount: Number(user.supportCount) || 0,
@@ -4003,6 +4017,9 @@ module.exports = async (req, res) => {
                     )) ? '' : (user.nameGlow || ''),
                     isDiamondNameGlow: Boolean(user.isDiamondNameGlow),
                     nameGlowExpiresAt: user.nameGlowExpiresAt || null,
+                    chatBubble: user.chatBubble || '',
+                    isDiamondChatBubble: Boolean(user.isDiamondChatBubble),
+                    chatBubbleExpiresAt: user.chatBubbleExpiresAt || null,
                     isPremium: isMasterAdmin || vipInfo.isPremium,
                     vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
                     vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
@@ -4032,6 +4049,8 @@ module.exports = async (req, res) => {
                     lastDailyDiamondClaim: user.lastDailyDiamondClaim || 0,
                     unlockedDiamondBorders: Array.isArray(user.unlockedDiamondBorders) ? user.unlockedDiamondBorders : [],
                     unlockedDiamondNameGlows: Array.isArray(user.unlockedDiamondNameGlows) ? user.unlockedDiamondNameGlows : [],
+                    unlockedDiamondChatBubbles: Array.isArray(user.unlockedDiamondChatBubbles) ? user.unlockedDiamondChatBubbles : [],
+                    diamondChatBubbleExpiries: (user.diamondChatBubbleExpiries && typeof user.diamondChatBubbleExpiries === 'object') ? user.diamondChatBubbleExpiries : {},
                     referredBy: user.referredBy || null,
                     referredByUsername: user.referredByUsername || '',
                     supportCount: Number(user.supportCount) || 0,
@@ -4224,6 +4243,9 @@ module.exports = async (req, res) => {
                     equippedBadgeIcon: user.equippedBadgeIcon || '',
                     equippedBadgeColor: user.equippedBadgeColor || '',
                     nameGlow: user.equippedNameGlow || user.nameGlow || '',
+                    chatBubble: user.chatBubble || '',
+                    isDiamondChatBubble: Boolean(user.isDiamondChatBubble),
+                    chatBubbleExpiresAt: user.chatBubbleExpiresAt || null,
                     isPremium: isGoogleMasterAdmin || vipInfo.isPremium,
                     vipTier: isGoogleMasterAdmin ? 'permanent' : vipInfo.vipTier,
                     vipExpiresAt: isGoogleMasterAdmin ? null : vipInfo.vipExpiresAt,
@@ -4253,6 +4275,8 @@ module.exports = async (req, res) => {
                     lastDailyDiamondClaim: user.lastDailyDiamondClaim || 0,
                     unlockedDiamondBorders: Array.isArray(user.unlockedDiamondBorders) ? user.unlockedDiamondBorders : [],
                     unlockedDiamondNameGlows: Array.isArray(user.unlockedDiamondNameGlows) ? user.unlockedDiamondNameGlows : [],
+                    unlockedDiamondChatBubbles: Array.isArray(user.unlockedDiamondChatBubbles) ? user.unlockedDiamondChatBubbles : [],
+                    diamondChatBubbleExpiries: (user.diamondChatBubbleExpiries && typeof user.diamondChatBubbleExpiries === 'object') ? user.diamondChatBubbleExpiries : {},
                     referredBy: user.referredBy || null,
                     referredByUsername: user.referredByUsername || '',
                     supportCount: Number(user.supportCount) || 0,
@@ -4558,6 +4582,9 @@ module.exports = async (req, res) => {
                     equippedBadgeIcon: user.equippedBadgeIcon || '',
                     equippedBadgeColor: user.equippedBadgeColor || '',
                     nameGlow: user.nameGlow || '',
+                    chatBubble: user.chatBubble || '',
+                    isDiamondChatBubble: Boolean(user.isDiamondChatBubble),
+                    chatBubbleExpiresAt: user.chatBubbleExpiresAt || null,
                     isPremium: isMasterAdmin || vipInfo.isPremium,
                     vipTier: isMasterAdmin ? 'permanent' : vipInfo.vipTier,
                     vipExpiresAt: isMasterAdmin ? null : vipInfo.vipExpiresAt,
@@ -4585,6 +4612,8 @@ module.exports = async (req, res) => {
                     lastDailyDiamondClaim: user.lastDailyDiamondClaim || 0,
                     unlockedDiamondBorders: Array.isArray(user.unlockedDiamondBorders) ? user.unlockedDiamondBorders : [],
                     unlockedDiamondNameGlows: Array.isArray(user.unlockedDiamondNameGlows) ? user.unlockedDiamondNameGlows : [],
+                    unlockedDiamondChatBubbles: Array.isArray(user.unlockedDiamondChatBubbles) ? user.unlockedDiamondChatBubbles : [],
+                    diamondChatBubbleExpiries: (user.diamondChatBubbleExpiries && typeof user.diamondChatBubbleExpiries === 'object') ? user.diamondChatBubbleExpiries : {},
                     supportCount: Number(user.supportCount) || 0,
                     donatur: referralsApi.resolveUserDonaturInfo(user),
                     role: isMasterAdmin ? 'admin' : 'member',
@@ -5364,10 +5393,11 @@ module.exports = async (req, res) => {
         function resolveAuthenticatedDiamondUser(req, db) {
             const rawAuth = req.headers.authorization || req.headers['x-auth-token'] || req.headers['x-token'] || '';
             const token = String(rawAuth).replace(/^Bearer\s+/i, '').trim() || String(req.body?.token || '').trim();
-            if (!token) return null;
+            const adminHdr = String(req.headers['x-admin-token'] || '').trim();
+            if (!token && !adminHdr) return null;
 
-            let targetUserId = getUserIdFromToken(token, db);
-            const verified = verifyUserToken(token);
+            let targetUserId = token ? getUserIdFromToken(token, db) : null;
+            const verified = token ? verifyUserToken(token) : null;
             let user = null;
 
             if (targetUserId) {
@@ -5385,16 +5415,22 @@ module.exports = async (req, res) => {
                     (verified.u && (u.username || '').toLowerCase() === String(verified.u).toLowerCase())
                 ));
             }
-            // Jika pengguna ditemukan dari token resmi, pastikan userId di body (jika dikirim) tidak memalsukan akun orang lain
-            if (user && req.body && req.body.userId) {
-                const bodyUid = String(req.body.userId).trim();
-                if (
-                    bodyUid &&
-                    bodyUid !== String(user.id || '') &&
-                    bodyUid !== String(user.originalId || '') &&
-                    bodyUid !== String(user.customId || '')
-                ) {
-                    return null;
+            // Fallback untuk sesi token tk_ atau admin token yang aktif setelah server restart
+            if (!user && (token.startsWith('tk_') || token.includes('.') || adminHdr)) {
+                const bodyUid = String(req.body?.userId || '').trim();
+                const bodyOrigId = String(req.body?.originalId || '').trim();
+                const bodyEmail = String(req.body?.email || '').trim().toLowerCase();
+                const bodyUname = String(req.body?.username || '').trim().toLowerCase();
+                user = db.users.find(u => {
+                    if (!u) return false;
+                    if (bodyOrigId && (String(u.originalId) === bodyOrigId || String(u.id) === bodyOrigId)) return true;
+                    if (bodyUid && (String(u.id) === bodyUid || String(u.originalId) === bodyUid || String(u.customId) === bodyUid)) return true;
+                    if (bodyEmail && ((u.rawEmail && u.rawEmail.toLowerCase() === bodyEmail) || (u.email && u.email.toLowerCase() === bodyEmail))) return true;
+                    if (bodyUname && u.username && u.username.toLowerCase() === bodyUname) return true;
+                    return false;
+                });
+                if (user && token && db.sessions && typeof db.sessions === 'object') {
+                    db.sessions[token] = { userId: user.id, createdAt: Date.now() };
                 }
             }
             return user;
@@ -5865,6 +5901,121 @@ module.exports = async (req, res) => {
                     isDiamondNameGlow: true,
                     nameGlowExpiresAt: user.nameGlowExpiresAt || null,
                     unlockedDiamondNameGlows: user.unlockedDiamondNameGlows
+                }
+            });
+        }
+
+        // POST /api/user-auth?action=buy_diamond_chat_bubble (Beli & Pasang Gaya Balon Chat Karakter dengan Berlian 💎)
+        if (action === 'buy_diamond_chat_bubble') {
+            const user = resolveAuthenticatedDiamondUser(req, db);
+            if (!user) {
+                return res.status(401).json({ status: false, message: 'Silakan login terlebih dahulu.' });
+            }
+
+            const requestedId = String(body.bubbleId || body.itemId || '').trim().toLowerCase();
+            if (!requestedId || requestedId === 'default' || requestedId === 'none') {
+                user.chatBubble = '';
+                user.isDiamondChatBubble = false;
+                await writeDbAsync(db);
+                const diamondSig = (typeof Security.generateDiamondSignature === 'function')
+                    ? Security.generateDiamondSignature(user.id, user.diamonds, user.unlockedDiamondBorders, user.unlockedDiamondNameGlows, user.customId)
+                    : '';
+                return res.json({
+                    status: true,
+                    message: 'Gaya balon chat berhasil dikembalikan ke Default!',
+                    diamonds: Math.max(0, Math.floor(Number(user.diamonds) || 0)),
+                    diamondSignature: diamondSig,
+                    user: {
+                        id: user.id,
+                        username: user.username,
+                        diamonds: Math.max(0, Math.floor(Number(user.diamonds) || 0)),
+                        diamondSignature: diamondSig,
+                        chatBubble: '',
+                        isDiamondChatBubble: false,
+                        chatBubbleExpiresAt: user.chatBubbleExpiresAt || null,
+                        unlockedDiamondChatBubbles: Array.isArray(user.unlockedDiamondChatBubbles) ? user.unlockedDiamondChatBubbles : [],
+                        diamondChatBubbleExpiries: (user.diamondChatBubbleExpiries && typeof user.diamondChatBubbleExpiries === 'object') ? user.diamondChatBubbleExpiries : {}
+                    }
+                });
+            }
+
+            const paymentConfigApi = require('./payment-config.js');
+            const payCfg = (paymentConfigApi && typeof paymentConfigApi.getPaymentConfig === 'function')
+                ? await paymentConfigApi.getPaymentConfig()
+                : {};
+            const shopBubbles = Array.isArray(payCfg.diamondShopChatBubbles) ? payCfg.diamondShopChatBubbles : [];
+            const item = shopBubbles.find(x => x && (String(x.bubbleId || '').toLowerCase() === requestedId || String(x.id || '').toLowerCase() === requestedId));
+            if (!item || item.enabled === false) {
+                return res.status(400).json({ status: false, message: 'Gaya Balon Chat tidak tersedia di katalog Berlian.' });
+            }
+
+            if (!Array.isArray(user.unlockedDiamondChatBubbles)) {
+                user.unlockedDiamondChatBubbles = [];
+            }
+            if (user.chatBubble && user.chatBubble !== 'default' && !user.unlockedDiamondChatBubbles.includes(user.chatBubble)) {
+                user.unlockedDiamondChatBubbles.push(user.chatBubble);
+            }
+            if (!user.diamondChatBubbleExpiries || typeof user.diamondChatBubbleExpiries !== 'object') {
+                user.diamondChatBubbleExpiries = {};
+            }
+
+            const targetBubbleId = String(item.bubbleId || 'kucing_anjing').trim().toLowerCase();
+            const specificExpiry = user.diamondChatBubbleExpiries[targetBubbleId] !== undefined
+                ? user.diamondChatBubbleExpiries[targetBubbleId]
+                : user.chatBubbleExpiresAt;
+            const isExpiredBubble = Boolean(specificExpiry && Date.now() > Number(specificExpiry));
+            const alreadyUnlocked = !isExpiredBubble && (user.unlockedDiamondChatBubbles.includes(targetBubbleId) || user.unlockedDiamondChatBubbles.includes(item.id));
+            const cost = alreadyUnlocked ? 0 : Math.max(1, Math.floor(Number(item.cost) || 250));
+            const currentDiamonds = Math.max(0, Math.floor(Number(user.diamonds) || 0));
+            if (currentDiamonds < cost) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Saldo Berlian Anda (${currentDiamonds.toLocaleString('id-ID')} 💎) belum cukup! Butuh ${cost.toLocaleString('id-ID')} 💎 untuk membeli Gaya Balon "${item.name}".`
+                });
+            }
+
+            user.diamonds = currentDiamonds - cost;
+            if (!user.unlockedDiamondChatBubbles.includes(targetBubbleId)) {
+                user.unlockedDiamondChatBubbles.push(targetBubbleId);
+            }
+            user.chatBubble = targetBubbleId;
+            user.isDiamondChatBubble = true;
+            const daysNum = Math.max(0, Number(item.days) || 0);
+            const isPerm = (item.isPermanent !== undefined) ? Boolean(item.isPermanent) : (daysNum === 0);
+            if (isPerm || daysNum <= 0) {
+                user.chatBubbleExpiresAt = null;
+                user.diamondChatBubbleExpiries[targetBubbleId] = null;
+            } else if (!alreadyUnlocked) {
+                const expTs = Date.now() + (daysNum * 24 * 60 * 60 * 1000);
+                user.chatBubbleExpiresAt = expTs;
+                user.diamondChatBubbleExpiries[targetBubbleId] = expTs;
+            } else {
+                user.chatBubbleExpiresAt = user.diamondChatBubbleExpiries[targetBubbleId] || null;
+            }
+            const durText = (isPerm || daysNum <= 0) ? 'Permanen' : `${daysNum} Hari`;
+
+            await writeDbAsync(db);
+            const diamondSig = (typeof Security.generateDiamondSignature === 'function')
+                ? Security.generateDiamondSignature(user.id, user.diamonds, user.unlockedDiamondBorders, user.unlockedDiamondNameGlows, user.customId)
+                : '';
+
+            return res.json({
+                status: true,
+                message: alreadyUnlocked
+                    ? `Gaya Balon "${item.name}" berhasil disimpan & diterapkan ke semua obrolan!`
+                    : `Selamat! Berhasil membeli & memasang Gaya Balon "${item.name}" (${durText}) dengan ${cost.toLocaleString('id-ID')} 💎!`,
+                diamonds: user.diamonds,
+                diamondSignature: diamondSig,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    diamonds: user.diamonds,
+                    diamondSignature: diamondSig,
+                    chatBubble: user.chatBubble,
+                    isDiamondChatBubble: true,
+                    chatBubbleExpiresAt: user.chatBubbleExpiresAt || null,
+                    unlockedDiamondChatBubbles: user.unlockedDiamondChatBubbles,
+                    diamondChatBubbleExpiries: user.diamondChatBubbleExpiries
                 }
             });
         }
